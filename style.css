@@ -475,7 +475,8 @@ img, iframe { max-width: 100%; }
 .pullquote cite {
   display: block;
   margin-top: .8rem;
-  font-family: var(--label);
+  font-family: Georgia, Times, Serif;
+  font-weight: bold;
   font-style: normal;
   font-size: .72rem;
   letter-spacing: .15em;
