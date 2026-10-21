@@ -1,3 +1,4 @@
+
 /* ==========================================================
    1. DESIGN TOKENS
    Dark is the default (:root). Light values live in the
@@ -540,8 +541,325 @@ footer {
   .pullquote { padding: 1.2rem; }
 }
 
+/* ==========================================================
+   10. CLIENT REVIEWS + HIRE ME
+   ========================================================== */
+
+/* --- Review: quote on top, 5-star rating directly below.
+       Sits at the bottom of each .collab card and spans both columns. --- */
+.review {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: .6rem;
+  margin: 0;
+  padding-top: 1rem;
+  border-top: 2px dashed var(--edge);
+}
+.review__text {
+  margin: 0;
+  max-width: 60ch;
+  font-family: "Roboto Slab", var(--label);
+  font-style: italic;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  color: var(--ink);
+}
+.review__text p { margin: 0; }
+.review__stars { display: flex; gap: .2rem; }
+
+/* Filled star by default; add .star--off for an empty one */
+.star {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  fill: var(--ochre);
+  stroke: var(--ochre);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+.star--off { fill: none; }
+
+/* --- Hire Me --- */
+.section__head--center { justify-content: center; text-align: center; }
+
+.hire {
+  display: grid;
+  grid-template-columns: minmax(180px, 240px) 1fr;
+  align-items: center;
+  gap: clamp(1.5rem, 4vw, 3rem);
+  max-width: 52rem;
+  margin: 0 auto;
+  padding: clamp(1.2rem, 3vw, 2rem);
+  background-color: var(--surface);
+  border: 2px solid var(--edge);
+  box-shadow: 7px 7px 0 var(--shadow);
+  transform: rotate(-.4deg);
+}
+
+/* Left: circular profile picture (use a square image; it gets masked to a circle) */
+.hire__media { position: relative; justify-self: center; width: min(100%, 220px); }
+.hire__photo {
+  aspect-ratio: 1 / 1;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  font-family: var(--label);
+  font-size: 4rem;
+  color: #14161a;
+  background: var(--c, var(--ochre));
+  border: 2px solid var(--edge);
+  box-shadow: 5px 5px 0 var(--shadow);
+}
+.hire__photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.hire__media .tape { top: -10px; left: calc(50% - 40px); width: 80px; height: 22px; transform: rotate(-4deg); z-index: 2; }
+
+/* Right: call to action */
+.hire__body { display: flex; flex-direction: column; align-items: flex-start; gap: 1.1rem; }
+.hire__prompt {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 900;
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  line-height: 1.2;
+}
+.hire__body .btn { margin: 0; }
+
+/* Mobile: photo stacks ABOVE the text + link (it comes first in the HTML) */
+@media (max-width: 767px) {
+  .review__text { font-size: 1rem; }
+
+  .hire {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+    transform: none;
+  }
+  .hire__media { width: min(60%, 200px); }
+  .hire__body { align-items: center; }
+}
+
 /* Respect users who prefer less motion */
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   * { transition: none !important; }
 }
+
+
+/* footer */
+footer {
+	font-family: monospace;
+	font-size: 1rem;
+	margin-top: 1rem;
+	display: grid;
+	place-items: center;
+	position: relative;
+}
+
+footer #lamp-top::before {
+	transition: all var(--time-transition) var(--delay-lamp) linear;
+
+	content: "";
+	position: absolute;
+	height: var(--height-top-lamp);
+	width: calc(var(--width-lamp-glass)/2);
+	border-top-right-radius: 100%;
+	background-color: var(--color-lamp);
+	border-top: 1px solid var(--border-lamp);
+	border-right: 1px solid var(--border-lamp);
+
+	top: -2rem;
+	left: 50%;
+}
+
+footer #lamp-top::after {
+	transition: all var(--time-transition) var(--delay-lamp) linear;
+
+	content: "";
+	position: absolute;
+	height: var(--height-top-lamp);
+	width: calc(var(--width-lamp-glass)/2);
+	border-top-left-radius: 100%;
+	background-color: var(--color-lamp);
+	border-top: 1px solid var(--border-lamp);
+	border-left: 1px solid var(--border-lamp);
+
+	top: -2rem;
+	left: 50%;
+	transform: translateX(-100%);
+}
+
+footer #lamp-sides-bottom::before {
+	transition: all var(--time-transition) var(--delay-lamp) linear;
+
+	content: "";
+	position: absolute;
+	height: var(--height-bottom-lamp);
+	width: calc(var(--width-lamp-glass)/4);
+	border-bottom-left-radius: 100%;
+	background-color: var(--color-lamp);
+	border-bottom: 1px solid var(--border-lamp);
+	border-left: 1px solid var(--border-lamp);
+
+	top: -1rem;
+	left: 50%;
+	transform: translateX(calc(-200% + 1px));
+	/* the 1px i because of the border ( i think ) */
+}
+
+footer #lamp-sides-bottom::after {
+	transition: all var(--time-transition) var(--delay-lamp) linear;
+
+	content: "";
+	position: absolute;
+	height: var(--height-bottom-lamp);
+	width: calc(var(--width-lamp-glass)/4);
+	border-bottom-right-radius: 100%;
+	background-color: var(--color-lamp);
+	border-bottom: 1px solid var(--border-lamp);
+	border-right: 1px solid var(--border-lamp);
+
+	top: -1rem;
+	left: 50%;
+	transform: translateX(calc(100% - 1px));
+}
+
+footer #lamp-middle_e_metal-part::before {
+	transition: all var(--time-transition) var(--delay-lamp) linear;
+
+	content: "";
+	position: absolute;
+	height: var(--height-bottom-lamp);
+	width: calc(var(--width-lamp-glass)/2);
+	background-color: var(--color-lamp);
+	border-bottom: 1px solid var(--border-lamp);
+
+	top: -1rem;
+	left: 50%;
+	transform: translateX(-50%);
+}
+
+footer #lamp-middle_e_metal-part::after {
+	transition: all var(--time-transition) var(--delay-lamp) linear;
+
+	content: "";
+	position: absolute;
+	height: var(--height-metal-part);
+	width: calc(var(--width-lamp-metal));
+	background-color: var(--color-metal);
+	border-left: 2px dotted white;
+	border-right: 2px dotted white;
+	border-bottom-right-radius: 6px;
+	border-bottom-left-radius: 6px;
+
+	top: .5rem;
+	left: 50%;
+	transform: translateX(-50%);
+}
+
+footer #filament::before {
+	transition: all var(--time-transition) var(--delay-lamp) linear;
+
+	content: "";
+	position: absolute;
+	height: var(--height-metal-part);
+	width: calc(var(--width-lamp-glass)/4);
+	background-color: transparent;
+	border-right: 1px solid var(--color-filament);
+	border-left: 1px solid var(--color-filament);
+
+	top: 0%;
+	left: 50%;
+	transform: translateX(-50%);
+}
+
+footer #filament::after {
+	transition: all var(--time-transition) var(--delay-lamp) linear;
+
+	content: "";
+	position: absolute;
+	height: var(--height-filament);
+	width: calc(var(--width-lamp-glass)/4 + .2rem);
+	background-color: transparent;
+	outline: 1px dashed var(--color-filament);
+	border: 1px solid var(--color-filament);
+	z-index: 0;
+
+	top: 0%;
+	left: 50%;
+	transform: translateX(-50%);
+}
+
+footer #facking-light::before {
+	transition: all var(--time-transition) var(--delay-light) linear;
+
+	content: "";
+	position: absolute;
+	height: .5rem;
+	width: .5rem;
+	border-radius: 50%;
+	background-color: var(--shadow-color);
+	z-index: -1;
+
+	top: -25%;
+	left: 50%;
+	transform: translateX(-50%);
+	box-shadow: 0 0 var(--shadow-fade) var(--shadow-beggining) var(--shadow-color);
+}
+
+:root {
+	--width-lamp-glass: 2rem;
+	--width-lamp-metal: .6rem;
+	--border-lamp: rgba(0, 0, 0, 0.0);
+	/* change the color on hover: to yellow */
+	--color-lamp: rgba(225, 225, 225, 0.0);
+
+	/* change to yellow on hover */
+	--color-filament: transparent;
+	--color-metal: transparent;
+
+	--shadow-beggining: 60px;
+	--shadow-fade: 80px;
+	--shadow-color: none;
+
+	--time-transition: .5s;
+	--delay-light: .1s;
+	--delay-lamp: .7s;
+	--height-top-lamp: 1rem;
+	--height-bottom-lamp: 1.5rem;
+	--height-metal-part: .5rem;
+	--height-filament: .1rem;
+}
+
+footer:hover {
+	--width-lamp-glass: 2rem;
+	--width-lamp-metal: .6rem;
+	--border-lamp: #ffffff;
+
+	--my_yellow: #ffff33;
+
+	/* change the color on hover: to yellow */
+	--color-lamp: var(--my_yellow);
+
+	/* change to yellow on hover */
+	--color-filament: #ffdd00;
+	--color-metal: gray;
+
+	--shadow-beggining: 60px;
+	--shadow-fade: 80px;
+	--shadow-color: var(--my_yellow);
+
+	--time-transition: .5s;
+	--delay-light: .3s;
+	--delay-lamp: 0s;
+	--height-top-lamp: 1rem;
+	--height-bottom-lamp: 1.5rem;
+	--height-metal-part: .5rem;
+	--height-filament: .1rem;
+}
+
+/* .card:nth-child(where they are) { */
+/* 	order: the more negative the number, the first it will be. */
+/* } */

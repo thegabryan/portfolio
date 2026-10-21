@@ -9,7 +9,7 @@
 <meta property="og:type" content="website" />
 <meta property="og:title" content="Gabryan's portfolio" />
 <meta property="og:description" content="Need a great video editor? Check this out!" />
-change the meta properties later. 
+<!-- TODO: change the meta properties later. --> 
 <meta property="og:image" content="https://yourwebsite.com/path-to-your-banner.png" />
 <meta property="og:url" content="https://yourwebsite.com/" />
 <meta property="og:site_name" content="Gabryan" />
@@ -34,10 +34,10 @@ change the meta properties later.
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,500&family=Roboto+Slab:wght@400;700;900&family=Archivo+Black&display=swap" rel="stylesheet">
 
-<!--
 <link rel="stylesheet" href="style.css">
--->
 <style>
+
+
 /* ==========================================================
    1. DESIGN TOKENS
    Dark is the default (:root). Light values live in the
@@ -580,14 +580,338 @@ footer {
   .pullquote { padding: 1.2rem; }
 }
 
+/* ==========================================================
+   10. CLIENT REVIEWS + HIRE ME
+   ========================================================== */
+
+/* --- Review: quote on top, 5-star rating directly below.
+       Sits at the bottom of each .collab card and spans both columns. --- */
+.review {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: .6rem;
+  margin: 0;
+  padding-top: 1rem;
+  border-top: 2px dashed var(--edge);
+}
+.review__text {
+  margin: 0;
+  max-width: 60ch;
+  font-family: "Roboto Slab", var(--label);
+  font-style: italic;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  color: var(--ink);
+}
+.review__text p { margin: 0; }
+.review__stars { display: flex; gap: .2rem; }
+
+/* Filled star by default; add .star--off for an empty one */
+.star {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  fill: var(--ochre);
+  stroke: var(--ochre);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+.star--off { fill: none; }
+
+/* --- Hire Me --- */
+.section__head--center { justify-content: center; text-align: center; }
+
+.hire {
+  display: grid;
+  grid-template-columns: minmax(180px, 240px) 1fr;
+  align-items: center;
+  gap: clamp(1.5rem, 4vw, 3rem);
+  max-width: 52rem;
+  margin: 0 auto;
+  padding: clamp(1.2rem, 3vw, 2rem);
+  background-color: var(--surface);
+  border: 2px solid var(--edge);
+  box-shadow: 7px 7px 0 var(--shadow);
+  transform: rotate(-.4deg);
+}
+
+/* Left: circular profile picture (use a square image; it gets masked to a circle) */
+.hire__media { position: relative; justify-self: center; width: min(100%, 220px); }
+.hire__photo {
+  aspect-ratio: 1 / 1;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  font-family: var(--label);
+  font-size: 4rem;
+  color: #14161a;
+  background: var(--c, var(--ochre));
+  border: 2px solid var(--edge);
+  box-shadow: 5px 5px 0 var(--shadow);
+}
+.hire__photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.hire__media .tape { top: -10px; left: calc(50% - 40px); width: 80px; height: 22px; transform: rotate(-4deg); z-index: 2; }
+
+/* Right: call to action */
+.hire__body { display: flex; flex-direction: column; align-items: flex-start; gap: 1.1rem; }
+.hire__prompt {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 900;
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  line-height: 1.2;
+}
+.hire__body .btn { margin: 0; }
+
+/* Mobile: photo stacks ABOVE the text + link (it comes first in the HTML) */
+@media (max-width: 767px) {
+  .review__text { font-size: 1rem; }
+
+  .hire {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+    transform: none;
+  }
+  .hire__media { width: min(60%, 200px); }
+  .hire__body { align-items: center; }
+}
+
 /* Respect users who prefer less motion */
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   * { transition: none !important; }
 }
+
+
+/* footer */
+footer {
+	font-family: monospace;
+	font-size: 1rem;
+	margin-top: 1rem;
+	display: grid;
+	place-items: center;
+	position: relative;
+}
+
+footer #lamp-top::before {
+	transition: all var(--time-transition) var(--delay-lamp) linear;
+
+	content: "";
+	position: absolute;
+	height: var(--height-top-lamp);
+	width: calc(var(--width-lamp-glass)/2);
+	border-top-right-radius: 100%;
+	background-color: var(--color-lamp);
+	border-top: 1px solid var(--border-lamp);
+	border-right: 1px solid var(--border-lamp);
+
+	top: -2rem;
+	left: 50%;
+}
+
+footer #lamp-top::after {
+	transition: all var(--time-transition) var(--delay-lamp) linear;
+
+	content: "";
+	position: absolute;
+	height: var(--height-top-lamp);
+	width: calc(var(--width-lamp-glass)/2);
+	border-top-left-radius: 100%;
+	background-color: var(--color-lamp);
+	border-top: 1px solid var(--border-lamp);
+	border-left: 1px solid var(--border-lamp);
+
+	top: -2rem;
+	left: 50%;
+	transform: translateX(-100%);
+}
+
+footer #lamp-sides-bottom::before {
+	transition: all var(--time-transition) var(--delay-lamp) linear;
+
+	content: "";
+	position: absolute;
+	height: var(--height-bottom-lamp);
+	width: calc(var(--width-lamp-glass)/4);
+	border-bottom-left-radius: 100%;
+	background-color: var(--color-lamp);
+	border-bottom: 1px solid var(--border-lamp);
+	border-left: 1px solid var(--border-lamp);
+
+	top: -1rem;
+	left: 50%;
+	transform: translateX(calc(-200% + 1px));
+	/* the 1px i because of the border ( i think ) */
+}
+
+footer #lamp-sides-bottom::after {
+	transition: all var(--time-transition) var(--delay-lamp) linear;
+
+	content: "";
+	position: absolute;
+	height: var(--height-bottom-lamp);
+	width: calc(var(--width-lamp-glass)/4);
+	border-bottom-right-radius: 100%;
+	background-color: var(--color-lamp);
+	border-bottom: 1px solid var(--border-lamp);
+	border-right: 1px solid var(--border-lamp);
+
+	top: -1rem;
+	left: 50%;
+	transform: translateX(calc(100% - 1px));
+}
+
+footer #lamp-middle_e_metal-part::before {
+	transition: all var(--time-transition) var(--delay-lamp) linear;
+
+	content: "";
+	position: absolute;
+	height: var(--height-bottom-lamp);
+	width: calc(var(--width-lamp-glass)/2);
+	background-color: var(--color-lamp);
+	border-bottom: 1px solid var(--border-lamp);
+
+	top: -1rem;
+	left: 50%;
+	transform: translateX(-50%);
+}
+
+footer #lamp-middle_e_metal-part::after {
+	transition: all var(--time-transition) var(--delay-lamp) linear;
+
+	content: "";
+	position: absolute;
+	height: var(--height-metal-part);
+	width: calc(var(--width-lamp-metal));
+	background-color: var(--color-metal);
+	border-left: 2px dotted white;
+	border-right: 2px dotted white;
+	border-bottom-right-radius: 6px;
+	border-bottom-left-radius: 6px;
+
+	top: .5rem;
+	left: 50%;
+	transform: translateX(-50%);
+}
+
+footer #filament::before {
+	transition: all var(--time-transition) var(--delay-lamp) linear;
+
+	content: "";
+	position: absolute;
+	height: var(--height-metal-part);
+	width: calc(var(--width-lamp-glass)/4);
+	background-color: transparent;
+	border-right: 1px solid var(--color-filament);
+	border-left: 1px solid var(--color-filament);
+
+	top: 0%;
+	left: 50%;
+	transform: translateX(-50%);
+}
+
+footer #filament::after {
+	transition: all var(--time-transition) var(--delay-lamp) linear;
+
+	content: "";
+	position: absolute;
+	height: var(--height-filament);
+	width: calc(var(--width-lamp-glass)/4 + .2rem);
+	background-color: transparent;
+	outline: 1px dashed var(--color-filament);
+	border: 1px solid var(--color-filament);
+	z-index: 0;
+
+	top: 0%;
+	left: 50%;
+	transform: translateX(-50%);
+}
+
+footer #facking-light::before {
+	transition: all var(--time-transition) var(--delay-light) linear;
+
+	content: "";
+	position: absolute;
+	height: .5rem;
+	width: .5rem;
+	border-radius: 50%;
+	background-color: var(--shadow-color);
+	z-index: -1;
+
+	top: -25%;
+	left: 50%;
+	transform: translateX(-50%);
+	box-shadow: 0 0 var(--shadow-fade) var(--shadow-beggining) var(--shadow-color);
+}
+
+:root {
+	--width-lamp-glass: 2rem;
+	--width-lamp-metal: .6rem;
+	--border-lamp: rgba(0, 0, 0, 0.0);
+	/* change the color on hover: to yellow */
+	--color-lamp: rgba(225, 225, 225, 0.0);
+
+	/* change to yellow on hover */
+	--color-filament: transparent;
+	--color-metal: transparent;
+
+	--shadow-beggining: 60px;
+	--shadow-fade: 80px;
+	--shadow-color: none;
+
+	--time-transition: .5s;
+	--delay-light: .1s;
+	--delay-lamp: .7s;
+	--height-top-lamp: 1rem;
+	--height-bottom-lamp: 1.5rem;
+	--height-metal-part: .5rem;
+	--height-filament: .1rem;
+}
+
+footer:hover {
+	--width-lamp-glass: 2rem;
+	--width-lamp-metal: .6rem;
+	--border-lamp: #ffffff;
+
+	--my_yellow: #ffff33;
+
+	/* change the color on hover: to yellow */
+	--color-lamp: var(--my_yellow);
+
+	/* change to yellow on hover */
+	--color-filament: #ffdd00;
+	--color-metal: gray;
+
+	--shadow-beggining: 60px;
+	--shadow-fade: 80px;
+	--shadow-color: var(--my_yellow);
+
+	--time-transition: .5s;
+	--delay-light: .3s;
+	--delay-lamp: 0s;
+	--height-top-lamp: 1rem;
+	--height-bottom-lamp: 1.5rem;
+	--height-metal-part: .5rem;
+	--height-filament: .1rem;
+}
+
+/* .card:nth-child(where they are) { */
+/* 	order: the more negative the number, the first it will be. */
+/* } */
 </style>
 </head>
 <body>
+
+<!-- Star icon sprite: reused by every review via <use href="#icon-star"> -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="icon-star" viewBox="0 0 24 24">
+    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+  </symbol>
+</svg>
 
 <!-- ===== Sticky header with theme toggle ===== -->
 <header class="masthead">
@@ -621,11 +945,11 @@ footer {
       <h1 class="hero__title"><mark>Educational Content</mark>, The Way it Should Be.</h1>
 
       <p class="hero__bio">
-      <!-- this is a paragraph with first letter bigger than others. -->
+      <!-- first word of the paragraph in a medieval style -->
       </p>
 
       <a class="btn" href="#clients">See my work</a>
-      <a id="btn_cta" class="btn" href="link this to the hire me section you are going to craete.">Hire me</a>
+      <a id="btn_cta" class="btn" href="#hire">Hire me</a>
     </div>
 
     <!-- RIGHT: 16:9 iframe inside a collage frame -->
@@ -681,6 +1005,21 @@ footer {
         <!-- RIGHT: the video (swap srcdoc for src="https://www.youtube.com/embed/VIDEO_ID") -->
         <div class="embed">
         <iframe width="560" height="315" src="https://www.youtube.com/embed/QhQbiWRwJ0w?si=6KYRpAaQCjw3DyJR" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>
+        <!-- REVIEW TEMPLATE: copy this whole <figure> into any .collab article to add a review.
+             Stars: keep 5 <svg> icons; add class="star--off" to any that should be empty,
+             and update the aria-label to match. -->
+        <figure class="review">
+          <blockquote class="review__text">
+            <p>“Working with Gabriel has been a delight. He is very cooperative, receptive, and a hard worker. He's creative and eager to try new things, and he is quick to make improvements when we give feedback. He's also very chill, which made collaborating with him fun.”</p>
+          </blockquote>
+          <div class="review__stars" role="img" aria-label="Rated 5 out of 5 stars">
+            <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+            <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+            <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+            <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+            <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+          </div>
+        </figure>
       </article>
 
       <!-- Collaboration 2 -->
@@ -698,6 +1037,18 @@ footer {
         <div class="embed">
 <iframe width="560" height="315" src="https://www.youtube.com/embed/jAAFySWdhrI?si=SZjGXMrVSlPQyUeK" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
         </div>
+        <figure class="review">
+          <blockquote class="review__text">
+            <p>“Very professional and reliable. Communication is smooth, deadlines are always met, and the whole process feels effortless on my end. Every video comes back polished, engaging, and exactly aligned with what I had in mind (often even better than I envisioned myself). If you're looking for someone who combines technical skill with creative intuition, I highly recommend you work with Gabryan!”</p>
+          </blockquote>
+          <div class="review__stars" role="img" aria-label="Rated 5 out of 5 stars">
+            <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+            <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+            <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+            <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+            <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+          </div>
+        </figure>
       </article>
 
       <!-- Collaboration 3 -->
@@ -714,19 +1065,31 @@ footer {
         </div>
         <div class="embed">
         <iframe width="560" height="315" src="https://www.youtube.com/embed/RlxAuLyhq38?si=2O_qouyLdWeeVPQX" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>
+        <figure class="review">
+          <blockquote class="review__text">
+            <p>“I had a great experience working with Gabriel. He was professional, patient, and easy to communicate with throughout the editing process. He understood my vision and delivered a clean, high-quality video that I was very satisfied with. I appreciate his attention to detail and willingness to work with my ideas. I'm looking forward to collaborating with him again on future projects. Highly recommend”</p>
+          </blockquote>
+          <div class="review__stars" role="img" aria-label="Rated 5 out of 5 stars">
+            <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+            <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+            <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+            <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+            <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+          </div>
+        </figure>
       </article>
 
     </div>
   </section>
 
   <!-- ===== THIRD SECTION: Selected work ===== -->
+  <!--
   <section class="section" id="work">
     <div class="section__head">
-        <!--
       <span class="tag tag--rust">Chapter 03</span>
-        -->
       <h2 class="section__title">Client <em>reviews</em>📝</h2>
     </div>
+  -->
 <!--
     <div class="cards">
       <article class="card">
@@ -753,27 +1116,52 @@ footer {
         <span class="card__meta">Product · UX</span>
       </article>
     </div>
+  </section>
 -->
 
+
+  <!-- ===== FOURTH SECTION: Hire me ===== -->
+  <section class="section grid-bg" id="hire">
+    <div class="section__head section__head--center">
+      <h2 class="section__title">Hire <em>Me</em></h2>
+    </div>
+    <!--
     <blockquote class="pullquote" id="contact">
         “He who has begun is half done; <b>dare to know, begin!</b>”
       <cite>— Quintus Horatius Flaccus </cite>
     </blockquote>
-    this quite should stay in the hire me section. 
-    Section title(centered in the section): hire me
-    positioning:[
-    left side: my profile pic (placeholder, i will add the pic later. sqtare for social media standards. 
-    right side:[
-    text: send me a twitter dm: 
-    link tag to take people to my tweeter page w text: Gabryan a dm
-    ]
-    ]
+    -->
 
+    <div class="hire">
+      <!-- LEFT: circular profile picture -->
+      <div class="hire__media">
+        <span class="tape" aria-hidden="true"></span>
+        <!--
+          Replace the placeholder with your square picture:
+          <div class="hire__photo"><img src="./media/profile.jpg" alt="Gabryan's profile picture"></div>
+        -->
+          <div class="hire__photo"><img src="./media/profile.jpg" alt="Gabryan's profile picture"></div>
+      </div>
 
+      <!-- RIGHT: call to action -->
+      <div class="hire__body">
+        <p class="hire__prompt">Send me a Twitter DM:</p>
+        <!-- Swap YOUR_HANDLE for your Twitter/X username -->
+        <a class="btn" href="https://x.com/YOUR_HANDLE" target="_blank" rel="noopener noreferrer">DM Gabryan now!</a>
+      </div>
+    </div>
   </section>
+
 </main>
 
-<footer>© 2026 Field Notes · Built with paper, tape &amp; CSS</footer>
+<footer>
+    <span id="lamp-top"></span>
+    <span id="lamp-sides-bottom"></span>
+    <span id="lamp-middle_e_metal-part"></span>
+    <span id="filament"></span>
+    <span id="facking-light"></span>
+    <p>Gabriel R. totosão</p>
+</footer>
 
 </body>
 </html>

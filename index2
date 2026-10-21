@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gabryan Portfolio</title>
+
+<!-- Open Graph / Discord Embed Meta Tags -->
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Gabryan's portfolio" />
+<meta property="og:description" content="Need a great video editor? Check this out!" />
+change the meta properties later. 
+<meta property="og:image" content="https://yourwebsite.com/path-to-your-banner.png" />
+<meta property="og:url" content="https://yourwebsite.com/" />
+<meta property="og:site_name" content="Gabryan" />
+
+<!-- Enables large image preview format in Discord and Twitter/X -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="theme-color" content="#00aaff" />
+
+<!-- JavaScript
+  Apply the saved theme BEFORE first paint so there is no flash.
+  Default is dark; only an explicit "light" choice overrides it.
+
+  THEME TOGGLE
+  Flips data-theme on <html> between "dark" and "light",
+  keeps the switch's aria-checked in sync, and remembers the
+  choice (storage wrapped in try/catch for private windows).
+========================================================== -->
+<script src="script.js" defer></script>
+
+<!-- Fonts: serif headlines + heavy slab/sans labels -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,500&family=Roboto+Slab:wght@400;700;900&family=Archivo+Black&display=swap" rel="stylesheet">
+
+<!--
+<link rel="stylesheet" href="style.css">
+-->
+<style>
+/* ==========================================================
+   1. DESIGN TOKENS
+   Dark is the default (:root). Light values live in the
+   [data-theme="light"] block below. Every colour in the file
+   comes from these variables, so the toggle only swaps them.
+   ========================================================== */
+:root {
+  color-scheme: dark;
+
+  /* Surfaces */
+  --bg:        #121417;   /* off-black page background */
+  --surface:   #1b1e23;   /* cards, frames */
+  --surface-2: #262a31;   /* secondary sheet behind frames */
+
+  /* Text */
+  --ink:       #ecebe6;   /* crisp off-white */
+  --ink-soft:  #a9acb1;   /* light grey body copy */
+
+  /* Muted accents (brightened a touch for dark backgrounds) */
+  --ochre:     #d4a04a;
+  --olive:     #9da363;
+  --rust:      #d0704b;
+  --on-accent: #121417;   /* text colour placed on olive / rust tags */
+
+  /* Collage details */
+  --edge:      rgba(236, 235, 230, .75);  /* outlines */
+  --shadow:    rgba(0, 0, 0, .55);        /* offset "paper" shadows */
+  --grid:      rgba(255, 255, 255, .05);  /* graph-paper lines */
+  --banner-bg: #ecebe6;                   /* torn banner = light paper cutout */
+  --banner-fg: #14161a;
+  --cite:      #8a5a12;                   /* cite text on the light pull-quote */
+  --header-bg: rgba(18, 20, 23, .88);
+
+  /* Paper grain (SVG noise). Light speckle on dark paper. */
+  --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .6 0'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='.09'/></svg>");
+
+  /* Fonts */
+  --serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --slab:  'Roboto Slab', Georgia, serif;
+  --label: 'Archivo Black', 'Arial Black', Impact, sans-serif;
+
+  /* Layout */
+  --header-h: 56px;       /* sticky header height */
+  --u: 1vh;               /* viewport unit (upgraded to svh below) */
+}
+
+/* Light theme overrides */
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg:        #efe9dc;
+  --surface:   #e4dccb;
+  --surface-2: #cfc9bd;
+
+  --ink:       #23272b;
+  --ink-soft:  #4a5056;
+
+  --ochre:     #b7822f;
+  --olive:     #6b7040;
+  --rust:      #9a4a2b;
+  --on-accent: #efe9dc;
+
+  --edge:      #23272b;
+  --shadow:    rgba(35, 39, 43, .22);
+  --grid:      rgba(35, 39, 43, .09);
+  --banner-bg: #23272b;
+  --banner-fg: #efe9dc;
+  --cite:      #d4a04a;
+  --header-bg: rgba(239, 233, 220, .9);
+
+  /* Dark speckle on light paper */
+  --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .25  0 0 0 0 .22  0 0 0 0 .18  0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='.55'/></svg>");
+}
+
+/* Prefer small-viewport units so mobile browser bars don't push content */
+@supports (height: 1svh) { :root { --u: 1svh; } }
+
+/* ==========================================================
+   2. BASE + PAPER TEXTURE
+   ========================================================== */
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: var(--header-h);   /* anchors land below sticky header */
+}
+
+body {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--slab);
+  line-height: 1.6;
+  background-color: var(--bg);
+  background-image: var(--grain);
+  transition: background-color .25s ease, color .25s ease;
+}
+
+img, iframe { max-width: 100%; }
+
+/* ==========================================================
+   3. REUSABLE COLLAGE PIECES
+   ========================================================== */
+
+/* Graph-paper grid, applied to any container via .grid-bg */
+.grid-bg {
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* Small heavy label ("CHAPTER 02", "FIG. 1") */
+.tag {
+  display: inline-block;
+  font-family: var(--label);
+  font-size: .72rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  padding: .3em .8em;
+  color: var(--bg);
+  background: var(--ink);
+  transform: rotate(-2deg);
+  box-shadow: 2px 2px 0 var(--shadow);
+}
+.tag--olive { background: var(--olive); color: var(--on-accent); }
+.tag--rust  { background: var(--rust);  color: var(--on-accent); transform: rotate(1.5deg); }
+
+/* Strip of translucent "masking tape" */
+.tape {
+  position: absolute;
+  width: 110px;
+  height: 28px;
+  background: rgba(214, 190, 120, .55);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .25);
+  clip-path: polygon(0 0, 4% 50%, 0 100%, 100% 100%, 96% 50%, 100% 0);
+  pointer-events: none;
+}
+
+/* 16:9 responsive video wrapper (used in hero + collaborations) */
+.embed {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: #0b0c0e;
+  border: 2px solid var(--edge);
+  overflow: hidden;
+}
+.embed iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* ==========================================================
+   4. STICKY HEADER + THEME TOGGLE
+   Fixed height (--header-h) so the hero can budget around it.
+   ========================================================== */
+.masthead {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  height: var(--header-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0 clamp(1rem, 5vw, 4rem);
+  background: var(--header-bg);
+  -webkit-backdrop-filter: blur(8px);
+          backdrop-filter: blur(8px);
+  border-bottom: 3px double var(--edge);
+  font-family: var(--label);
+  font-size: .78rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.masthead__brand { white-space: nowrap; }
+.masthead__right { display: flex; align-items: center; gap: 1.6rem; }
+.masthead nav { display: flex; gap: 1.4rem; }
+.masthead a { color: inherit; text-decoration: none; }
+.masthead a:hover { color: var(--rust); text-decoration: underline wavy; }
+
+/* Switch: knob slides right in dark mode, left in light mode */
+.switch {
+  position: relative;
+  flex: none;
+  width: 58px;
+  height: 30px;
+  padding: 0;
+  cursor: pointer;
+  background: var(--surface-2);
+  border: 2px solid var(--edge);
+  border-radius: 999px;
+  transition: background .2s ease;
+}
+.switch:focus-visible { outline: 2px solid var(--ochre); outline-offset: 3px; }
+.switch__knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  font-size: .8rem;
+  line-height: 1;
+  color: #1a1a1a;
+  background: var(--ochre);
+  border-radius: 50%;
+  transition: transform .2s ease;
+}
+.switch__knob::before { content: "\2600"; }                 /* sun */
+.switch[aria-checked="true"] .switch__knob { transform: translateX(28px); }
+.switch[aria-checked="true"] .switch__knob::before { content: "\263E"; } /* moon */
+
+/* ==========================================================
+   5. HERO — header + hero ≈ 64% of the viewport
+   Header is 56px; the hero's min-height fills the rest of the
+   64% budget. Type and the video are sized in viewport units so
+   the whole block stays compact and the next section peeks in.
+   ========================================================== */
+.hero {
+  min-height: calc(64 * var(--u) - var(--header-h));
+  display: grid;
+  grid-template-columns: 1fr 1.1fr;
+  align-items: center;
+  gap: clamp(1.5rem, 4vw, 4rem);
+  padding: clamp(.75rem, 3 * var(--u), 2rem) clamp(1rem, 5vw, 4rem);
+}
+
+/* ---------- Left column: text ---------- */
+.hero__text { position: relative; }
+
+.hero__kicker { margin-bottom: clamp(.6rem, 2 * var(--u), 1.1rem); }
+
+/* Headline sits on a torn-paper banner */
+.hero__title {
+  display: inline-block;
+  margin: 0 0 clamp(.6rem, 2 * var(--u), 1.1rem);
+  padding: .45em .7em .55em;
+  font-family: var(--serif);
+  font-weight: 900;
+  /* capped by both width and height so it never bloats the hero */
+  font-size: clamp(1.7rem, min(4vw, 6.2 * var(--u)), 3.2rem);
+  line-height: 1.05;
+  color: var(--banner-fg);
+  background: var(--banner-bg);
+  transform: rotate(-1.2deg);
+  /* Jagged top & bottom edges = torn paper */
+  clip-path: polygon(
+    0 4%, 5% 0, 11% 5%, 18% 1%, 26% 4%, 34% 0, 42% 5%, 51% 1%, 60% 4%, 69% 0, 78% 5%, 87% 1%, 94% 4%, 100% 0,
+    100% 96%, 95% 100%, 88% 95%, 80% 99%, 71% 95%, 62% 100%, 53% 96%, 44% 99%, 35% 95%, 26% 100%, 17% 96%, 9% 99%, 0 95%
+  );
+  filter: drop-shadow(5px 5px 0 var(--shadow));
+}
+/* Marker-swipe highlight */
+.hero__title mark {
+  background: linear-gradient(transparent 55%, var(--ochre) 55%, var(--ochre) 92%, transparent 92%);
+  color: inherit;
+  padding: 0 .1em;
+}
+
+.hero__bio {
+  max-width: 34rem;
+  margin: 0 0 clamp(.8rem, 2.5 * var(--u), 1.4rem);
+  font-size: .95rem;
+  color: var(--ink-soft);
+}
+.hero__bio::first-letter {                 /* editorial drop cap */
+  float: left;
+  font-family: var(--serif);
+  font-weight: 900;
+  font-size: 3rem;
+  line-height: .8;
+  padding: .08em .1em 0 0;
+  color: var(--rust);
+}
+
+/* ---------- Tactile cutout button ---------- */
+.btn {
+  display: inline-block;
+  padding: .75em 1.5em;
+  margin: 0 1rem 0 0;
+  font-family: var(--label);
+  font-size: .85rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: #1a1a1a;                          /* dark text on ochre in both themes */
+  background: var(--ochre);
+  border: 2px solid var(--edge);
+  transform: rotate(1.5deg);
+  box-shadow: 5px 5px 0 var(--edge);
+  transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
+}
+
+#btn_cta{
+  background: var(--olive);
+}
+
+.btn:hover,
+.btn:focus-visible {
+  filter: brightness(1.1);
+  transform: rotate(0deg) translate(2px, 2px);
+  box-shadow: 2px 2px 0 var(--edge);
+  outline: none;
+}
+.btn:active { transform: translate(5px, 5px); box-shadow: 0 0 0 var(--edge); }
+
+/* ---------- Right column: framed iframe ---------- */
+.hero__media { position: relative; padding: .6rem; }
+
+.frame {
+  position: relative;
+  margin: 0 auto;
+  padding: .8rem;
+  background-color: var(--surface);
+  border: 2px solid var(--edge);
+  transform: rotate(1.4deg);
+  box-shadow: 8px 10px 0 var(--shadow);
+  /* Cap the frame width so the 16:9 video's height stays within the
+     hero budget: (64vh − ~11rem of chrome) × 16/9 + padding. */
+  max-width: max(300px, calc((64 * var(--u) - 11rem) * 1.7778 + 1.6rem + 4px));
+}
+.frame::before {                             /* second sheet peeking out */
+  content: "";
+  position: absolute;
+  inset: 8px -10px -10px 8px;
+  background: var(--surface-2);
+  border: 2px solid var(--edge);
+  z-index: -1;
+  transform: rotate(-3deg);
+}
+.frame__caption {
+  margin: .6rem 0 0;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: .85rem;
+  color: var(--ink-soft);
+}
+.hero__media .tape--1 { top: -2px; left: 14%; transform: rotate(-6deg); z-index: 2; }
+.hero__media .tape--2 { bottom: 4px; right: 10%; transform: rotate(5deg); z-index: 2; }
+
+/* ==========================================================
+   6. SECTIONS (shared)
+   ========================================================== */
+.section {
+  position: relative;
+  padding: clamp(2.5rem, 6vw, 5rem) clamp(1rem, 5vw, 4rem);
+  border-top: 3px double var(--edge);
+}
+.section__head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 1rem 1.5rem;
+  margin-bottom: 2.2rem;
+}
+.section__title {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 900;
+  font-size: clamp(1.8rem, 4vw, 3rem);
+}
+.section__title em { color: var(--rust); font-weight: 500; }
+
+/* ==========================================================
+   7. FEATURED COLLABORATIONS (second section)
+   Each row: left = square channel picture + name, right = video.
+   ========================================================== */
+.collabs { display: grid; gap: clamp(1.5rem, 3vw, 2.5rem); }
+
+.collab {
+  display: grid;
+  grid-template-columns: minmax(200px, 280px) 1fr;
+  align-items: center;
+  gap: clamp(1.2rem, 3vw, 2.5rem);
+  padding: clamp(1rem, 2vw, 1.6rem);
+  background-color: var(--surface);
+  border: 2px solid var(--edge);
+  box-shadow: 7px 7px 0 var(--shadow);
+}
+.collab:nth-child(odd)  { transform: rotate(-.5deg); }
+.collab:nth-child(even) { transform: rotate(.5deg); }
+
+/* Left: who it was for */
+.collab__who {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: .6rem;
+}
+
+/* Square channel picture. --c sets the placeholder colour per client. */
+.avatar {
+  position: relative;
+  width: min(100%, 180px);
+  aspect-ratio: 1 / 1;                     /* always square */
+  display: grid;
+  place-items: center;
+  margin-bottom: .4rem;
+  font-family: var(--label);
+  font-size: 3rem;
+  color: #14161a;
+  background: var(--c, var(--ochre));
+  border: 2px solid var(--edge);
+  box-shadow: 5px 5px 0 var(--shadow);
+  transform: rotate(-2deg);
+}
+/* Real pictures: drop an <img> in and it fills the square */
+.avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.avatar .tape { top: -14px; left: calc(50% - 40px); width: 80px; height: 22px; transform: rotate(4deg); }
+
+.collab__name {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 1.35rem;
+  line-height: 1.2;
+}
+.collab__meta {
+  margin: 0;
+  font-size: .85rem;
+  color: var(--ink-soft);
+}
+
+/* ==========================================================
+   8. SELECTED WORK — pinned clippings
+   ========================================================== */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: clamp(1.5rem, 3vw, 2.5rem);
+}
+.card {
+  position: relative;
+  padding: 1.6rem 1.4rem 1.4rem;
+  background-color: var(--surface);
+  border: 2px solid var(--edge);
+  box-shadow: 6px 6px 0 var(--shadow);
+  transition: transform .2s ease;
+}
+.card:nth-child(1) { transform: rotate(-1.4deg); }
+.card:nth-child(2) { transform: rotate(1deg) translateY(10px); }
+.card:nth-child(3) { transform: rotate(-.6deg); }
+.card:hover { transform: rotate(0) translateY(-4px); }
+.card .tape { top: -14px; left: calc(50% - 55px); transform: rotate(-3deg); }
+
+.card__num { font-family: var(--label); font-size: 2.6rem; line-height: 1; color: var(--olive); }
+.card h3   { margin: .4rem 0 .6rem; font-family: var(--serif); font-size: 1.4rem; }
+.card p    { margin: 0 0 1rem; font-size: .95rem; color: var(--ink-soft); }
+.card__meta {
+  font-family: var(--label);
+  font-size: .7rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--rust);
+}
+
+/* Pull-quote */
+.pullquote {
+  margin: 4rem auto 0;
+  max-width: 46rem;
+  padding: 1.6rem 2rem;
+  text-align: center;
+  background: var(--banner-bg);
+  color: var(--banner-fg);
+  font-family: var(--serif);
+  font-size: clamp(1.2rem, 2.6vw, 1.8rem);
+  font-style: italic;
+  transform: rotate(-.8deg);
+  box-shadow: 8px 8px 0 var(--ochre);
+}
+.pullquote cite {
+  display: block;
+  margin-top: .8rem;
+  font-family: Georgia, Times, Serif;
+  font-weight: bold;
+  font-style: normal;
+  font-size: .72rem;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: var(--cite);
+}
+
+footer {
+  padding: 1.5rem clamp(1rem, 5vw, 4rem);
+  border-top: 3px double var(--edge);
+  font-family: var(--label);
+  font-size: .72rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+/* ==========================================================
+   9. RESPONSIVE
+   ========================================================== */
+
+/* Tablet / mobile: stack everything */
+@media (max-width: 767px) {
+  .masthead nav { display: none; }             /* brand + toggle only */
+
+  /* Hero: compact stack so header + hero still stay near 65-70%
+     of a typical phone screen. */
+  .hero {
+    grid-template-columns: 1fr;
+    min-height: 0;
+    gap: 1rem;
+    padding-top: .9rem;
+    padding-bottom: 1rem;
+  }
+  .hero__title { font-size: clamp(1.5rem, 7vw, 2rem); }
+  .hero__bio {                                  /* trim bio to two lines */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+            line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-bottom: .9rem;
+  }
+  .hero__bio::first-letter { all: unset; }      /* no drop cap when clamped */
+  .hero__media { padding: .3rem; }
+  .frame { max-width: none; transform: rotate(.6deg); padding: .6rem; }
+  .frame__caption { display: none; }
+
+  /* Collaborations: picture + name on top, video below */
+  .collab { grid-template-columns: 1fr; transform: none !important; }
+  .collab__who {
+    flex-direction: row;
+    align-items: center;
+    gap: 1rem;
+  }
+  .avatar { width: 88px; font-size: 1.8rem; margin: 0; flex: none; }
+  .avatar .tape { display: none; }
+
+  .cards { grid-template-columns: 1fr; }
+  .card:nth-child(n) { transform: rotate(-.6deg); }
+  .pullquote { padding: 1.2rem; }
+}
+
+/* Respect users who prefer less motion */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  * { transition: none !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- ===== Sticky header with theme toggle ===== -->
+<header class="masthead">
+    <span class="masthead__brand">Gabryan's portfolio <span style='font-size: 1rem'>💼</span> &nbsp;/&nbsp;</span>
+
+  <div class="masthead__right">
+    <nav aria-label="Primary">
+      <a href="#about">About</a>
+      <a href="#clients">Clients</a>
+      <a href="#work">Work</a>
+    </nav>
+
+    <!-- role="switch": aria-checked="true" means dark mode is ON -->
+    <button class="switch" id="themeToggle" type="button" role="switch"
+            aria-checked="true" aria-label="Dark mode">
+      <span class="switch__knob" aria-hidden="true"></span>
+    </button>
+  </div>
+</header>
+
+<main>
+  <!-- ===== HERO: two-column split ===== -->
+  <section class="hero" id="about">
+
+    <!-- LEFT: headline, bio, button -->
+    <div class="hero__text">
+        <!---
+      <span class="tag hero__kicker">Educational Content Editor</span><br>
+      --->
+
+      <h1 class="hero__title"><mark>Educational Content</mark>, The Way it Should Be.</h1>
+
+      <p class="hero__bio">
+      <!-- this is a paragraph with first letter bigger than others. -->
+      </p>
+
+      <a class="btn" href="#clients">See my work</a>
+      <a id="btn_cta" class="btn" href="link this to the hire me section you are going to craete.">Hire me</a>
+    </div>
+
+    <!-- RIGHT: 16:9 iframe inside a collage frame -->
+    <div class="hero__media">
+      <span class="tape tape--1" aria-hidden="true"></span>
+      <span class="tape tape--2" aria-hidden="true"></span>
+
+      <figure class="frame grid-bg">
+        <div class="embed">
+          <!--
+            SWAP ME: replace srcdoc with your own src, e.g.
+            src="https://www.youtube.com/embed/VIDEO_ID"
+            (srcdoc below is just a self-contained placeholder.)
+          -->
+<iframe width="560" height="315" src="https://www.youtube.com/embed/jAAFySWdhrI?si=2Uj-9snDRH6SDTmX" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+        </div>
+        <!--
+        <figcaption class="frame__caption">Fig. 1 — A featured piece, pinned to the board.</figcaption>
+        -->
+      </figure>
+    </div>
+  </section>
+
+  <!-- ===== SECOND SECTION: Featured collaborations ===== -->
+  <section class="section grid-bg" id="clients">
+    <div class="section__head">
+        <!--
+      <span class="tag tag--olive">Chapter 02</span>
+        -->
+      <h2 class="section__title">My <em>collaborations</em></h2>
+    </div>
+
+    <div class="collabs">
+
+      <!-- Collaboration 1 — duplicate this <article> for more clients -->
+      <article class="collab">
+        <!-- LEFT: square channel picture + client name -->
+        <div class="collab__who">
+          <!--
+            Replace the initials with a real picture:
+            <div class="avatar"><img src="channel.jpg" alt="Northwind Studio channel picture"></div>
+          -->
+          <div class="avatar" style="--c: var(--ochre);" role="img" aria-label="Channel picture placeholder for Northwind Studio">
+            <span class="tape" aria-hidden="true"></span>
+            <div class="avatar"><img src="./media/channel_pic/th_exp.jpg" alt="Northwind Studio channel picture"></div>
+          </div>
+          <div>
+            <h3 class="collab__name">Thoughtless Experiment</h3>
+            <p class="collab__meta">Philosophy documentary channel</p>
+          </div>
+        </div>
+
+        <!-- RIGHT: the video (swap srcdoc for src="https://www.youtube.com/embed/VIDEO_ID") -->
+        <div class="embed">
+        <iframe width="560" height="315" src="https://www.youtube.com/embed/QhQbiWRwJ0w?si=6KYRpAaQCjw3DyJR" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>
+      </article>
+
+      <!-- Collaboration 2 -->
+      <article class="collab">
+        <div class="collab__who">
+          <div class="avatar" style="--c: var(--olive);" role="img" aria-label="Channel picture placeholder for Kitchen Table">
+            <span class="tape" aria-hidden="true"></span>
+            <div class="avatar"><img src="./media/channel_pic/fin_eng.jpg" alt="Northwind Studio channel picture"></div>
+          </div>
+          <div>
+            <h3 class="collab__name">Financial Engineering</h3>
+            <p class="collab__meta">Finance educational channel</p>
+          </div>
+        </div>
+        <div class="embed">
+<iframe width="560" height="315" src="https://www.youtube.com/embed/jAAFySWdhrI?si=SZjGXMrVSlPQyUeK" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+        </div>
+      </article>
+
+      <!-- Collaboration 3 -->
+      <article class="collab">
+        <div class="collab__who">
+          <div class="avatar" style="--c: var(--rust);" role="img" aria-label="Channel picture placeholder for Daily Orbit">
+            <span class="tape" aria-hidden="true"></span>
+            <div class="avatar"><img src="./media/channel_pic/heal_nat.jpg" alt="Northwind Studio channel picture"></div>
+          </div>
+          <div>
+            <h3 class="collab__name">Heal By Nature </h3>
+            <p class="collab__meta">Educational natural wellness channel</p>
+          </div>
+        </div>
+        <div class="embed">
+        <iframe width="560" height="315" src="https://www.youtube.com/embed/RlxAuLyhq38?si=2O_qouyLdWeeVPQX" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- ===== THIRD SECTION: Selected work ===== -->
+  <section class="section" id="work">
+    <div class="section__head">
+        <!--
+      <span class="tag tag--rust">Chapter 03</span>
+        -->
+      <h2 class="section__title">Client <em>reviews</em>📝</h2>
+    </div>
+<!--
+    <div class="cards">
+      <article class="card">
+        <span class="tape" aria-hidden="true"></span>
+        <div class="card__num">01</div>
+        <h3>The Housing Index</h3>
+        <p>An interactive data essay mapping rent against wages across twelve cities. Placeholder copy.</p>
+        <span class="card__meta">Data viz · 2026</span>
+      </article>
+
+      <article class="card">
+        <span class="tape" aria-hidden="true"></span>
+        <div class="card__num">02</div>
+        <h3>Salt &amp; Cinder</h3>
+        <p>Brand identity and storefront for a small-batch ceramics studio. Placeholder copy.</p>
+        <span class="card__meta">Branding · Web</span>
+      </article>
+
+      <article class="card">
+        <span class="tape" aria-hidden="true"></span>
+        <div class="card__num">03</div>
+        <h3>Quiet Hours</h3>
+        <p>A mobile app prototype for mindful screen-time habits. Placeholder copy.</p>
+        <span class="card__meta">Product · UX</span>
+      </article>
+    </div>
+-->
+
+    <blockquote class="pullquote" id="contact">
+        “He who has begun is half done; <b>dare to know, begin!</b>”
+      <cite>— Quintus Horatius Flaccus </cite>
+    </blockquote>
+    this quite should stay in the hire me section. 
+    Section title(centered in the section): hire me
+    positioning:[
+    left side: my profile pic (placeholder, i will add the pic later. sqtare for social media standards. 
+    right side:[
+    text: send me a twitter dm: 
+    link tag to take people to my tweeter page w text: Gabryan a dm
+    ]
+    ]
+
+
+  </section>
+</main>
+
+<footer>© 2026 Field Notes · Built with paper, tape &amp; CSS</footer>
+
+</body>
+</html>
