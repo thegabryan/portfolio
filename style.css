@@ -1,4 +1,3 @@
-
 /* ==========================================================
    1. DESIGN TOKENS
    Dark is the default (:root). Light values live in the
@@ -349,7 +348,8 @@ img, iframe { max-width: 100%; }
    ========================================================== */
 .section {
   position: relative;
-  padding: clamp(2.5rem, 6vw, 5rem) clamp(1rem, 5vw, 4rem);
+  padding: clamp(2.5rem, 2vw, 3rem) clamp(1rem, 5vw, 4rem);
+  /*padding: 2.5rem 1rem;*/
   border-top: 3px double var(--edge);
 }
 .section__head {
@@ -485,16 +485,6 @@ img, iframe { max-width: 100%; }
   color: var(--cite);
 }
 
-footer {
-  padding: 1.5rem clamp(1rem, 5vw, 4rem);
-  border-top: 3px double var(--edge);
-  font-family: var(--label);
-  font-size: .72rem;
-  letter-spacing: .14em;
-  text-transform: uppercase;
-  text-align: center;
-}
-
 /* ==========================================================
    9. RESPONSIVE
    ========================================================== */
@@ -584,18 +574,34 @@ footer {
 /* --- Hire Me --- */
 .section__head--center { justify-content: center; text-align: center; }
 
+/* The card is a torn-paper cutout, like the About headline (.hero__title).
+   The torn shape is drawn on ::before so the drop-shadow filter on .hire can
+   follow its jagged edge (a clip-path on the same element would clip its own shadow). */
 .hire {
+  --edge: var(--banner-fg);        /* outlines inside the cutout use the banner's ink colour */
+  position: relative;
   display: grid;
   grid-template-columns: minmax(180px, 240px) 1fr;
   align-items: center;
   gap: clamp(1.5rem, 4vw, 3rem);
   max-width: 52rem;
   margin: 0 auto;
-  padding: clamp(1.2rem, 3vw, 2rem);
-  background-color: var(--surface);
-  border: 2px solid var(--edge);
-  box-shadow: 7px 7px 0 var(--shadow);
-  transform: rotate(-.4deg);
+  padding: clamp(1.8rem, 4vw, 2.8rem) clamp(1.4rem, 3vw, 2.4rem);
+  color: var(--banner-fg);
+  transform: rotate(-.6deg);
+  filter: drop-shadow(6px 6px 0 var(--shadow));
+}
+.hire::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;                     /* behind the photo + text, above nothing else */
+  background: var(--banner-bg);
+  /* Jagged top & bottom edges = torn paper */
+  clip-path: polygon(
+    0 2%, 4% 0, 8% 2.2%, 13% .4%, 18% 2%, 23% 0, 28% 2.4%, 34% .6%, 40% 2%, 46% 0, 52% 2.2%, 58% .4%, 64% 2%, 70% 0, 76% 2.4%, 82% .6%, 88% 2%, 94% 0, 100% 1.6%,
+    100% 98%, 95% 100%, 90% 97.8%, 84% 99.6%, 78% 98%, 72% 100%, 66% 97.6%, 60% 99.4%, 54% 98%, 48% 100%, 42% 97.8%, 36% 99.6%, 30% 98%, 24% 100%, 18% 97.6%, 12% 99.4%, 6% 98%, 0 99.6%
+  );
 }
 
 /* Left: circular profile picture (use a square image; it gets masked to a circle) */
@@ -649,13 +655,43 @@ footer {
 
 
 /* footer */
+
 footer {
-	font-family: monospace;
-	font-size: 1rem;
-	margin-top: 1rem;
-	display: grid;
-	place-items: center;
-	position: relative;
+    padding-bottom: 5rem;
+    padding: .70rem clamp(1rem, 5vw, 4rem);
+    border-top: 3px double var(--edge);
+    font-family: 'Segoe Script', 'Segoe Print', cursive, var(--label);
+    font-weight: bold;
+    font-size: .93rem;
+    letter-spacing: .14em;
+    display: grid;
+    place-items: center;
+    position: relative;
+
+    /* --- River: water gradient + two wave layers drifting sideways --- */
+    color: #f4f1e8;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, .65);          /* keeps the text readable on the water */
+    background:
+        /* near ripples (faster) */
+        url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='40' viewBox='0 0 200 40'><path d='M0 20 Q50 4 100 20 T200 20' fill='none' stroke='white' stroke-opacity='.3' stroke-width='2'/></svg>") repeat-x 0 30% / 200px 40px,
+        /* far ripples (slower) */
+        url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='50' viewBox='0 0 300 50'><path d='M0 25 Q75 8 150 25 T300 25' fill='none' stroke='white' stroke-opacity='.05' stroke-width='3'/></svg>") repeat-x 0 75% / 300px 50px,
+        /* deep water */
+        linear-gradient(180deg, #2b5266cf 0%, #17303fcf 100%);
+    box-shadow: inset 0 8px 10px -8px rgba(0, 0, 0, .5),
+                inset 0 -8px 10px -8px rgba(0, 0, 0, .5);   /* soft river banks */
+    animation: river-flow 14s linear infinite;
+}
+
+/* Each layer moves by exactly its own tile width, so the loop is seamless.
+   Different distances = different speeds = a little parallax. */
+@keyframes river-flow {
+    from { background-position: 0 30%,     0 75%,     0 0; }
+    to   { background-position: 200px 30%, 300px 75%, 0 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    footer { animation: none; }
 }
 
 footer #lamp-top::before {
@@ -749,8 +785,8 @@ footer #lamp-middle_e_metal-part::after {
 	height: var(--height-metal-part);
 	width: calc(var(--width-lamp-metal));
 	background-color: var(--color-metal);
-	border-left: 2px dotted white;
-	border-right: 2px dotted white;
+	border-left: 2px dotted var(--border_color);
+	border-right: 2px dotted var(--border_color);
 	border-bottom-right-radius: 6px;
 	border-bottom-left-radius: 6px;
 
@@ -810,6 +846,7 @@ footer #facking-light::before {
 }
 
 :root {
+
 	--width-lamp-glass: 2rem;
 	--width-lamp-metal: .6rem;
 	--border-lamp: rgba(0, 0, 0, 0.0);
@@ -831,6 +868,8 @@ footer #facking-light::before {
 	--height-bottom-lamp: 1.5rem;
 	--height-metal-part: .5rem;
 	--height-filament: .1rem;
+
+    --border_color: transparent;
 }
 
 footer:hover {
@@ -858,6 +897,14 @@ footer:hover {
 	--height-bottom-lamp: 1.5rem;
 	--height-metal-part: .5rem;
 	--height-filament: .1rem;
+
+    --border_color: white;
+}
+
+footer mark {
+  background: linear-gradient(transparent 55%, var(--ochre) 55%, var(--ochre) 92%, transparent 92%);
+  color: inherit;
+  padding: 0 .1em;
 }
 
 /* .card:nth-child(where they are) { */
