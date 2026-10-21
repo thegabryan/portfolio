@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gabryan Portfolio</title>
+
+<!-- Open Graph / Discord Embed Meta Tags -->
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Gabryan's portfolio" />
+<meta property="og:description" content="Need a great video editor? Check this out!" />
+change the meta properties later. 
+<meta property="og:image" content="https://yourwebsite.com/path-to-your-banner.png" />
+<meta property="og:url" content="https://yourwebsite.com/" />
+<meta property="og:site_name" content="Gabryan" />
+
+<!-- Enables large image preview format in Discord and Twitter/X -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="theme-color" content="#00aaff" />
+
+<!-- JavaScript
+  Apply the saved theme BEFORE first paint so there is no flash.
+  Default is dark; only an explicit "light" choice overrides it.
+
+  THEME TOGGLE
+  Flips data-theme on <html> between "dark" and "light",
+  keeps the switch's aria-checked in sync, and remembers the
+  choice (storage wrapped in try/catch for private windows).
+========================================================== -->
+<script src="script.js" defer></script>
+
+<!-- Fonts: serif headlines + heavy slab/sans labels -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,500&family=Roboto+Slab:wght@400;700;900&family=Archivo+Black&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ===== Sticky header with theme toggle ===== -->
+<header class="masthead">
+    <span class="masthead__brand">Gabryan's portfolio <span style='font-size: 1rem'>💼</span> &nbsp;/&nbsp;</span>
+
+  <div class="masthead__right">
+    <nav aria-label="Primary">
+      <a href="#about">About</a>
+      <a href="#clients">Clients</a>
+      <a href="#work">Work</a>
+    </nav>
+
+    <!-- role="switch": aria-checked="true" means dark mode is ON -->
+    <button class="switch" id="themeToggle" type="button" role="switch"
+            aria-checked="true" aria-label="Dark mode">
+      <span class="switch__knob" aria-hidden="true"></span>
+    </button>
+  </div>
+</header>
+
+<main>
+  <!-- ===== HERO: two-column split ===== -->
+  <section class="hero" id="about">
+
+    <!-- LEFT: headline, bio, button -->
+    <div class="hero__text">
+        <!---
+      <span class="tag hero__kicker">Educational Content Editor</span><br>
+      --->
+
+      <h1 class="hero__title"><mark>Educational Content</mark>, The Way it Should Be.</h1>
+
+      <p class="hero__bio">
+      <!-- this is a paragraph with first letter bigger than others. -->
+      </p>
+
+      <a class="btn" href="#clients">See my work</a>
+      <a id="btn_cta" class="btn" href="#clients">Send me a DM!</a>
+    </div>
+
+    <!-- RIGHT: 16:9 iframe inside a collage frame -->
+    <div class="hero__media">
+      <span class="tape tape--1" aria-hidden="true"></span>
+      <span class="tape tape--2" aria-hidden="true"></span>
+
+      <figure class="frame grid-bg">
+        <div class="embed">
+          <!--
+            SWAP ME: replace srcdoc with your own src, e.g.
+            src="https://www.youtube.com/embed/VIDEO_ID"
+            (srcdoc below is just a self-contained placeholder.)
+          -->
+          <iframe
+            title="Featured project preview"
+            loading="lazy"
+            srcdoc="<body style='margin:0;display:grid;place-items:center;height:100vh;background:#23272b;color:#efe9dc;font-family:Georgia,serif;text-align:center'><div><div style='font:700 12px Arial;letter-spacing:.2em;color:#d4a04a'>FEATURED PROJECT</div><h2 style='margin:.4em 0;font-size:28px'>Your embed goes here</h2><div style='opacity:.7;font-size:14px'>Video · Prototype · Live site</div></div></body>"
+            allowfullscreen></iframe>
+        </div>
+        <!--
+        <figcaption class="frame__caption">Fig. 1 — A featured piece, pinned to the board.</figcaption>
+        -->
+      </figure>
+    </div>
+  </section>
+
+  <!-- ===== SECOND SECTION: Featured collaborations ===== -->
+  <section class="section grid-bg" id="clients">
+    <div class="section__head">
+        <!--
+      <span class="tag tag--olive">Chapter 02</span>
+        -->
+      <h2 class="section__title">My <em>collaborations</em></h2>
+    </div>
+
+    <div class="collabs">
+
+      <!-- Collaboration 1 — duplicate this <article> for more clients -->
+      <article class="collab">
+        <!-- LEFT: square channel picture + client name -->
+        <div class="collab__who">
+          <!--
+            Replace the initials with a real picture:
+            <div class="avatar"><img src="channel.jpg" alt="Northwind Studio channel picture"></div>
+          -->
+          <div class="avatar" style="--c: var(--ochre);" role="img" aria-label="Channel picture placeholder for Northwind Studio">
+            <span class="tape" aria-hidden="true"></span>
+            <span>NS</span>
+          </div>
+          <div>
+            <h3 class="collab__name">Northwind Studio</h3>
+            <p class="collab__meta">Travel documentary channel</p>
+          </div>
+        </div>
+
+        <!-- RIGHT: the video (swap srcdoc for src="https://www.youtube.com/embed/VIDEO_ID") -->
+        <div class="embed">
+          <iframe
+            title="Video made for Northwind Studio"
+            loading="lazy"
+            srcdoc="<body style='margin:0;display:grid;place-items:center;height:100vh;background:#1b1e23;color:#ecebe6;font-family:Georgia,serif;text-align:center'><div><div style='font:700 11px Arial;letter-spacing:.2em;color:#d4a04a'>CLIENT VIDEO</div><h3 style='margin:.4em 0'>Northwind Studio</h3></div></body>"
+            allowfullscreen></iframe>
+        </div>
+      </article>
+
+      <!-- Collaboration 2 -->
+      <article class="collab">
+        <div class="collab__who">
+          <div class="avatar" style="--c: var(--olive);" role="img" aria-label="Channel picture placeholder for Kitchen Table">
+            <span class="tape" aria-hidden="true"></span>
+            <span>KT</span>
+          </div>
+          <div>
+            <h3 class="collab__name">Kitchen Table</h3>
+            <p class="collab__meta">Home-cooking channel</p>
+          </div>
+        </div>
+        <div class="embed">
+          <iframe
+            title="Video made for Kitchen Table"
+            loading="lazy"
+            srcdoc="<body style='margin:0;display:grid;place-items:center;height:100vh;background:#1b1e23;color:#ecebe6;font-family:Georgia,serif;text-align:center'><div><div style='font:700 11px Arial;letter-spacing:.2em;color:#9da363'>CLIENT VIDEO</div><h3 style='margin:.4em 0'>Kitchen Table</h3></div></body>"
+            allowfullscreen></iframe>
+        </div>
+      </article>
+
+      <!-- Collaboration 3 -->
+      <article class="collab">
+        <div class="collab__who">
+          <div class="avatar" style="--c: var(--rust);" role="img" aria-label="Channel picture placeholder for Daily Orbit">
+            <span class="tape" aria-hidden="true"></span>
+            <span>DO</span>
+          </div>
+          <div>
+            <h3 class="collab__name">Daily Orbit</h3>
+            <p class="collab__meta">Science explainers</p>
+          </div>
+        </div>
+        <div class="embed">
+          <iframe
+            title="Video made for Daily Orbit"
+            loading="lazy"
+            srcdoc="<body style='margin:0;display:grid;place-items:center;height:100vh;background:#1b1e23;color:#ecebe6;font-family:Georgia,serif;text-align:center'><div><div style='font:700 11px Arial;letter-spacing:.2em;color:#d0704b'>CLIENT VIDEO</div><h3 style='margin:.4em 0'>Daily Orbit</h3></div></body>"
+            allowfullscreen></iframe>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- ===== THIRD SECTION: Selected work ===== -->
+  <section class="section" id="work">
+    <div class="section__head">
+      <span class="tag tag--rust">Chapter 03</span>
+      <h2 class="section__title">Selected <em>work</em></h2>
+    </div>
+
+    <div class="cards">
+      <article class="card">
+        <span class="tape" aria-hidden="true"></span>
+        <div class="card__num">01</div>
+        <h3>The Housing Index</h3>
+        <p>An interactive data essay mapping rent against wages across twelve cities. Placeholder copy.</p>
+        <span class="card__meta">Data viz · 2026</span>
+      </article>
+
+      <article class="card">
+        <span class="tape" aria-hidden="true"></span>
+        <div class="card__num">02</div>
+        <h3>Salt &amp; Cinder</h3>
+        <p>Brand identity and storefront for a small-batch ceramics studio. Placeholder copy.</p>
+        <span class="card__meta">Branding · Web</span>
+      </article>
+
+      <article class="card">
+        <span class="tape" aria-hidden="true"></span>
+        <div class="card__num">03</div>
+        <h3>Quiet Hours</h3>
+        <p>A mobile app prototype for mindful screen-time habits. Placeholder copy.</p>
+        <span class="card__meta">Product · UX</span>
+      </article>
+    </div>
+
+    <blockquote class="pullquote" id="contact">
+      “Good design is a conversation between structure and a little bit of mess.”
+      <cite>— Your name here · hello@example.com</cite>
+    </blockquote>
+  </section>
+</main>
+
+<footer>© 2026 Field Notes · Built with paper, tape &amp; CSS</footer>
+
+</body>
+</html>
