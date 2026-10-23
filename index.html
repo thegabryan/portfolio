@@ -672,6 +672,14 @@ img, iframe { max-width: 100%; }
 }
 .hire__body .btn { margin: 0; }
 
+/* Extra space at the bottom of the Hire section.
+   EDIT ME: change the three values in clamp(min, preferred, max) below.
+   min = smallest (phones), max = largest (desktop), preferred = scales with screen width. */
+#hire { padding-bottom: clamp(2rem, 5vw, 4rem); }
+
+/* Stars centered below the Hire card */
+.hire__stars { justify-content: center; margin-top: clamp(1.8rem, 4vw, 2.6rem); }
+
 /* Mobile: photo stacks ABOVE the text + link (it comes first in the HTML) */
 @media (max-width: 767px) {
   .review__text { font-size: 1rem; }
@@ -685,6 +693,50 @@ img, iframe { max-width: 100%; }
   .hire__media { width: min(60%, 200px); }
   .hire__body { align-items: center; }
 }
+
+/* ==========================================================
+   10b. CLIENT FEEDBACK — masonry wall of message screenshots
+   CSS multi-column layout: each screenshot keeps its natural
+   aspect ratio (height:auto), so tall and wide images sit
+   together with no cropping or stretching.
+   ========================================================== */
+.feedback {
+  column-count: 3;
+  column-gap: clamp(1.2rem, 3vw, 2.2rem);
+  max-width: 70rem;
+  margin: 0 auto;
+}
+.shot {
+  position: relative;
+  display: inline-block;               /* needed with break-inside for some browsers */
+  width: 100%;
+  margin: 0 0 clamp(1.2rem, 3vw, 2.2rem);
+  padding: .7rem;
+  background-color: var(--surface);
+  border: 2px solid var(--edge);
+  box-shadow: 6px 6px 0 var(--shadow);
+  break-inside: avoid;                 /* never split a screenshot across columns */
+  -webkit-column-break-inside: avoid;
+  transition: transform .2s ease;
+}
+.shot:nth-child(odd)  { transform: rotate(-.8deg); }
+.shot:nth-child(even) { transform: rotate(.7deg); }
+.shot:hover { transform: rotate(0) translateY(-4px); }
+.shot .tape { top: -13px; left: calc(50% - 40px); width: 80px; height: 22px; transform: rotate(-4deg); z-index: 2; }
+.shot:nth-child(even) .tape { transform: rotate(4deg); }
+
+/* The screenshot itself: full width, natural height, never cropped */
+.shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--edge);
+  background: var(--surface-2);
+}
+
+@media (max-width: 900px) { .feedback { column-count: 2; } }
+@media (max-width: 767px) { .shot:nth-child(n) { transform: rotate(-.4deg); } }
+@media (max-width: 520px) { .feedback { column-count: 1; max-width: 26rem; } }
 
 /* Respect users who prefer less motion */
 @media (prefers-reduced-motion: reduce) {
@@ -970,12 +1022,13 @@ footer p{
 
 <!-- ===== Sticky header with theme toggle ===== -->
 <header class="masthead">
-    <span class="masthead__brand">Gabryan's portfolio <span style='font-size: 1rem'>💼</span> &nbsp;/&nbsp;</span>
+    <span class="masthead__brand">Gabryan's portfolio <span style='font-size: 1rem'>💼</span> &nbsp;///&nbsp;</span>
 
   <div class="masthead__right">
     <nav aria-label="Primary">
       <a href="#about">[About]</a>
       <a href="#clients">[Clients]</a>
+      <a href="#feedback">[Feedback]</a>
       <a href="#hire">[Hire me]</a>
     </nav>
 
@@ -1175,8 +1228,40 @@ footer p{
 -->
 
 
+  <!-- ===== CLIENT FEEDBACK: screenshots of messages ===== -->
+  <section class="section" id="feedback">
+    <div class="section__head section__head--center">
+      <h2 class="section__title">What Clients <em>Say</em></h2>
+    </div>
+
+    <!--
+      HOW TO SWAP: replace each src with your real screenshot (e.g. ./media/feedback/msg1.png)
+      and update the alt text. Keep width/height off the <img>: the CSS keeps the natural
+      aspect ratio, so any size works. Add or remove <figure class="shot"> blocks freely.
+      The placehold.co URLs below are only stand-ins with different shapes.
+    -->
+    <div class="feedback">
+      <figure class="shot">
+        <span class="tape" aria-hidden="true"></span>
+        <img src="./media/reviews/1.png" alt='Client message screenshot saying "the opening gave me goose bumps"' loading="lazy">
+      </figure>
+
+      <figure class="shot">
+        <span class="tape" aria-hidden="true"></span>
+        <img src="./media/reviews/2.png" alt='Client message screenshot saying "What can I say?  You outdid yourself again Perfect No changes You even learned chemistry for this one
+"' loading="lazy">
+      </figure>
+
+      <figure class="shot">
+        <span class="tape" aria-hidden="true"></span>
+        <img src="./media/reviews/3.png" alt='Client message screenshot saying "You captured the emotional depth of the video"' loading="lazy">
+      </figure>
+
+    </div>
+  </section>
+
   <!-- ===== FOURTH SECTION: Hire me ===== -->
-  <section class="section" id="hire">
+  <section class="section grid-bg" id="hire">
     <div class="section__head section__head--center">
       <h2 class="section__title">Hire <em>Me</em></h2>
     </div>
@@ -1202,8 +1287,17 @@ footer p{
       <div class="hire__body">
         <p class="hire__prompt">Send me a Twitter DM:</p>
         <!-- Swap YOUR_HANDLE for your Twitter/X username -->
-        <a class="btn" href="https://x.com/YOUR_HANDLE" target="_blank" rel="noopener noreferrer">DM Gabryan now!</a>
+        <a class="btn" href="https://x.com/thegabryan" target="_blank" rel="noopener noreferrer">DM Gabryan now!</a>
       </div>
+    </div>
+
+    <!-- 5-star rating, centered below the Hire card -->
+    <div class="review__stars hire__stars" role="img" aria-label="Rated 5 out of 5 stars">
+      <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+      <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+      <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+      <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+      <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
     </div>
   </section>
 

@@ -1235,28 +1235,20 @@ footer p{
     <div class="feedback">
       <figure class="shot">
         <span class="tape" aria-hidden="true"></span>
-        <img src="https://placehold.co/600x800?text=Screenshot+1" alt="Client message screenshot 1" loading="lazy">
+        <img src="./media/reviews/1.png" alt='Client message screenshot saying "the opening gave me goose bumps"' loading="lazy">
       </figure>
 
       <figure class="shot">
         <span class="tape" aria-hidden="true"></span>
-        <img src="https://placehold.co/800x500?text=Screenshot+2" alt="Client message screenshot 2" loading="lazy">
+        <img src="./media/reviews/2.png" alt='Client message screenshot saying "What can I say?  You outdid yourself again Perfect No changes You even learned chemistry for this one
+"' loading="lazy">
       </figure>
 
       <figure class="shot">
         <span class="tape" aria-hidden="true"></span>
-        <img src="https://placehold.co/600x1000?text=Screenshot+3" alt="Client message screenshot 3" loading="lazy">
+        <img src="./media/reviews/3.png" alt='Client message screenshot saying "You captured the emotional depth of the video"' loading="lazy">
       </figure>
 
-      <figure class="shot">
-        <span class="tape" aria-hidden="true"></span>
-        <img src="https://placehold.co/700x600?text=Screenshot+4" alt="Client message screenshot 4" loading="lazy">
-      </figure>
-
-      <figure class="shot">
-        <span class="tape" aria-hidden="true"></span>
-        <img src="https://placehold.co/600x700?text=Screenshot+5" alt="Client message screenshot 5" loading="lazy">
-      </figure>
     </div>
   </section>
 
