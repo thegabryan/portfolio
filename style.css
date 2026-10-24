@@ -633,6 +633,14 @@ img, iframe { max-width: 100%; }
 }
 .hire__body .btn { margin: 0; }
 
+/* Extra space at the bottom of the Hire section.
+   EDIT ME: change the three values in clamp(min, preferred, max) below.
+   min = smallest (phones), max = largest (desktop), preferred = scales with screen width. */
+#hire { padding-bottom: clamp(4rem, 5vw, 4rem); }
+
+/* Stars centered below the Hire card */
+.hire__stars { justify-content: center; margin-top: clamp(1.8rem, 4vw, 2.6rem); }
+
 /* Mobile: photo stacks ABOVE the text + link (it comes first in the HTML) */
 @media (max-width: 767px) {
   .review__text { font-size: 1rem; }
@@ -647,6 +655,50 @@ img, iframe { max-width: 100%; }
   .hire__body { align-items: center; }
 }
 
+/* ==========================================================
+   10b. CLIENT FEEDBACK — masonry wall of message screenshots
+   CSS multi-column layout: each screenshot keeps its natural
+   aspect ratio (height:auto), so tall and wide images sit
+   together with no cropping or stretching.
+   ========================================================== */
+.feedback {
+  column-count: 3;
+  column-gap: clamp(1.2rem, 3vw, 2.2rem);
+  max-width: 70rem;
+  margin: 0 auto;
+}
+.shot {
+  position: relative;
+  display: inline-block;               /* needed with break-inside for some browsers */
+  width: 100%;
+  margin: 0 0 clamp(1.2rem, 3vw, 2.2rem);
+  padding: .7rem;
+  background-color: var(--surface);
+  border: 2px solid var(--edge);
+  box-shadow: 6px 6px 0 var(--shadow);
+  break-inside: avoid;                 /* never split a screenshot across columns */
+  -webkit-column-break-inside: avoid;
+  transition: transform .2s ease;
+}
+.shot:nth-child(odd)  { transform: rotate(-.8deg); }
+.shot:nth-child(even) { transform: rotate(.7deg); }
+.shot:hover { transform: rotate(0) translateY(-4px); }
+.shot .tape { top: -13px; left: calc(50% - 40px); width: 80px; height: 22px; transform: rotate(-4deg); z-index: 2; }
+.shot:nth-child(even) .tape { transform: rotate(4deg); }
+
+/* The screenshot itself: full width, natural height, never cropped */
+.shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--edge);
+  background: var(--surface-2);
+}
+
+@media (max-width: 900px) { .feedback { column-count: 2; } }
+@media (max-width: 767px) { .shot:nth-child(n) { transform: rotate(-.4deg); } }
+@media (max-width: 520px) { .feedback { column-count: 1; max-width: 26rem; } }
+
 /* Respect users who prefer less motion */
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
@@ -657,12 +709,11 @@ img, iframe { max-width: 100%; }
 /* footer */
 
 footer {
-    padding-bottom: 5rem;
-    padding: .70rem clamp(1rem, 5vw, 4rem);
+    padding: .30rem clamp(.90rem, 4vw, 3rem);
     border-top: 3px double var(--edge);
     font-family: 'Segoe Script', 'Segoe Print', cursive, var(--label);
     font-weight: bold;
-    font-size: .93rem;
+    font-size: 1rem;
     letter-spacing: .14em;
     display: grid;
     place-items: center;
@@ -694,217 +745,242 @@ footer {
     footer { animation: none; }
 }
 
-footer #lamp-top::before {
-	transition: all var(--time-transition) var(--delay-lamp) linear;
+/* ==========================================================
+   FOOTER LAMP
+   A bulb plugged into the top edge of the river footer.
+   The lamp is invisible until the footer is hovered. Then it:
+     0. sprouts up out of the footer's edge with a springy bounce,
+     1. flickers on like an old tungsten filament,
+     2. blooms a warm halo into the page above,
+     3. throws a pool of light across the water + lights the name,
+     4. sends up a few dust motes and settles into a slow breathing glow.
+   Move away and it cools down gradually instead of snapping off.
+   Everything is driven by footer:hover. Tweak the tokens below.
+   ========================================================== */
+footer {
+  --lamp-size:  2.2rem;                        /* bulb width; the whole lamp scales with it */
+  --lamp-hot:   #fff6d0;                       /* filament + hottest centre */
+  --lamp-warm:  #ffd24a;                       /* main glow, rays, motes */
+  --lamp-amber: #ff9f1c;                       /* outer glass + deep glow */
+  --lu:         calc(var(--lamp-size) / 64);   /* one unit of the bulb drawing */
+  --glass-y:    calc(var(--lu) * 53 + 3px);    /* bulb centre, measured up from the footer's top edge */
+}
+@media (max-width: 520px) { footer { --lamp-size: 2.3rem; } }
 
-	content: "";
-	position: absolute;
-	height: var(--height-top-lamp);
-	width: calc(var(--width-lamp-glass)/2);
-	border-top-right-radius: 100%;
-	background-color: var(--color-lamp);
-	border-top: 1px solid var(--border-lamp);
-	border-right: 1px solid var(--border-lamp);
-
-	top: -2rem;
-	left: 50%;
+/* ---- Bulb (zero-size anchor on the footer's top edge) ---- */
+.lamp {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--lu) * 13);                   /* how far the base sinks into the footer */
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  /* Hidden until the footer is hovered: the bulb is shrunk to nothing at its base.
+     On hover it sprouts up with a springy overshoot; on leave it shrinks back
+     AFTER the light has started cooling (the .55s delay). */
+  transform: scale(0);
+  transform-origin: 0 0;
+  transition: transform .4s ease-in .55s;
+}
+footer:hover .lamp {
+  transform: scale(1);
+  transition: transform .6s cubic-bezier(.34, 1.7, .5, 1);
+}
+.lamp__bulb {
+  position: absolute;
+  left: calc(var(--lamp-size) / -2);
+  bottom: 0;
+  width: var(--lamp-size);
+  height: auto;
+  overflow: visible;                           /* rays extend outside the drawing */
+  transform-origin: 50% 100%;
+  pointer-events: none;
 }
 
-footer #lamp-top::after {
-	transition: all var(--time-transition) var(--delay-lamp) linear;
+/* Unlit look: theme-aware, so it reads in dark and light mode */
+.lamp .glass  { fill: color-mix(in srgb, var(--ink) 7%, transparent); stroke: var(--edge); stroke-width: 2.4; stroke-linejoin: round; pointer-events: auto; }
+.lamp .shine  { fill: none; stroke: var(--ink); stroke-opacity: .35; stroke-width: 2.4; stroke-linecap: round; }
+.lamp .wire   { fill: none; stroke: var(--ink-soft); stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.lamp .metal  { fill: color-mix(in srgb, var(--ink) 32%, var(--surface-2)); stroke: var(--edge); stroke-width: 2; stroke-linejoin: round; pointer-events: auto; }
+.lamp .groove { fill: none; stroke: var(--edge); stroke-width: 1.6; stroke-linecap: round; opacity: .8; }
 
-	content: "";
-	position: absolute;
-	height: var(--height-top-lamp);
-	width: calc(var(--width-lamp-glass)/2);
-	border-top-left-radius: 100%;
-	background-color: var(--color-lamp);
-	border-top: 1px solid var(--border-lamp);
-	border-left: 1px solid var(--border-lamp);
+/* Lit look: .lit fades (slow cool-down); .flick inside it does the stutter on ignition */
+.lamp .lit        { opacity: 0; transition: opacity .9s ease-in; }
+.lamp .lit-glass  { fill: url(#lampGlass); }
+.lamp .lit-collar { fill: url(#lampCollar); }
+.lamp .lit-wire   {
+  fill: none;
+  stroke: var(--lamp-hot);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 1.6px var(--lamp-amber)) drop-shadow(0 0 4px var(--lamp-warm));
+}
+.lamp .rays {
+  fill: none;
+  stroke: var(--lamp-warm);
+  stroke-width: 3;
+  stroke-linecap: round;
+  transform-origin: 32px 34px;                 /* centre of the glass */
+  transform: scale(.55);
+  transition: transform .9s ease-in;
+}
+.lamp .rays-pulse { transform-origin: 32px 34px; }
 
-	top: -2rem;
-	left: 50%;
-	transform: translateX(-100%);
+/* ---- Light on the page above the footer (sits BEHIND the content) ---- */
+.lamp__sky {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% - 3px);                    /* start at the footer's border */
+  height: 14rem;
+  overflow: hidden;                            /* keeps the glow from adding scroll space */
+  z-index: -1;
+  pointer-events: none;
+}
+.lamp__halo {
+  position: absolute;
+  left: calc(50% - 10rem);
+  bottom: calc(var(--glass-y) - 10rem);        /* centres the 20rem halo on the glass */
+  width: 20rem;
+  height: 20rem;
+  opacity: 0;
+  transform: scale(.35);
+  transition: opacity 1s ease-in, transform 1.2s ease-in;
+}
+.lamp__halo i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    rgba(255, 240, 170, .62) 0%,
+    rgba(255, 205,  80, .34) 20%,
+    rgba(255, 160,  40, .14) 45%,
+    rgba(255, 150,  30,  0 ) 70%);
 }
 
-footer #lamp-sides-bottom::before {
-	transition: all var(--time-transition) var(--delay-lamp) linear;
-
-	content: "";
-	position: absolute;
-	height: var(--height-bottom-lamp);
-	width: calc(var(--width-lamp-glass)/4);
-	border-bottom-left-radius: 100%;
-	background-color: var(--color-lamp);
-	border-bottom: 1px solid var(--border-lamp);
-	border-left: 1px solid var(--border-lamp);
-
-	top: -1rem;
-	left: 50%;
-	transform: translateX(calc(-200% + 1px));
-	/* the 1px i because of the border ( i think ) */
+/* Dust motes drifting up through the glow */
+.lamp__motes {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity .6s ease-in;
+}
+.lamp__mote {
+  position: absolute;
+  left: calc(50% + var(--x, 0rem));
+  bottom: calc(var(--glass-y) - 1.6rem);
+  width: .2rem;
+  height: .2rem;
+  border-radius: 50%;
+  background: var(--lamp-hot);
+  box-shadow: 0 0 .5rem .1rem var(--lamp-warm);
+  opacity: 0;
+  animation: lamp-mote var(--t, 4s) linear var(--d, 0s) infinite paused;
 }
 
-footer #lamp-sides-bottom::after {
-	transition: all var(--time-transition) var(--delay-lamp) linear;
-
-	content: "";
-	position: absolute;
-	height: var(--height-bottom-lamp);
-	width: calc(var(--width-lamp-glass)/4);
-	border-bottom-right-radius: 100%;
-	background-color: var(--color-lamp);
-	border-bottom: 1px solid var(--border-lamp);
-	border-right: 1px solid var(--border-lamp);
-
-	top: -1rem;
-	left: 50%;
-	transform: translateX(calc(100% - 1px));
+/* ---- Light on the water (above the footer's background, below the text) ---- */
+.lamp__pool {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .9s ease-in;
+}
+.lamp__pool i {
+  display: block;
+  height: 100%;
+  background: radial-gradient(ellipse 15rem 100% at 50% 0%,
+    rgba(255, 226, 120, .8) 0%,
+    rgba(255, 190,  60, .34) 42%,
+    rgba(255, 170,  40,  0 ) 100%);
 }
 
-footer #lamp-middle_e_metal-part::before {
-	transition: all var(--time-transition) var(--delay-lamp) linear;
-
-	content: "";
-	position: absolute;
-	height: var(--height-bottom-lamp);
-	width: calc(var(--width-lamp-glass)/2);
-	background-color: var(--color-lamp);
-	border-bottom: 1px solid var(--border-lamp);
-
-	top: -1rem;
-	left: 50%;
-	transform: translateX(-50%);
+/* The name warms up with the light */
+footer p {
+  position: relative;
+  z-index: 1;                                  /* above the pool of light */
+  transition: color .8s ease-in;
 }
 
-footer #lamp-middle_e_metal-part::after {
-	transition: all var(--time-transition) var(--delay-lamp) linear;
+/* ---- HOVER: turn it on ---- */
+footer:hover .lamp .lit        { opacity: 1; transition: opacity .1s linear; }
+/* Timeline: 0s bulb sprouts -> .4s filament flickers on -> 1.5s settled, breathing */
+footer:hover .lamp .rays       { transform: scale(1); transition: transform .7s cubic-bezier(.2, 1.5, .4, 1) .45s; }
+footer:hover .lamp .flick      { animation: lamp-ignite 1.1s linear .4s both; }
+footer:hover .lamp .rays-pulse { animation: lamp-rays 2.6s ease-in-out 1.6s infinite; }
+footer:hover .lamp__bulb       { animation: lamp-tick .7s ease-out .4s; }
 
-	content: "";
-	position: absolute;
-	height: var(--height-metal-part);
-	width: calc(var(--width-lamp-metal));
-	background-color: var(--color-metal);
-	border-left: 2px dotted var(--border_color);
-	border-right: 2px dotted var(--border_color);
-	border-bottom-right-radius: 6px;
-	border-bottom-left-radius: 6px;
+footer:hover .lamp__halo   { opacity: 1; transform: scale(1); transition: opacity .5s ease-out .45s, transform .9s cubic-bezier(.2, .8, .2, 1) .45s; }
+footer:hover .lamp__halo i { animation: lamp-ignite 1.3s linear .4s both, lamp-swell 3.6s ease-in-out 1.7s infinite; }
 
-	top: .5rem;
-	left: 50%;
-	transform: translateX(-50%);
+footer:hover .lamp__motes  { opacity: 1; transition: opacity .8s ease-out 1.4s; }
+footer:hover .lamp__mote   { animation-play-state: running; }
+
+footer:hover .lamp__pool   { opacity: 1; transition: opacity .5s ease-out .5s; }
+footer:hover .lamp__pool i { animation: lamp-ignite 1.3s linear .4s both, lamp-breathe 3.6s ease-in-out 1.7s infinite; }
+
+footer:hover p { color: #fff0c2; transition: color .5s ease-out .5s; }
+
+/* ---- Keyframes ---- */
+/* Filament stutter: a few false starts, then it catches */
+@keyframes lamp-ignite {
+  0%   { opacity: 0; }
+  7%   { opacity: .85; }
+  11%  { opacity: .08; }
+  19%  { opacity: .7; }
+  25%  { opacity: 0; }
+  35%  { opacity: .95; }
+  41%  { opacity: .3; }
+  52%  { opacity: 1; }
+  58%  { opacity: .78; }
+  66%  { opacity: 1; }
+  100% { opacity: 1; }
+}
+@keyframes lamp-breathe { 0%, 100% { opacity: 1; } 50% { opacity: .8; } }
+@keyframes lamp-swell   { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .82; transform: scale(1.05); } }
+@keyframes lamp-rays    { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+/* Tiny jolt in the socket when the power hits */
+@keyframes lamp-tick {
+  0%   { transform: rotate(0); }
+  14%  { transform: rotate(-2.2deg); }
+  30%  { transform: rotate(1.8deg); }
+  46%  { transform: rotate(-1.2deg); }
+  62%  { transform: rotate(.7deg); }
+  80%  { transform: rotate(-.3deg); }
+  100% { transform: rotate(0); }
+}
+@keyframes lamp-mote {
+  0%   { transform: translate(0, 0) scale(.5); opacity: 0; }
+  18%  { opacity: .9; }
+  100% { transform: translate(var(--dx, .8rem), -6rem) scale(1); opacity: 0; }
 }
 
-footer #filament::before {
-	transition: all var(--time-transition) var(--delay-lamp) linear;
-
-	content: "";
-	position: absolute;
-	height: var(--height-metal-part);
-	width: calc(var(--width-lamp-glass)/4);
-	background-color: transparent;
-	border-right: 1px solid var(--color-filament);
-	border-left: 1px solid var(--color-filament);
-
-	top: 0%;
-	left: 50%;
-	transform: translateX(-50%);
-}
-
-footer #filament::after {
-	transition: all var(--time-transition) var(--delay-lamp) linear;
-
-	content: "";
-	position: absolute;
-	height: var(--height-filament);
-	width: calc(var(--width-lamp-glass)/4 + .2rem);
-	background-color: transparent;
-	outline: 1px dashed var(--color-filament);
-	border: 1px solid var(--color-filament);
-	z-index: 0;
-
-	top: 0%;
-	left: 50%;
-	transform: translateX(-50%);
-}
-
-footer #facking-light::before {
-	transition: all var(--time-transition) var(--delay-light) linear;
-
-	content: "";
-	position: absolute;
-	height: .5rem;
-	width: .5rem;
-	border-radius: 50%;
-	background-color: var(--shadow-color);
-	z-index: -1;
-
-	top: -25%;
-	left: 50%;
-	transform: translateX(-50%);
-	box-shadow: 0 0 var(--shadow-fade) var(--shadow-beggining) var(--shadow-color);
-}
-
-:root {
-
-	--width-lamp-glass: 2rem;
-	--width-lamp-metal: .6rem;
-	--border-lamp: rgba(0, 0, 0, 0.0);
-	/* change the color on hover: to yellow */
-	--color-lamp: rgba(225, 225, 225, 0.0);
-
-	/* change to yellow on hover */
-	--color-filament: transparent;
-	--color-metal: transparent;
-
-	--shadow-beggining: 60px;
-	--shadow-fade: 80px;
-	--shadow-color: none;
-
-	--time-transition: .5s;
-	--delay-light: .1s;
-	--delay-lamp: .7s;
-	--height-top-lamp: 1rem;
-	--height-bottom-lamp: 1.5rem;
-	--height-metal-part: .5rem;
-	--height-filament: .1rem;
-
-    --border_color: transparent;
-}
-
-footer:hover {
-	--width-lamp-glass: 2rem;
-	--width-lamp-metal: .6rem;
-	--border-lamp: #ffffff;
-
-	--my_yellow: #ffff33;
-
-	/* change the color on hover: to yellow */
-	--color-lamp: var(--my_yellow);
-
-	/* change to yellow on hover */
-	--color-filament: #ffdd00;
-	--color-metal: gray;
-
-	--shadow-beggining: 60px;
-	--shadow-fade: 80px;
-	--shadow-color: var(--my_yellow);
-
-	--time-transition: .5s;
-	--delay-light: .3s;
-	--delay-lamp: 0s;
-	--height-top-lamp: 1rem;
-	--height-bottom-lamp: 1.5rem;
-	--height-metal-part: .5rem;
-	--height-filament: .1rem;
-
-    --border_color: white;
+/* Reduced motion: still lights up, but with no flicker, jolt, or drifting motes */
+@media (prefers-reduced-motion: reduce) {
+  footer .lamp__bulb,
+  footer .flick,
+  footer .rays-pulse,
+  footer .lamp__halo i,
+  footer .lamp__pool i,
+  footer .lamp__mote { animation: none !important; }
+  .lamp__motes { display: none; }
 }
 
 footer mark {
   background: linear-gradient(transparent 55%, var(--ochre) 55%, var(--ochre) 92%, transparent 92%);
   color: inherit;
   padding: 0 .1em;
+}
+
+footer p{
+    text-shadow: 
+        0 0 3rem black,
+        0 0 2rem black,
+        0 0 1rem black,
+        0 0 .5rem black;
 }
 
 /* .card:nth-child(where they are) { */
