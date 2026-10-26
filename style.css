@@ -176,6 +176,7 @@ img, iframe { max-width: 100%; }
   text-transform: uppercase;
 }
 .masthead__brand { white-space: nowrap; }
+.masthead__brand span { font-size: 1rem; }                /* the briefcase emoji */
 .masthead__right { display: flex; align-items: center; gap: 1.6rem; }
 .masthead nav { display: flex; gap: 1.4rem; }
 .masthead a { color: inherit; text-decoration: none; }
@@ -296,7 +297,8 @@ img, iframe { max-width: 100%; }
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
 }
 
-#btn_cta{
+#btn_cta,
+.btn--home {
   background: var(--olive);
 }
 
@@ -706,6 +708,61 @@ img, iframe { max-width: 100%; }
 }
 
 
+/* ==========================================================
+   11. 404 PAGE
+   Centred stack: label -> heading -> text -> links, then the footer.
+   The page is a column that is exactly one screen tall (header + content + footer);
+   the content block takes the leftover space and centres itself in it, so on
+   desktop nothing scrolls. Gaps and the heading size use --u (1svh) so they
+   shrink on short screens. If a screen is too short for the content, the page
+   simply grows and scrolls instead of clipping anything.
+   Reuses: .tag, .hero__title, .btn, #btn_cta green, .grid-bg, footer + lamp.
+   ========================================================== */
+.page-404 {
+  min-height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+.nf {
+  flex: 1;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: clamp(.7rem, 2.6 * var(--u), 1.6rem);
+  padding: clamp(1rem, 5 * var(--u), 4rem) clamp(1rem, 5vw, 4rem);
+  text-align: center;
+}
+
+.nf__title {                                   /* the torn-paper banner from the About section */
+  margin: 0;
+  max-width: 22ch;
+  font-size: clamp(1.7rem, min(6.4vw, 7 * var(--u)), 3.3rem);
+}
+.nf__title mark { white-space: nowrap; }       /* keep "Not even a frame." together instead of splitting the highlight */
+
+.nf__text {
+  margin: 0;
+  max-width: 30rem;
+  color: var(--ink-soft);
+}
+
+.nf__links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem 1.2rem;
+}
+.nf__links .btn { margin: 0; }
+.btn--home { padding: .85em 1.9em; font-size: 1rem; }                 /* main way out: bigger, green like "Hire me" */
+.nf__links--sub .btn { padding: .65em 1.2em; font-size: .74rem; }     /* section links: smaller, ochre */
+
+/* Phones: start from the top and let the page scroll if it has to */
+@media (max-width: 767px) {
+  .nf { align-content: start; padding-top: clamp(2rem, 8 * var(--u), 3rem); }
+}
+
 /* footer */
 
 footer {
@@ -879,6 +936,14 @@ footer:hover .lamp {
   opacity: 0;
   animation: lamp-mote var(--t, 4s) linear var(--d, 0s) infinite paused;
 }
+
+/* Per-mote position, drift, speed and delay (so the markup needs no inline styles) */
+.lamp__mote:nth-child(1) { --x:-2.6rem; --dx:.9rem; --t:4.2s; --d:0s; }
+.lamp__mote:nth-child(2) { --x:-.9rem; --dx:-.6rem; --t:3.6s; --d:.7s; }
+.lamp__mote:nth-child(3) { --x:1.1rem; --dx:.5rem; --t:4.6s; --d:1.4s; }
+.lamp__mote:nth-child(4) { --x:2.8rem; --dx:-.9rem; --t:3.9s; --d:.3s; }
+.lamp__mote:nth-child(5) { --x:-1.8rem; --dx:.4rem; --t:5s; --d:2.1s; }
+.lamp__mote:nth-child(6) { --x:.2rem; --dx:-.3rem; --t:4.4s; --d:2.8s; }
 
 /* ---- Light on the water (above the footer's background, below the text) ---- */
 .lamp__pool {
