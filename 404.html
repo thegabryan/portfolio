@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>404 · Gabryan Portfolio</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#00aaff" />
+
+<!--
+  BASE URL: a 404 page can be served from any broken address (/foo/bar/baz),
+  so every relative path below (style.css, script.js, links) needs a fixed starting point.
+  "/" is right when the site lives at the root of its domain.
+  If it lives in a folder (e.g. a GitHub project page at /portfolio/),
+  change it to that folder: <base href="/portfolio/">
+-->
+<base href="/">
+
+<!-- Same theme script, fonts and stylesheet as index.html. All styling lives in style.css. -->
+<script src="script.js" defer></script>
+
+<!-- <link rel="preconnect" href="https://fonts.googleapis.com"> -->
+<!-- <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin> -->
+<!-- <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,500&family=Roboto+Slab:wght@400;700;900&family=Archivo+Black&display=swap" rel="stylesheet"> -->
+
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="page-404">
+
+<!-- ===== Header: same brand + theme switch as the main site ===== -->
+<header class="masthead">
+  <span class="masthead__brand">Gabryan's portfolio <span>💼</span> &nbsp;/&nbsp;</span>
+
+  <div class="masthead__right">
+    <!-- role="switch": aria-checked="true" means dark mode is ON -->
+    <button class="switch" id="themeToggle" type="button" role="switch"
+            aria-checked="true" aria-label="Dark mode">
+      <span class="switch__knob" aria-hidden="true"></span>
+    </button>
+  </div>
+</header>
+
+<main class="nf grid-bg">
+  <span class="tag">ERROR 404 · NO SUCH ROOM</span>
+
+  <h1 class="hero__title nf__title">There’s nothing here. <mark>Not even a frame.</mark></h1>
+
+  <p class="nf__text">The page you asked for either moved, was never built, or got typed slightly wrong.</p>
+
+  <!-- Main way out -->
+  <div class="nf__links">
+    <a class="btn btn--home" href="/">Back to the main site</a>
+  </div>
+
+  <!-- Straight to a section of the main site -->
+  <nav class="nf__links nf__links--sub" aria-label="Sections of the main site">
+    <a class="btn" href="/#about">About</a>
+    <a class="btn" href="/#clients">Clients</a>
+    <a class="btn" href="/#feedback">Feedback</a>
+    <a class="btn" href="/#hire">Hire me</a>
+  </nav>
+</main>
+
+<footer>
+    <!-- Lamp: all decorative, driven by footer:hover (see "FOOTER LAMP" in the CSS) -->
+    <div class="lamp__sky" aria-hidden="true">
+        <span class="lamp__halo"><i></i></span>
+        <span class="lamp__motes">
+            <span class="lamp__mote"></span>
+            <span class="lamp__mote"></span>
+            <span class="lamp__mote"></span>
+            <span class="lamp__mote"></span>
+            <span class="lamp__mote"></span>
+            <span class="lamp__mote"></span>
+        </span>
+    </div>
+    <div class="lamp__pool" aria-hidden="true"><i></i></div>
+    <div class="lamp" aria-hidden="true">
+        <svg class="lamp__bulb" viewBox="0 0 64 100" focusable="false">
+            <defs>
+                <radialGradient id="lampGlass" cx="50%" cy="52%" r="58%">
+                    <stop offset="0"   stop-color="#fffbe6"/>
+                    <stop offset=".38" stop-color="#ffe27a"/>
+                    <stop offset=".78" stop-color="#ffbf3b"/>
+                    <stop offset="1"   stop-color="#ff9f1c"/>
+                </radialGradient>
+                <linearGradient id="lampCollar" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#ffb02e" stop-opacity=".85"/>
+                    <stop offset="1" stop-color="#ffb02e" stop-opacity="0"/>
+                </linearGradient>
+            </defs>
+
+            <!-- OFF: glass + dark filament -->
+            <path class="glass" d="M22 68 C22 60 6 52 6 34 A26 26 0 0 1 58 34 C58 52 42 60 42 68 Z"/>
+            <path class="wire" d="M29 67 L27 53 L26 45 M35 67 L37 53 L38 45 M26 45 L29 39 L32 45 L35 39 L38 45"/>
+
+            <!-- ON: warm glass, white-hot filament, rays -->
+            <g class="lit"><g class="flick">
+                <path class="lit-glass" d="M22 68 C22 60 6 52 6 34 A26 26 0 0 1 58 34 C58 52 42 60 42 68 Z"/>
+                <path class="lit-wire" d="M29 67 L27 53 L26 45 M35 67 L37 53 L38 45 M26 45 L29 39 L32 45 L35 39 L38 45"/>
+                <g class="rays"><g class="rays-pulse">
+                    <path d="M65 34 H73 M60.6 17.5 L67.5 13.5 M48.5 5.4 L52.5 -1.5 M32 1 V-7 M15.5 5.4 L11.5 -1.5 M3.4 17.5 L-3.5 13.5 M-1 34 H-9"/>
+                </g></g>
+            </g></g>
+
+            <path class="shine" d="M13 31 C13 22 19 15 28 12"/>
+
+            <!-- Screw base -->
+            <rect class="metal" x="20" y="66" width="24" height="6" rx="2"/>
+            <rect class="metal" x="21" y="72" width="22" height="16"/>
+            <path class="groove" d="M21 76 H43 M21 80 H43 M21 84 H43"/>
+            <path class="metal" d="M25 88 H39 L36 96 H28 Z"/>
+            <rect class="metal" x="28" y="96" width="8" height="4" rx="2"/>
+            <g class="lit"><g class="flick"><rect class="lit-collar" x="20" y="66" width="24" height="14"/></g></g>
+        </svg>
+    </div>
+
+    <p>
+    <!-- <mark> -->
+        Gabryan editor
+    <!-- </mark> -->
+    </p>
+</footer>
+
+</body>
+</html>
