@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>⌚ Chrono47 Pitch</title>
+  <meta name="description" content="A quick edit tweak to boost viewer retention, with a breakdown of every change.">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#0B0B0B">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Montserrat:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<!--
+  EDIT YOUR CONTACT DETAILS HERE (one place, used by the whole page):
+  data-whatsapp : full number with country code, digits only (example: 5551999999999)
+  data-email    : your email address
+-->
+<body data-whatsapp="" data-email="">
+
+  <!-- ================= HEADER ================= -->
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <div class="wordmark">Gabryan</div>
+      <div class="meta">Prepared for <span style="color: #d1b66b">Chrono47</span></div>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- ================= HERO ================= -->
+    <section class="hero">
+      <div class="container hero__inner">
+        <div class="hero__copy">
+          <div class="hero__eyebrow">
+            <div class="hero__rule"></div>
+            <div class="label label--sage">Re-edited intro</div>
+          </div>
+          <h1>Your videos are awesome! <em>And editing can make them even better.</em> Here&rsquo;s the re-edited intro:</h1>
+        </div>
+
+        <div class="player">
+          <div class="player__screen">
+            <!--
+              Put your edited video at video/pitch-edit.mp4 (or change the src below).
+              Optional: add poster="images/poster.jpg" to the <video> tag for a cover image.
+            -->
+            <video controls playsinline preload="metadata" aria-label="Edited sample of your latest Diamond District video">
+              <source src="video/intro.mp4" type="video/mp4">
+            </video>
+            <div class="player__placeholder" id="video-placeholder">
+              <svg class="icon" width="56" height="56" viewBox="0 0 28 28" stroke-width="1" aria-hidden="true"><circle cx="14" cy="14" r="12.5"/><path d="M11.5 9.5v9l7.5-4.5z"/></svg>
+              <div class="meta">Add your edited video at video/pitch-edit.mp4</div>
+            </div>
+          </div>
+          <div class="player__bar">
+            <span>Re-edit</span>
+            <span><span style="color: #d1b66b">Chrono47</span></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= INTRO ================= -->
+    <section class="intro">
+      <div class="container intro__inner">
+        <div class="intro__side">
+          <div class="label label--forest">Why I&rsquo;m writing</div>
+          <div class="intro__side-rule"></div>
+        </div>
+        <div class="intro__body">
+          <p class="intro__lead">I belive your videos can reach more people with a better editing.</p>
+          <p class="intro__text">With better editing, your videos will keep people watching your videos longer. that will make youtube deliver your videos for more people. And a bigger audience will for sure help you build your brand and increase your cilient base.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= BREAKDOWN ================= -->
+    <section class="breakdown">
+      <div class="container breakdown__inner">
+        <div class="section-head">
+          <div class="label label--sage">Video breakdown</div>
+          <h2>What I changed and why</h2>
+        </div>
+
+        <!--
+          Each .frame holds a GIF or screenshot. Drop the files into images/ with the names below.
+          Until a file exists, the labelled slot stays visible. Edit the timestamp in .frame__stamp.
+        -->
+
+        <!-- 1 · Intro hook -->
+        <article class="row">
+          <div class="row__text">
+            <div class="row__icon">
+              <svg class="icon" width="30" height="30" viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="11"/><path d="M14 7.5V14l4.5 3"/></svg>
+            </div>
+            <div class="meta">Intro hook &middot; Convince them to stay</div>
+            <h3>1. The intro</h3>
+            <p>In this type of video, where there's no clear overarching story upfront and it's more about one interaction after another, it can be difficult for viewers to decide whether they want to keep watching based solely on someone telling them what will happen.</p>
+
+<p>That's why it's important to actually SHOW them what they're going to see. With a quick selection of the best moments. You did this in the other two videos in the series, and I think it's something worth keeping consistent.</p>
+          </div>
+          <div class="row__media">
+            <div class="frame">
+              <svg class="frame__corners" viewBox="0 0 100 56" preserveAspectRatio="none" aria-hidden="true"><path d="M0 6V0h6M94 0h6v6M100 50v6h-6M6 56H0v-6" vector-effect="non-scaling-stroke"/></svg>
+              <!-- i want every one of this image fields in  the breakdown section to be a button that opens an iframe with the specific time of the video i am referencing in a popup iframe. -->
+              <img class="frame__img" src="images/hook.gif" alt="First five seconds of the edited video, previewing the key moment" hidden>
+              <div class="frame__stamp">00:00 &ndash; 00:05</div>
+              <div class="frame__label">Add images/hook.gif</div>
+            </div>
+          </div>
+        </article>
+
+        <!-- 2 · Cross-cutting -->
+        <article class="row row--flip">
+          <div class="row__text">
+            <div class="row__icon">
+              <svg class="icon" width="30" height="30" viewBox="0 0 28 28" aria-hidden="true"><path d="M3 9h5l9 10h8M3 19h5l2.5-2.8M13.5 11.8 17 9h8M22 6l3 3-3 3M22 16l3 3-3 3"/></svg>
+            </div>
+            <div class="meta">Improving the pacing</div>
+            <h3>2. Cross-cutting and pacing</h3>
+            <p>
+Cross-cutting basically means alternating between different scenes. 
+</p>
+
+            <p>
+As I did in the video, instead of showing Aaron's entire interaction right away, I cut to Bobby's footage.
+</p>
+
+            <p>
+This could help with retention because it keeps introducing new people and interactions while reinforcing the central idea: multiple dealers are going to examine these watches and try to figure out which ones are fake.
+</p>
+            <p>
+            Another advantage of cross-cutting is showing the passage of time in a more interesting way. for example, instead of showing Aaron staring at a watch for two full minutes, we cut away to Bobby briefly and then back to Aaron giving his answer. Showing something else in between acts as a "time jump", signaling that Aaron spent time inspecting the watch without slowing down the pacing.
+</p>
+          </div>
+          <div class="row__media">
+            <div class="frame">
+              <svg class="frame__corners" viewBox="0 0 100 56" preserveAspectRatio="none" aria-hidden="true"><path d="M0 6V0h6M94 0h6v6M100 50v6h-6M6 56H0v-6" vector-effect="non-scaling-stroke"/></svg>
+              <img class="frame__img" src="images/cross-cuts.gif" alt="Rapid cuts between Aaron and Bobby" hidden>
+              <div class="frame__stamp">[MM:SS] &ndash; [MM:SS]</div>
+              <div class="frame__label">Add images/cross-cuts.gif</div>
+            </div>
+          </div>
+        </article>
+
+        <!-- 3 · Trimming the fluff -->
+        <article class="row">
+          <div class="row__text">
+            <div class="row__icon">
+              <svg class="icon" width="30" height="30" viewBox="0 0 28 28" aria-hidden="true"><circle cx="7" cy="8" r="3"/><circle cx="7" cy="20" r="3"/><path d="M9.5 9.8 25 21M9.5 18.2 25 7"/></svg>
+            </div>
+            <div class="meta">Selecting what matters</div>
+            <h3>Remove unnecessary or repeated information and pauses</h3>
+            <p>
+
+            It's important to let the audience see the dealers thinking and carefully examining the watches.<br>That helps communicate just how difficult it is to tell the difference between a genuine watch and a super clone.
+</p>
+
+            <p>
+However, sometimes showing the entire process isn't necessary.
+</p>
+            <p>Take the video's intro, for example: Mike's original take was 45 seconds long, but my cut brings it down to just 24 seconds. That is 46% faster and straight to the point.<br>
+This definitely isn't Mike's fault! Presenting a new idea on camera without a script is hard work. But that's exactly why you need an editor to trim out the silences, thinking pauses, off-topic tangents and unnecessary information.</p>
+
+
+            <p>
+The same applies to repeated information or pauses that don't add much to the scene.
+</p>
+
+            <p>
+            For example, in my cut of the video, I kept two moments where Mike mentions <br>
+            <!-- some different style for this citation in italic too. -->
+            <i>how difficult it is to distinguish the fake from the real one, and sometimes the only way to tell is by opening the watch.</i>
+            <br>I felt those moments were important enough to keep because they reinforce the central idea of the video. This is why i decided to keep both times he said it, instead of only leaving one of them in the video.
+</p>
+          </div>
+          <div class="row__media">
+              <!-- i want to have another frame for a picture here in the right side. they will ve placed verticaly and equaly spaced. --> 
+            <div class="frame">
+              <svg class="frame__corners" viewBox="0 0 100 56" preserveAspectRatio="none" aria-hidden="true"><path d="M0 6V0h6M94 0h6v6M100 50v6h-6M6 56H0v-6" vector-effect="non-scaling-stroke"/></svg>
+              <img class="frame__img" src="images/trim.gif" alt="Aaron deliberating, cut with Bobby's reaction" hidden>
+              <div class="frame__stamp">[MM:SS] &ndash; [MM:SS]</div>
+              <div class="frame__label">Add images/trim.gif</div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- ================= BONUS: THUMBNAIL ================= -->
+    <section class="bonus">
+      <div class="container bonus__inner">
+        <div class="section-head">
+          <div class="label label--sage">Bonus &middot; Thumbnail strategy</div>
+          <h2>Simple is better</h2>
+          <p class="bonus__intro">Editing keeps people watching. The thumbnail decides whether they press play at all, so I looked at what already works on your channel.</p>
+        </div>
+
+        <div class="split">
+          <div class="split__col">
+            <div class="meta" style="color: var(--sage)">Your top-performing thumbnail</div>
+            <div class="frame frame--green">
+              <svg class="frame__corners" viewBox="0 0 100 56" preserveAspectRatio="none" aria-hidden="true"><path d="M0 6V0h6M94 0h6v6M100 50v6h-6M6 56H0v-6" vector-effect="non-scaling-stroke"/></svg>
+              <img class="frame__img" src="images/thumb.jpg" alt="The channel's top-performing thumbnail" hidden>
+              <div class="frame__label">Add images/thumbnail.jpg</div>
+            </div>
+          </div>
+
+          <div class="split__col">
+            <div class="meta" style="color: var(--sage)">Why it works</div>
+            <div class="why">
+              <div class="why__item">
+                <div class="why__icon">
+                  <!-- <svg class="icon" width="30" height="30" viewBox="0 0 28 28" aria-hidden="true"><circle cx="9" cy="14" r="6"/><circle cx="19" cy="14" r="6"/></svg> -->
+                </div>
+                <div class="why__text">
+                  <h3>One fake and one real watch</h3>
+                  <p>Very streight forward. The viewer instantly understands and wants to know which is which.</p>
+                </div>
+              </div>
+              <div class="why__item">
+                <div class="why__icon">
+                  <!-- <svg class="icon" width="30" height="30" viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="10"/><path d="M14 4a10 10 0 0 1 0 20z" fill="currentColor"/></svg> -->
+                </div>
+                <div class="why__text">
+                  <h3>High contrast, few elements</h3>
+                  <p>Nothing competes with Mike and the watches, so the idea still clear even in phone size.<br>
+                  too many elements can seem like a good idea, but they confuse as muhc as sending your client 300 watches for them to choose from.</p>
+                </div>
+              </div>
+              <div class="why__item">
+                <div class="why__icon">
+                  <!-- <svg class="icon" width="30" height="30" viewBox="0 0 28 28" aria-hidden="true"><path d="M3 24h22M7 24V11l7-5 7 5v13M11 24v-6h6v6"/></svg> -->
+                </div>
+                <div class="why__text">
+                  <h3>The street setting</h3>
+                  <p>The street background makes it clear that you are asking dealers in the street. Witch is for most people more intertaining than a 20min video in a studio explaining how to distinguish a fake watch from a real one.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= CALL TO ACTION ================= -->
+    <section class="cta" id="book">
+      <div class="cta__inner">
+        <div class="cta__head">
+          <div class="label label--forest">Next step</div>
+          <h2>Want me to edit your next video?</h2>
+          <p>Let&rsquo;s chat about your next upload.</p>
+        </div>
+
+        <!-- <a class="btn" href="#slots"> -->
+        <!--   <span>Book a call</span> -->
+        <!--   <svg class="icon" width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 9h13M10 4l5 5-5 5"/></svg> -->
+        <!-- </a> -->
+
+        <!--
+          BOOKING WIDGET
+          Option A (default, no account needed): the visitor picks a time, then sends the request
+          to you by WhatsApp or email with the time already written in.
+
+          Option B (Calendly): delete the whole <div class="booking__body"> below and paste this in its place:
+
+            <div class="calendly-inline-widget" data-url="https://calendly.com/YOUR-LINK/30min" style="min-width:320px;height:700px;"></div>
+            <script src="https://assets.calendly.com/assets/external/widget.js" async></script>
+        -->
+        <!-- <div class="booking" id="slots"> -->
+        <!--   <div class="booking__head"> -->
+        <!--     <div class="booking__title"> -->
+        <!--       <svg class="icon" width="26" height="26" viewBox="0 0 28 28" aria-hidden="true"><rect x="3.5" y="5.5" width="21" height="18" rx="1"/><path d="M3.5 11h21M9 3v5M19 3v5"/></svg> -->
+        <!--       <h3>Pick a time</h3> -->
+        <!--     </div> -->
+        <!--     <div class="meta">30 min &middot; Video call &middot; [YOUR TIME ZONE]</div> -->
+        <!--   </div> -->
+
+          <!-- <div class="booking__body"> -->
+          <!--   <div class="slots" role="group" aria-label="Available times"> -->
+          <!--     <button type="button" class="slot" aria-pressed="false">Mon 10:00</button> -->
+          <!--     <button type="button" class="slot" aria-pressed="false">Mon 14:00</button> -->
+          <!--     <button type="button" class="slot" aria-pressed="true">Tue 11:00</button> -->
+          <!--     <button type="button" class="slot" aria-pressed="false">Tue 16:00</button> -->
+          <!--     <button type="button" class="slot" aria-pressed="false">Wed 10:00</button> -->
+          <!--     <button type="button" class="slot" aria-pressed="false">Wed 15:00</button> -->
+          <!--   </div> -->
+          <!--   <div class="booking__foot"> -->
+          <!--     <div class="booking__picked" aria-live="polite">Selected: <span id="picked">Tue 11:00</span></div> -->
+          <!--     <div class="booking__actions"> -->
+          <!--       <a class="btn-outline" id="request-whatsapp" href="#book">Request on WhatsApp</a> -->
+          <!--       <a class="btn-outline" id="request-email" href="#book">Request by email</a> -->
+          <!--     </div> -->
+          <!--   </div> -->
+          <!-- </div> -->
+        <!-- </div> -->
+
+        <div class="contact">
+          <a class="contact__item" id="contact-whatsapp" href="#book">
+            <div class="contact__icon">
+                <!-- change this icon for an instagram one. --> 
+              <svg class="icon" width="30" height="30" viewBox="0 0 28 28" aria-hidden="true"><path d="M4 23l1.6-5.2A10.2 10.2 0 1 1 9.4 21.6z"/><path d="M10.5 11c.3 2.5 2.7 5 5.5 5.5l1.5-1.5-2.2-1.2-1 .8c-1.1-.5-2-1.4-2.5-2.5l.8-1z"/></svg>
+            </div>
+            <div class="contact__text">
+              <div class="contact__kind">Instagram</div>
+              <div class="contact__value">instagram username</div>
+            </div>
+          </a>
+          <a class="contact__item" id="contact-email" href="#book">
+            <div class="contact__icon">
+              <svg class="icon" width="30" height="30" viewBox="0 0 28 28" aria-hidden="true"><rect x="3.5" y="6" width="21" height="16" rx="1"/><path d="M4 7.5l10 8 10-8"/></svg>
+            </div>
+            <div class="contact__text">
+              <div class="contact__kind">Email</div>
+              <div class="contact__value" data-value>[you@yourdomain.com]</div>
+            </div>
+          </a>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ================= FOOTER ================= -->
+  <footer class="site-footer">
+    <div class="container site-footer__inner">
+      <span>Gabryan &middot; Video editor</span>
+      <span>Made for <span style="color: #d1b66b">Chrono47</span></span>
+    </div>
+  </footer>
+
+  <script src="script.js" defer></script>
+</body>
+</html>
