@@ -443,8 +443,8 @@ h1, h2, h3 {
 .bonus {
   background: var(--green);
   border-top: 1px solid var(--green-line);
-  border-bottom: 2px solid #7f9a91;
-  /* border-bottom: 1px solid var(--green-line); */
+  /* border-bottom: 2px solid #7f9a91; */
+  border-bottom: 1px solid var(--green-line);
   padding: var(--section-y) var(--gutter);
 }
 .bonus__inner {
