@@ -1,5 +1,5 @@
 /* Focus Timer — shared logic.
-   Seven activities (work, paused, workflow, workout, eating, shower, sleep); exactly one is "active" at a time.
+   Eight activities (work, paused, workflow, workout, eating, shower, family, sleep); exactly one is "active" at a time.
    Every stretch of an activity is stored as a segment; daily totals are computed from segments.
    The outreach counter is a list of click times. Everything is saved in this browser's localStorage. */
 (function (root) {
@@ -8,7 +8,7 @@
   var KEY = 'tsa2_data', OLD_KEY = 'tsa1_data', CHRONO_KEY = 'tsa2_chrono', LEADER_KEY = 'tsa2_leader';
   var RESUME_MS = 30000;    // a page that comes back within 30 s keeps the running timer
   var WORK_SEC = 3600;      // every work round is one hour
-  var ACTS = ['work', 'paused', 'workflow', 'workout', 'eating', 'shower', 'sleep'];
+  var ACTS = ['work', 'paused', 'workflow', 'workout', 'eating', 'shower', 'family', 'sleep'];
   var BEEP_ACTS = ['paused', 'workflow', 'workout', 'eating'];
   var NOTE_ACTS = ['work', 'workflow'];          // sessions that can carry a note
   var KEEPS_RUNNING = { sleep: true };           // counts by the clock even if the page is closed
@@ -19,6 +19,7 @@
     workout:  { label: 'Workout',  icon: '🏋️', color: '--c-gym'    },
     eating:   { label: 'Eating',   icon: '🍽️', color: '--c-eat'    },
     shower:   { label: 'Shower',   icon: '🚿',       color: '--c-shower' },
+    family:   { label: 'Family',   icon: '👨‍👩‍👧', color: '--c-family' },
     sleep:    { label: 'Sleep',    icon: '🌙',       color: '--c-sleep'  }
   };
 

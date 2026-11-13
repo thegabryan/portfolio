@@ -126,7 +126,11 @@ dialog h2 { margin: 0 0 14px; font-size: 18px; color: var(--text); }
 
 /* timer page on a PC: everything fits one screen, no scrolling */
 @media (min-width: 1000px) {
-  .cards { grid-template-columns: repeat(7, 1fr); }
+  .cards { grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); }
+  .acard { min-height: 0; padding: 8px 12px; gap: 3px; }
+  .acard .big { font-size: min(14cqw, 6.5dvh); margin-top: 0; }
+  .acard .tbtn { padding: 7px 18px; font-size: 15px; }
+  .acard .cbtns { margin-top: 2px; }
   .acard[data-act="work"] { grid-column: auto; }
   body.fit { height: 100dvh; overflow: hidden; }
   body.fit .wrap { height: 100dvh; display: flex; flex-direction: column; max-width: 1500px; padding: 12px 16px; }
@@ -220,3 +224,8 @@ th { color: var(--muted); font-weight: 600; font-size: 12px; position: sticky; t
 .tl-list time { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 44px; }
 .runpop { position: fixed; right: 16px; bottom: 16px; z-index: 20; display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: var(--card); color: var(--text); border: 2px solid var(--c); border-radius: 14px; box-shadow: 0 6px 24px rgba(0,0,0,.2); text-decoration: none; font-size: 15px; }
 .runpop b { font-variant-numeric: tabular-nums; }
+
+/* family color */
+:root { --c-family: #d6336c; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --c-family: #f783ac; } }
+:root[data-theme="dark"] { --c-family: #f783ac; }
