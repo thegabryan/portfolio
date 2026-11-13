@@ -213,7 +213,7 @@
     el.style.setProperty('--c', 'var(' + m.color + ')');
     el.innerHTML = m.icon + ' <strong>' + m.label + '</strong> · <b>' + t + '</b>';
   }
-  var tlDay = null, tlTimer = null;
+  var tlDay = null, tlSel = null;
   function renderTimeline() {
     var now = Date.now(), todayK = TSA.dayKey(now);
     if (!tlDay) tlDay = todayK;
@@ -234,12 +234,15 @@
     $('tl').innerHTML = '<div class="tl" role="img" aria-label="Timeline of the day">' + bar + '</div><div class="tl-ends"><span>' + clock(t0) + '</span><span>' +
       (tlDay === todayK ? 'now ' : '') + clock(t1) + '</span></div><div class="tl-tip" id="tlTip">Tap a block for details.</div><ul class="tl-list">' + list + '</ul>';
     var tip = $('tlTip');
-    var show = function (e) {
-      var i = e.target.getAttribute && e.target.getAttribute('data-i'); if (i == null) return;
-      var b = blocks[+i];
+    var showBlock = function (b) {
       tip.innerHTML = dot(b.act) + META[b.act].icon + ' <strong>' + META[b.act].label + '</strong> · ' + clock(b.start) + '–' + clock(b.end) + ' · ' +
         dur(Math.round((b.end - b.start) / 1000)) + (b.note ? '<br><em>' + esc(b.note) + '</em>' : '');
     };
+    var show = function (e) {
+      var i = e.target.getAttribute && e.target.getAttribute('data-i'); if (i == null) return;
+      tlSel = blocks[+i].start; showBlock(blocks[+i]);
+    };
+    if (tlSel != null) blocks.forEach(function (b) { if (b.start === tlSel) showBlock(b); });   // keep the chosen block after a refresh
     var barEl = $('tl').firstChild;
     barEl.addEventListener('mouseover', show); barEl.addEventListener('click', show); barEl.addEventListener('focusin', show);
   }
@@ -375,8 +378,8 @@
   }
 
   ['range', 'stackRange', 'shareRange', 'ocRange', 'segAct'].forEach(function (id) { $(id).addEventListener('change', render); });
-  $('tlPrev').addEventListener('click', function () { tlDay = TSA.addDays(tlDay || TSA.dayKey(Date.now()), -1); renderTimeline(); });
-  $('tlNext').addEventListener('click', function () { tlDay = TSA.addDays(tlDay, 1); renderTimeline(); });
+  $('tlPrev').addEventListener('click', function () { tlDay = TSA.addDays(tlDay || TSA.dayKey(Date.now()), -1); tlSel = null; renderTimeline(); });
+  $('tlNext').addEventListener('click', function () { tlDay = TSA.addDays(tlDay, 1); tlSel = null; renderTimeline(); });
   $('prevM').addEventListener('click', function () { monthOffset--; render(); });
   $('nextM').addEventListener('click', function () { monthOffset++; render(); });
 
