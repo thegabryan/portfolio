@@ -1,0 +1,1053 @@
+/* ==========================================================
+   1. DESIGN TOKENS
+   Dark is the default (:root). Light values live in the
+   [data-theme="light"] block below. Every colour in the file
+   comes from these variables, so the toggle only swaps them.
+   ========================================================== */
+:root {
+  color-scheme: dark;
+
+  /* Surfaces */
+  --bg:        #121417;   /* off-black page background */
+  --surface:   #1b1e23;   /* cards, frames */
+  --surface-2: #262a31;   /* secondary sheet behind frames */
+
+  /* Text */
+  --ink:       #ecebe6;   /* crisp off-white */
+  --ink-soft:  #a9acb1;   /* light grey body copy */
+
+  /* Muted accents (brightened a touch for dark backgrounds) */
+  --ochre:     #d4a04a;
+  --olive:     #9da363;
+  --rust:      #d0704b;
+  --on-accent: #121417;   /* text colour placed on olive / rust tags */
+
+  /* Collage details */
+  --edge:      rgba(236, 235, 230, .75);  /* outlines */
+  --shadow:    rgba(0, 0, 0, .55);        /* offset "paper" shadows */
+  --grid:      rgba(255, 255, 255, .05);  /* graph-paper lines */
+  --banner-bg: #ecebe6;                   /* torn banner = light paper cutout */
+  --banner-fg: #14161a;
+  --cite:      #8a5a12;                   /* cite text on the light pull-quote */
+  --header-bg: rgba(18, 20, 23, .88);
+
+  /* Paper grain (SVG noise). Light speckle on dark paper. */
+  --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .6 0'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='.09'/></svg>");
+
+  /* Fonts */
+  --serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --slab:  'Roboto Slab', Georgia, serif;
+  --label: 'Archivo Black', 'Arial Black', Impact, sans-serif;
+
+  /* Layout */
+  --header-h: 56px;       /* sticky header height */
+  --u: 1vh;               /* viewport unit (upgraded to svh below) */
+}
+
+/* Light theme overrides */
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg:        #efe9dc;
+  --surface:   #e4dccb;
+  --surface-2: #cfc9bd;
+
+  --ink:       #23272b;
+  --ink-soft:  #4a5056;
+
+  --ochre:     #b7822f;
+  --olive:     #6b7040;
+  --rust:      #9a4a2b;
+  --on-accent: #efe9dc;
+
+  --edge:      #23272b;
+  --shadow:    rgba(35, 39, 43, .22);
+  --grid:      rgba(35, 39, 43, .09);
+  --banner-bg: #23272b;
+  --banner-fg: #efe9dc;
+  --cite:      #d4a04a;
+  --header-bg: rgba(239, 233, 220, .9);
+
+  /* Dark speckle on light paper */
+  --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .25  0 0 0 0 .22  0 0 0 0 .18  0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='.55'/></svg>");
+}
+
+/* Prefer small-viewport units so mobile browser bars don't push content */
+@supports (height: 1svh) { :root { --u: 1svh; } }
+
+/* ==========================================================
+   2. BASE + PAPER TEXTURE
+   ========================================================== */
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: var(--header-h);   /* anchors land below sticky header */
+}
+
+body {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--slab);
+  line-height: 1.6;
+  background-color: var(--bg);
+  background-image: var(--grain);
+  transition: background-color .25s ease, color .25s ease;
+}
+
+img, iframe { max-width: 100%; }
+
+/* ==========================================================
+   3. REUSABLE COLLAGE PIECES
+   ========================================================== */
+
+/* Graph-paper grid, applied to any container via .grid-bg */
+.grid-bg {
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* Small heavy label ("CHAPTER 02", "FIG. 1") */
+.tag {
+  display: inline-block;
+  font-family: var(--label);
+  font-size: .72rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  padding: .3em .8em;
+  color: var(--bg);
+  background: var(--ink);
+  transform: rotate(-2deg);
+  box-shadow: 2px 2px 0 var(--shadow);
+}
+.tag--olive { background: var(--olive); color: var(--on-accent); }
+.tag--rust  { background: var(--rust);  color: var(--on-accent); transform: rotate(1.5deg); }
+
+/* Strip of translucent "masking tape" */
+.tape {
+  position: absolute;
+  width: 110px;
+  height: 28px;
+  background: rgba(214, 190, 120, .55);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .25);
+  clip-path: polygon(0 0, 4% 50%, 0 100%, 100% 100%, 96% 50%, 100% 0);
+  pointer-events: none;
+}
+
+/* 16:9 responsive video wrapper (used in hero + collaborations) */
+.embed {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: #0b0c0e;
+  border: 2px solid var(--edge);
+  overflow: hidden;
+}
+.embed iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* ==========================================================
+   4. STICKY HEADER + THEME TOGGLE
+   Fixed height (--header-h) so the hero can budget around it.
+   ========================================================== */
+.masthead {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  height: var(--header-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0 clamp(1rem, 5vw, 4rem);
+  background: var(--header-bg);
+  -webkit-backdrop-filter: blur(8px);
+          backdrop-filter: blur(8px);
+  border-bottom: 3px double var(--edge);
+  font-family: var(--label);
+  font-size: .78rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.masthead__brand { white-space: nowrap; }
+.masthead__brand span { font-size: 1rem; }                /* the briefcase emoji */
+.masthead__right { display: flex; align-items: center; gap: 1.6rem; }
+.masthead nav { display: flex; gap: 1.4rem; }
+.masthead a { color: inherit; text-decoration: none; }
+.masthead a:hover { color: var(--rust); text-decoration: underline wavy; }
+
+/* Switch: knob slides right in dark mode, left in light mode */
+.switch {
+  position: relative;
+  flex: none;
+  width: 58px;
+  height: 30px;
+  padding: 0;
+  cursor: pointer;
+  background: var(--surface-2);
+  border: 2px solid var(--edge);
+  border-radius: 999px;
+  transition: background .2s ease;
+}
+.switch:focus-visible { outline: 2px solid var(--ochre); outline-offset: 3px; }
+.switch__knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  font-size: .8rem;
+  line-height: 1;
+  color: #1a1a1a;
+  background: var(--ochre);
+  border-radius: 50%;
+  transition: transform .2s ease;
+}
+.switch__knob::before { content: "\2600"; }                 /* sun */
+.switch[aria-checked="true"] .switch__knob { transform: translateX(28px); }
+.switch[aria-checked="true"] .switch__knob::before { content: "\263E"; } /* moon */
+
+/* ==========================================================
+   5. HERO — header + hero ≈ 64% of the viewport
+   Header is 56px; the hero's min-height fills the rest of the
+   64% budget. Type and the video are sized in viewport units so
+   the whole block stays compact and the next section peeks in.
+   ========================================================== */
+.hero {
+  min-height: calc(64 * var(--u) - var(--header-h));
+  display: grid;
+  grid-template-columns: 1fr 1.1fr;
+  align-items: center;
+  gap: clamp(1.5rem, 4vw, 4rem);
+  padding: clamp(.75rem, 3 * var(--u), 2rem) clamp(1rem, 5vw, 4rem);
+}
+
+/* ---------- Left column: text ---------- */
+.hero__text { position: relative; }
+
+.hero__kicker { margin-bottom: clamp(.6rem, 2 * var(--u), 1.1rem); }
+
+/* Headline sits on a torn-paper banner */
+.hero__title {
+  display: inline-block;
+  margin: 0 0 clamp(.6rem, 2 * var(--u), 1.1rem);
+  padding: .45em .7em .55em;
+  font-family: var(--serif);
+  font-weight: 900;
+  /* capped by both width and height so it never bloats the hero */
+  font-size: clamp(1.7rem, min(4vw, 6.2 * var(--u)), 3.2rem);
+  line-height: 1.05;
+  color: var(--banner-fg);
+  background: var(--banner-bg);
+  transform: rotate(-1.2deg);
+  /* Jagged top & bottom edges = torn paper */
+  clip-path: polygon(
+    0 4%, 5% 0, 11% 5%, 18% 1%, 26% 4%, 34% 0, 42% 5%, 51% 1%, 60% 4%, 69% 0, 78% 5%, 87% 1%, 94% 4%, 100% 0,
+    100% 96%, 95% 100%, 88% 95%, 80% 99%, 71% 95%, 62% 100%, 53% 96%, 44% 99%, 35% 95%, 26% 100%, 17% 96%, 9% 99%, 0 95%
+  );
+  filter: drop-shadow(5px 5px 0 var(--shadow));
+}
+/* Marker-swipe highlight */
+.hero__title mark {
+  background: linear-gradient(transparent 55%, var(--ochre) 55%, var(--ochre) 92%, transparent 92%);
+  color: inherit;
+  padding: 0 .1em;
+}
+
+.hero__bio {
+  max-width: 34rem;
+  margin: 0 0 clamp(.8rem, 2.5 * var(--u), 1.4rem);
+  font-size: .95rem;
+  color: var(--ink-soft);
+}
+.hero__bio::first-letter {                 /* editorial drop cap */
+  float: left;
+  font-family: var(--serif);
+  font-weight: 900;
+  font-size: 3rem;
+  line-height: .8;
+  padding: .08em .1em 0 0;
+  color: var(--rust);
+}
+
+/* ---------- Tactile cutout button ---------- */
+.btn {
+  display: inline-block;
+  padding: .75em 1.5em;
+  margin: 0 1rem 0 0;
+  font-family: var(--label);
+  font-size: .85rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: #1a1a1a;                          /* dark text on ochre in both themes */
+  background: var(--ochre);
+  border: 2px solid var(--edge);
+  transform: rotate(1.5deg);
+  box-shadow: 5px 5px 0 var(--edge);
+  transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
+}
+
+#btn_cta,
+.btn--home {
+  background: var(--olive);
+}
+
+.btn:hover,
+.btn:focus-visible {
+  filter: brightness(1.1);
+  transform: rotate(0deg) translate(2px, 2px);
+  box-shadow: 2px 2px 0 var(--edge);
+  outline: none;
+}
+.btn:active { transform: translate(5px, 5px); box-shadow: 0 0 0 var(--edge); }
+
+/* ---------- Right column: framed iframe ---------- */
+.hero__media { position: relative; padding: .6rem; }
+
+.frame {
+  position: relative;
+  margin: 0 auto;
+  padding: .8rem;
+  background-color: var(--surface);
+  border: 2px solid var(--edge);
+  transform: rotate(1.4deg);
+  box-shadow: 8px 10px 0 var(--shadow);
+  /* Cap the frame width so the 16:9 video's height stays within the
+     hero budget: (64vh − ~11rem of chrome) × 16/9 + padding. */
+  max-width: max(300px, calc((64 * var(--u) - 11rem) * 1.7778 + 1.6rem + 4px));
+}
+.frame::before {                             /* second sheet peeking out */
+  content: "";
+  position: absolute;
+  inset: 8px -10px -10px 8px;
+  background: var(--surface-2);
+  border: 2px solid var(--edge);
+  z-index: -1;
+  transform: rotate(-3deg);
+}
+.frame__caption {
+  margin: .6rem 0 0;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: .85rem;
+  color: var(--ink-soft);
+}
+.hero__media .tape--1 { top: -2px; left: 14%; transform: rotate(-6deg); z-index: 2; }
+.hero__media .tape--2 { bottom: 4px; right: 10%; transform: rotate(5deg); z-index: 2; }
+
+/* ==========================================================
+   6. SECTIONS (shared)
+   ========================================================== */
+.section {
+  position: relative;
+  padding: clamp(2.5rem, 2vw, 3rem) clamp(1rem, 5vw, 4rem);
+  /*padding: 2.5rem 1rem;*/
+  border-top: 3px double var(--edge);
+}
+.section__head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 1rem 1.5rem;
+  margin-bottom: 2.2rem;
+}
+.section__title {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 900;
+  font-size: clamp(1.8rem, 4vw, 3rem);
+}
+.section__title em { color: var(--rust); font-weight: 500; }
+
+/* ==========================================================
+   7. FEATURED COLLABORATIONS (second section)
+   Each row: left = square channel picture + name, right = video.
+   ========================================================== */
+.collabs { display: grid; gap: clamp(1.5rem, 3vw, 2.5rem); }
+
+.collab {
+  display: grid;
+  grid-template-columns: minmax(200px, 280px) 1fr;
+  align-items: center;
+  gap: clamp(1.2rem, 3vw, 2.5rem);
+  padding: clamp(1rem, 2vw, 1.6rem);
+  background-color: var(--surface);
+  border: 2px solid var(--edge);
+  box-shadow: 7px 7px 0 var(--shadow);
+}
+.collab:nth-child(odd)  { transform: rotate(-.5deg); }
+.collab:nth-child(even) { transform: rotate(.5deg); }
+
+/* Left: who it was for */
+.collab__who {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: .6rem;
+}
+
+/* Square channel picture. --c sets the placeholder colour per client. */
+.avatar {
+  position: relative;
+  width: min(100%, 180px);
+  aspect-ratio: 1 / 1;                     /* always square */
+  display: grid;
+  place-items: center;
+  margin-bottom: .4rem;
+  font-family: var(--label);
+  font-size: 3rem;
+  color: #14161a;
+  background: var(--c, var(--ochre));
+  border: 2px solid var(--edge);
+  box-shadow: 5px 5px 0 var(--shadow);
+  transform: rotate(-2deg);
+}
+/* Real pictures: drop an <img> in and it fills the square */
+.avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.avatar .tape { top: -14px; left: calc(50% - 40px); width: 80px; height: 22px; transform: rotate(4deg); }
+
+.collab__name {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 1.35rem;
+  line-height: 1.2;
+}
+.collab__meta {
+  margin: 0;
+  font-size: .85rem;
+  color: var(--ink-soft);
+}
+
+/* ==========================================================
+   8. SELECTED WORK — pinned clippings
+   ========================================================== */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: clamp(1.5rem, 3vw, 2.5rem);
+}
+.card {
+  position: relative;
+  padding: 1.6rem 1.4rem 1.4rem;
+  background-color: var(--surface);
+  border: 2px solid var(--edge);
+  box-shadow: 6px 6px 0 var(--shadow);
+  transition: transform .2s ease;
+}
+.card:nth-child(1) { transform: rotate(-1.4deg); }
+.card:nth-child(2) { transform: rotate(1deg) translateY(10px); }
+.card:nth-child(3) { transform: rotate(-.6deg); }
+.card:hover { transform: rotate(0) translateY(-4px); }
+.card .tape { top: -14px; left: calc(50% - 55px); transform: rotate(-3deg); }
+
+.card__num { font-family: var(--label); font-size: 2.6rem; line-height: 1; color: var(--olive); }
+.card h3   { margin: .4rem 0 .6rem; font-family: var(--serif); font-size: 1.4rem; }
+.card p    { margin: 0 0 1rem; font-size: .95rem; color: var(--ink-soft); }
+.card__meta {
+  font-family: var(--label);
+  font-size: .7rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--rust);
+}
+
+/* Pull-quote */
+.pullquote {
+  margin: 4rem auto 0;
+  max-width: 46rem;
+  padding: 1.6rem 2rem;
+  text-align: center;
+  background: var(--banner-bg);
+  color: var(--banner-fg);
+  font-family: var(--serif);
+  font-size: clamp(1.2rem, 2.6vw, 1.8rem);
+  font-style: italic;
+  transform: rotate(-.8deg);
+  box-shadow: 8px 8px 0 var(--ochre);
+}
+.pullquote cite {
+  display: block;
+  margin-top: .8rem;
+  font-family: Georgia, Times, Serif;
+  font-weight: bold;
+  font-style: normal;
+  font-size: .72rem;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: var(--cite);
+}
+
+/* ==========================================================
+   9. RESPONSIVE
+   ========================================================== */
+
+/* Tablet / mobile: stack everything */
+@media (max-width: 767px) {
+  .masthead nav { display: none; }             /* brand + toggle only */
+
+  /* Hero: compact stack so header + hero still stay near 65-70%
+     of a typical phone screen. */
+  .hero {
+    grid-template-columns: 1fr;
+    min-height: 0;
+    gap: 1rem;
+    padding-top: .9rem;
+    padding-bottom: 1rem;
+  }
+  .hero__title { font-size: clamp(1.5rem, 7vw, 2rem); }
+  .hero__bio {                                  /* trim bio to two lines */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+            line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-bottom: .9rem;
+  }
+  .hero__bio::first-letter { all: unset; }      /* no drop cap when clamped */
+  .hero__media { padding: .3rem; }
+  .frame { max-width: none; transform: rotate(.6deg); padding: .6rem; }
+  .frame__caption { display: none; }
+
+  /* Collaborations: picture + name on top, video below */
+  .collab { grid-template-columns: 1fr; transform: none !important; }
+  .collab__who {
+    flex-direction: row;
+    align-items: center;
+    gap: 1rem;
+  }
+  .avatar { width: 88px; font-size: 1.8rem; margin: 0; flex: none; }
+  .avatar .tape { display: none; }
+
+  .cards { grid-template-columns: 1fr; }
+  .card:nth-child(n) { transform: rotate(-.6deg); }
+  .pullquote { padding: 1.2rem; }
+}
+
+/* ==========================================================
+   10. CLIENT REVIEWS + HIRE ME
+   ========================================================== */
+
+/* --- Review: quote on top, 5-star rating directly below.
+       Sits at the bottom of each .collab card and spans both columns. --- */
+.review {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: .6rem;
+  margin: 0;
+  padding-top: 1rem;
+  border-top: 2px dashed var(--edge);
+}
+.review__text {
+  margin: 0;
+  max-width: 60ch;
+  font-family: "Roboto Slab", var(--label);
+  font-style: italic;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  color: var(--ink);
+}
+.review__text p { margin: 0; }
+.review__stars { display: flex; gap: .2rem; }
+
+/* Filled star by default; add .star--off for an empty one */
+.star {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  fill: var(--ochre);
+  stroke: var(--ochre);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+.star--off { fill: none; }
+
+/* --- Hire Me --- */
+.section__head--center { justify-content: center; text-align: center; }
+
+/* The card is a torn-paper cutout, like the About headline (.hero__title).
+   The torn shape is drawn on ::before so the drop-shadow filter on .hire can
+   follow its jagged edge (a clip-path on the same element would clip its own shadow). */
+.hire {
+  --edge: var(--banner-fg);        /* outlines inside the cutout use the banner's ink colour */
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(180px, 240px) 1fr;
+  align-items: center;
+  gap: clamp(1.5rem, 4vw, 3rem);
+  max-width: 52rem;
+  margin: 0 auto;
+  padding: clamp(1.8rem, 4vw, 2.8rem) clamp(1.4rem, 3vw, 2.4rem);
+  color: var(--banner-fg);
+  transform: rotate(-.6deg);
+  filter: drop-shadow(6px 6px 0 var(--shadow));
+}
+.hire::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;                     /* behind the photo + text, above nothing else */
+  background: var(--banner-bg);
+  /* Jagged top & bottom edges = torn paper */
+  clip-path: polygon(
+    0 2%, 4% 0, 8% 2.2%, 13% .4%, 18% 2%, 23% 0, 28% 2.4%, 34% .6%, 40% 2%, 46% 0, 52% 2.2%, 58% .4%, 64% 2%, 70% 0, 76% 2.4%, 82% .6%, 88% 2%, 94% 0, 100% 1.6%,
+    100% 98%, 95% 100%, 90% 97.8%, 84% 99.6%, 78% 98%, 72% 100%, 66% 97.6%, 60% 99.4%, 54% 98%, 48% 100%, 42% 97.8%, 36% 99.6%, 30% 98%, 24% 100%, 18% 97.6%, 12% 99.4%, 6% 98%, 0 99.6%
+  );
+}
+
+/* Left: circular profile picture (use a square image; it gets masked to a circle) */
+.hire__media { position: relative; justify-self: center; width: min(100%, 220px); }
+.hire__photo {
+  aspect-ratio: 1 / 1;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  font-family: var(--label);
+  font-size: 4rem;
+  color: #14161a;
+  background: var(--c, var(--ochre));
+  border: 2px solid var(--edge);
+  box-shadow: 5px 5px 0 var(--shadow);
+}
+.hire__photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.hire__media .tape { top: -10px; left: calc(50% - 40px); width: 80px; height: 22px; transform: rotate(-4deg); z-index: 2; }
+
+/* Right: call to action */
+.hire__body { display: flex; flex-direction: column; align-items: flex-start; gap: 1.1rem; }
+.hire__prompt {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 900;
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  line-height: 1.2;
+}
+.hire__body .btn { margin: 0; }
+
+/* Extra space at the bottom of the Hire section.
+   EDIT ME: change the three values in clamp(min, preferred, max) below.
+   min = smallest (phones), max = largest (desktop), preferred = scales with screen width. */
+#hire { padding-bottom: clamp(4rem, 5vw, 4rem); }
+
+/* Stars centered below the Hire card */
+.hire__stars { justify-content: center; margin-top: clamp(1.8rem, 4vw, 2.6rem); }
+
+/* Mobile: photo stacks ABOVE the text + link (it comes first in the HTML) */
+@media (max-width: 767px) {
+  .review__text { font-size: 1rem; }
+
+  .hire {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+    transform: none;
+  }
+  .hire__media { width: min(60%, 200px); }
+  .hire__body { align-items: center; }
+}
+
+/* ==========================================================
+   10b. CLIENT FEEDBACK — masonry wall of message screenshots
+   CSS multi-column layout: each screenshot keeps its natural
+   aspect ratio (height:auto), so tall and wide images sit
+   together with no cropping or stretching.
+   ========================================================== */
+.feedback {
+  column-count: 3;
+  column-gap: clamp(1.2rem, 3vw, 2.2rem);
+  max-width: 70rem;
+  margin: 0 auto;
+}
+.shot {
+  position: relative;
+  display: inline-block;               /* needed with break-inside for some browsers */
+  width: 100%;
+  margin: 0 0 clamp(1.2rem, 3vw, 2.2rem);
+  padding: .7rem;
+  background-color: var(--surface);
+  border: 2px solid var(--edge);
+  box-shadow: 6px 6px 0 var(--shadow);
+  break-inside: avoid;                 /* never split a screenshot across columns */
+  -webkit-column-break-inside: avoid;
+  transition: transform .2s ease;
+}
+.shot:nth-child(odd)  { transform: rotate(-.8deg); }
+.shot:nth-child(even) { transform: rotate(.7deg); }
+.shot:hover { transform: rotate(0) translateY(-4px); }
+.shot .tape { top: -13px; left: calc(50% - 40px); width: 80px; height: 22px; transform: rotate(-4deg); z-index: 2; }
+.shot:nth-child(even) .tape { transform: rotate(4deg); }
+
+/* The screenshot itself: full width, natural height, never cropped */
+.shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--edge);
+  background: var(--surface-2);
+}
+
+@media (max-width: 900px) { .feedback { column-count: 2; } }
+@media (max-width: 767px) { .shot:nth-child(n) { transform: rotate(-.4deg); } }
+@media (max-width: 520px) { .feedback { column-count: 1; max-width: 26rem; } }
+
+/* Respect users who prefer less motion */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  * { transition: none !important; }
+}
+
+
+/* ==========================================================
+   11. 404 PAGE
+   Centred stack: label -> heading -> text -> links, then the footer.
+   The page is a column that is exactly one screen tall (header + content + footer);
+   the content block takes the leftover space and centres itself in it, so on
+   desktop nothing scrolls. Gaps and the heading size use --u (1svh) so they
+   shrink on short screens. If a screen is too short for the content, the page
+   simply grows and scrolls instead of clipping anything.
+   Reuses: .tag, .hero__title, .btn, #btn_cta green, .grid-bg, footer + lamp.
+   ========================================================== */
+.page-404 {
+  min-height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+.nf {
+  flex: 1;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: clamp(.7rem, 2.6 * var(--u), 1.6rem);
+  padding: clamp(1rem, 5 * var(--u), 4rem) clamp(1rem, 5vw, 4rem);
+  text-align: center;
+}
+
+.nf__title {                                   /* the torn-paper banner from the About section */
+  margin: 0;
+  max-width: 22ch;
+  font-size: clamp(1.7rem, min(6.4vw, 7 * var(--u)), 3.3rem);
+}
+.nf__title mark { white-space: nowrap; }       /* keep "Not even a frame." together instead of splitting the highlight */
+
+.nf__text {
+  margin: 0;
+  max-width: 30rem;
+  color: var(--ink-soft);
+}
+
+.nf__links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem 1.2rem;
+}
+.nf__links .btn { margin: 0; }
+.btn--home { padding: .85em 1.9em; font-size: 1rem; }                 /* main way out: bigger, green like "Hire me" */
+.nf__links--sub .btn { padding: .65em 1.2em; font-size: .74rem; }     /* section links: smaller, ochre */
+
+/* Phones: start from the top and let the page scroll if it has to */
+@media (max-width: 767px) {
+  .nf { align-content: start; padding-top: clamp(2rem, 8 * var(--u), 3rem); }
+}
+
+/* footer */
+
+footer {
+    padding: .30rem clamp(.90rem, 4vw, 3rem);
+    border-top: 3px double var(--edge);
+    font-family: 'Segoe Script', 'Segoe Print', cursive, var(--label);
+    font-weight: bold;
+    font-size: 1rem;
+    letter-spacing: .14em;
+    display: grid;
+    place-items: center;
+    position: relative;
+
+    /* --- River: water gradient + two wave layers drifting sideways --- */
+    color: #f4f1e8;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, .65);          /* keeps the text readable on the water */
+    background:
+        /* near ripples (faster) */
+        url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='40' viewBox='0 0 200 40'><path d='M0 20 Q50 4 100 20 T200 20' fill='none' stroke='white' stroke-opacity='.3' stroke-width='2'/></svg>") repeat-x 0 30% / 200px 40px,
+        /* far ripples (slower) */
+        url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='50' viewBox='0 0 300 50'><path d='M0 25 Q75 8 150 25 T300 25' fill='none' stroke='white' stroke-opacity='.05' stroke-width='3'/></svg>") repeat-x 0 75% / 300px 50px,
+        /* deep water */
+        linear-gradient(180deg, #2b5266cf 0%, #17303fcf 100%);
+    box-shadow: inset 0 8px 10px -8px rgba(0, 0, 0, .5),
+                inset 0 -8px 10px -8px rgba(0, 0, 0, .5);   /* soft river banks */
+    animation: river-flow 14s linear infinite;
+}
+
+/* Each layer moves by exactly its own tile width, so the loop is seamless.
+   Different distances = different speeds = a little parallax. */
+@keyframes river-flow {
+    from { background-position: 0 30%,     0 75%,     0 0; }
+    to   { background-position: 200px 30%, 300px 75%, 0 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    footer { animation: none; }
+}
+
+/* ==========================================================
+   FOOTER LAMP
+   A bulb plugged into the top edge of the river footer.
+   The lamp is invisible until the footer is hovered. Then it:
+     0. sprouts up out of the footer's edge with a springy bounce,
+     1. flickers on like an old tungsten filament,
+     2. blooms a warm halo into the page above,
+     3. throws a pool of light across the water + lights the name,
+     4. sends up a few dust motes and settles into a slow breathing glow.
+   Move away and it cools down gradually instead of snapping off.
+   Everything is driven by footer:hover. Tweak the tokens below.
+   ========================================================== */
+footer {
+  --lamp-size:  2.2rem;                        /* bulb width; the whole lamp scales with it */
+  --lamp-hot:   #fff6d0;                       /* filament + hottest centre */
+  --lamp-warm:  #ffd24a;                       /* main glow, rays, motes */
+  --lamp-amber: #ff9f1c;                       /* outer glass + deep glow */
+  --lu:         calc(var(--lamp-size) / 64);   /* one unit of the bulb drawing */
+  --glass-y:    calc(var(--lu) * 53 + 3px);    /* bulb centre, measured up from the footer's top edge */
+}
+@media (max-width: 520px) { footer { --lamp-size: 2.3rem; } }
+
+/* ---- Bulb (zero-size anchor on the footer's top edge) ---- */
+.lamp {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--lu) * 13);                   /* how far the base sinks into the footer */
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  /* Hidden until the footer is hovered: the bulb is shrunk to nothing at its base.
+     On hover it sprouts up with a springy overshoot; on leave it shrinks back
+     AFTER the light has started cooling (the .55s delay). */
+  transform: scale(0);
+  transform-origin: 0 0;
+  transition: transform .4s ease-in .55s;
+}
+footer:hover .lamp {
+  transform: scale(1);
+  transition: transform .6s cubic-bezier(.34, 1.7, .5, 1);
+}
+.lamp__bulb {
+  position: absolute;
+  left: calc(var(--lamp-size) / -2);
+  bottom: 0;
+  width: var(--lamp-size);
+  height: auto;
+  overflow: visible;                           /* rays extend outside the drawing */
+  transform-origin: 50% 100%;
+  pointer-events: none;
+}
+
+/* Unlit look: theme-aware, so it reads in dark and light mode */
+.lamp .glass  { fill: color-mix(in srgb, var(--ink) 7%, transparent); stroke: var(--edge); stroke-width: 2.4; stroke-linejoin: round; pointer-events: auto; }
+.lamp .shine  { fill: none; stroke: var(--ink); stroke-opacity: .35; stroke-width: 2.4; stroke-linecap: round; }
+.lamp .wire   { fill: none; stroke: var(--ink-soft); stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.lamp .metal  { fill: color-mix(in srgb, var(--ink) 32%, var(--surface-2)); stroke: var(--edge); stroke-width: 2; stroke-linejoin: round; pointer-events: auto; }
+.lamp .groove { fill: none; stroke: var(--edge); stroke-width: 1.6; stroke-linecap: round; opacity: .8; }
+
+/* Lit look: .lit fades (slow cool-down); .flick inside it does the stutter on ignition */
+.lamp .lit        { opacity: 0; transition: opacity .9s ease-in; }
+.lamp .lit-glass  { fill: url(#lampGlass); }
+.lamp .lit-collar { fill: url(#lampCollar); }
+.lamp .lit-wire   {
+  fill: none;
+  stroke: var(--lamp-hot);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 1.6px var(--lamp-amber)) drop-shadow(0 0 4px var(--lamp-warm));
+}
+.lamp .rays {
+  fill: none;
+  stroke: var(--lamp-warm);
+  stroke-width: 3;
+  stroke-linecap: round;
+  transform-origin: 32px 34px;                 /* centre of the glass */
+  transform: scale(.55);
+  transition: transform .9s ease-in;
+}
+.lamp .rays-pulse { transform-origin: 32px 34px; }
+
+/* ---- Light on the page above the footer (sits BEHIND the content) ---- */
+.lamp__sky {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% - 3px);                    /* start at the footer's border */
+  height: 14rem;
+  overflow: hidden;                            /* keeps the glow from adding scroll space */
+  z-index: -1;
+  pointer-events: none;
+}
+.lamp__halo {
+  position: absolute;
+  left: calc(50% - 10rem);
+  bottom: calc(var(--glass-y) - 10rem);        /* centres the 20rem halo on the glass */
+  width: 20rem;
+  height: 20rem;
+  opacity: 0;
+  transform: scale(.35);
+  transition: opacity 1s ease-in, transform 1.2s ease-in;
+}
+.lamp__halo i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    rgba(255, 240, 170, .62) 0%,
+    rgba(255, 205,  80, .34) 20%,
+    rgba(255, 160,  40, .14) 45%,
+    rgba(255, 150,  30,  0 ) 70%);
+}
+
+/* Dust motes drifting up through the glow */
+.lamp__motes {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity .6s ease-in;
+}
+.lamp__mote {
+  position: absolute;
+  left: calc(50% + var(--x, 0rem));
+  bottom: calc(var(--glass-y) - 1.6rem);
+  width: .2rem;
+  height: .2rem;
+  border-radius: 50%;
+  background: var(--lamp-hot);
+  box-shadow: 0 0 .5rem .1rem var(--lamp-warm);
+  opacity: 0;
+  animation: lamp-mote var(--t, 4s) linear var(--d, 0s) infinite paused;
+}
+
+/* Per-mote position, drift, speed and delay (so the markup needs no inline styles) */
+.lamp__mote:nth-child(1) { --x:-2.6rem; --dx:.9rem; --t:4.2s; --d:0s; }
+.lamp__mote:nth-child(2) { --x:-.9rem; --dx:-.6rem; --t:3.6s; --d:.7s; }
+.lamp__mote:nth-child(3) { --x:1.1rem; --dx:.5rem; --t:4.6s; --d:1.4s; }
+.lamp__mote:nth-child(4) { --x:2.8rem; --dx:-.9rem; --t:3.9s; --d:.3s; }
+.lamp__mote:nth-child(5) { --x:-1.8rem; --dx:.4rem; --t:5s; --d:2.1s; }
+.lamp__mote:nth-child(6) { --x:.2rem; --dx:-.3rem; --t:4.4s; --d:2.8s; }
+
+/* ---- Light on the water (above the footer's background, below the text) ---- */
+.lamp__pool {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .9s ease-in;
+}
+.lamp__pool i {
+  display: block;
+  height: 100%;
+  background: radial-gradient(ellipse 15rem 100% at 50% 0%,
+    rgba(255, 226, 120, .8) 0%,
+    rgba(255, 190,  60, .34) 42%,
+    rgba(255, 170,  40,  0 ) 100%);
+}
+
+/* The name warms up with the light */
+footer p {
+  position: relative;
+  z-index: 1;                                  /* above the pool of light */
+  transition: color .8s ease-in;
+}
+
+/* ---- HOVER: turn it on ---- */
+footer:hover .lamp .lit        { opacity: 1; transition: opacity .1s linear; }
+/* Timeline: 0s bulb sprouts -> .4s filament flickers on -> 1.5s settled, breathing */
+footer:hover .lamp .rays       { transform: scale(1); transition: transform .7s cubic-bezier(.2, 1.5, .4, 1) .45s; }
+footer:hover .lamp .flick      { animation: lamp-ignite 1.1s linear .4s both; }
+footer:hover .lamp .rays-pulse { animation: lamp-rays 2.6s ease-in-out 1.6s infinite; }
+footer:hover .lamp__bulb       { animation: lamp-tick .7s ease-out .4s; }
+
+footer:hover .lamp__halo   { opacity: 1; transform: scale(1); transition: opacity .5s ease-out .45s, transform .9s cubic-bezier(.2, .8, .2, 1) .45s; }
+footer:hover .lamp__halo i { animation: lamp-ignite 1.3s linear .4s both, lamp-swell 3.6s ease-in-out 1.7s infinite; }
+
+footer:hover .lamp__motes  { opacity: 1; transition: opacity .8s ease-out 1.4s; }
+footer:hover .lamp__mote   { animation-play-state: running; }
+
+footer:hover .lamp__pool   { opacity: 1; transition: opacity .5s ease-out .5s; }
+footer:hover .lamp__pool i { animation: lamp-ignite 1.3s linear .4s both, lamp-breathe 3.6s ease-in-out 1.7s infinite; }
+
+footer:hover p { color: #fff0c2; transition: color .5s ease-out .5s; }
+
+/* ---- Keyframes ---- */
+/* Filament stutter: a few false starts, then it catches */
+@keyframes lamp-ignite {
+  0%   { opacity: 0; }
+  7%   { opacity: .85; }
+  11%  { opacity: .08; }
+  19%  { opacity: .7; }
+  25%  { opacity: 0; }
+  35%  { opacity: .95; }
+  41%  { opacity: .3; }
+  52%  { opacity: 1; }
+  58%  { opacity: .78; }
+  66%  { opacity: 1; }
+  100% { opacity: 1; }
+}
+@keyframes lamp-breathe { 0%, 100% { opacity: 1; } 50% { opacity: .8; } }
+@keyframes lamp-swell   { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .82; transform: scale(1.05); } }
+@keyframes lamp-rays    { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+/* Tiny jolt in the socket when the power hits */
+@keyframes lamp-tick {
+  0%   { transform: rotate(0); }
+  14%  { transform: rotate(-2.2deg); }
+  30%  { transform: rotate(1.8deg); }
+  46%  { transform: rotate(-1.2deg); }
+  62%  { transform: rotate(.7deg); }
+  80%  { transform: rotate(-.3deg); }
+  100% { transform: rotate(0); }
+}
+@keyframes lamp-mote {
+  0%   { transform: translate(0, 0) scale(.5); opacity: 0; }
+  18%  { opacity: .9; }
+  100% { transform: translate(var(--dx, .8rem), -6rem) scale(1); opacity: 0; }
+}
+
+/* Reduced motion: still lights up, but with no flicker, jolt, or drifting motes */
+@media (prefers-reduced-motion: reduce) {
+  footer .lamp__bulb,
+  footer .flick,
+  footer .rays-pulse,
+  footer .lamp__halo i,
+  footer .lamp__pool i,
+  footer .lamp__mote { animation: none !important; }
+  .lamp__motes { display: none; }
+}
+
+footer mark {
+  background: linear-gradient(transparent 55%, var(--ochre) 55%, var(--ochre) 92%, transparent 92%);
+  color: inherit;
+  padding: 0 .1em;
+}
+
+footer p{
+    text-shadow: 
+        0 0 3rem black,
+        0 0 2rem black,
+        0 0 1rem black,
+        0 0 .5rem black;
+}
+
+/* .card:nth-child(where they are) { */
+/* 	order: the more negative the number, the first it will be. */
+/* } */

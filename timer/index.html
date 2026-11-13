@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Focus Timer</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%8F%B8%EF%B8%8F%3C/text%3E%3C/svg%3E">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="fit">
+<div class="wrap">
+  <header class="nav">
+    <strong class="brand">Focus Timer</strong>
+    <span id="todayLbl" class="muted"></span>
+    <button id="themeBtn" class="ghost" type="button">Theme: auto</button>
+    <nav>
+      <a class="active" href="index.html">Timer</a>
+      <a href="dashboard.html">Dashboard</a>
+    </nav>
+  </header>
+
+  <div id="notice" class="notice" hidden></div>
+
+  <section id="cards" class="cards" aria-label="Timers"></section>
+
+  <section class="card bar" aria-label="Settings">
+    <div class="brow">
+      <span class="blabel">Settings</span>
+      <label class="switch"><input id="auto" type="checkbox"><span>Auto-restart each hour (short beep, +1 point)</span></label>
+      <label class="vol">🔊 <input id="vol" type="range" min="0" max="100" step="5" aria-label="Volume"><output id="volVal">50%</output></label>
+      <label class="sel">Beep every
+        <select id="beepMin" aria-label="Reminder beep interval">
+          <option value="5">5 min</option><option value="10">10 min</option><option value="15">15 min</option>
+          <option value="20">20 min</option><option value="30">30 min</option>
+        </select>
+      </label>
+      <span class="bells">🔔
+        <label><input type="checkbox" data-bell="paused"> Paused</label>
+        <label><input type="checkbox" data-bell="workflow"> Workflow</label>
+        <label><input type="checkbox" data-bell="workout"> Workout</label>
+        <label><input type="checkbox" data-bell="eating"> Eating</label>
+      </span>
+    </div>
+  </section>
+
+  <div class="bottom">
+    <div class="tools" id="tools"></div>
+    <div class="corner">
+      <div class="oc" id="oc" aria-label="Outreach counter">
+        <div><div class="cl">Outreach today</div><div class="cd" id="ocCount">0 / 3</div></div>
+        <button id="ocMinus" class="ghost" type="button" aria-label="Remove one outreach">−</button>
+        <button id="ocPlus" class="primary plus" type="button" aria-label="Add one outreach">+1</button>
+        <button id="ocGoal" class="ghost" type="button" aria-label="Change the daily goal">Goal</button>
+      </div>
+      <div class="chrono" id="chrono" aria-label="Extra chronometer">
+        <div><div class="cl">Chronometer</div><div class="cd" id="cd">0:00:00.0</div></div>
+        <button id="cGo" class="tbtn" type="button">Start</button>
+        <button id="cReset" class="ghost" type="button">Reset</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<dialog id="noteDlg">
+  <form method="dialog">
+    <h2 id="noteTitle">Session saved</h2>
+    <p id="noteInfo" class="muted" style="margin:0 0 12px"></p>
+    <input id="noteInput" type="text" maxlength="200" placeholder="Note (optional), e.g. fixed the backup script" autofocus>
+    <div class="drow"><button class="primary" value="save">Save</button></div>
+  </form>
+</dialog>
+
+<dialog id="goalDlg">
+  <form method="dialog">
+    <h2>Daily outreach goal</h2>
+    <input id="goalInput" type="number" min="1" max="9999" inputmode="numeric" autofocus>
+    <div class="drow"><button class="primary" value="save">Save</button></div>
+  </form>
+</dialog>
+
+<script src="app.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var ACTS = TSA.ACTS, META = TSA.META, pad = TSA.pad;
+  var boot = TSA.boot(Date.now(), {});
+  var S = TSA.get();
+  TSA.initTheme($('themeBtn'));
+  TSA.mountDataTools($('tools'), function () { S = TSA.get(); renderAll(); });
+
+  function hms(sec) { sec = Math.max(0, Math.floor(sec)); return pad(Math.floor(sec / 3600)) + ':' + pad(Math.floor((sec % 3600) / 60)) + ':' + pad(sec % 60); }
+  function clock(ms) { return new Date(ms).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); }
+  function showNotice(msg) { var n = $('notice'); n.textContent = msg; n.hidden = false; }
+
+  /* ---------- cards ---------- */
+  var cardsEl = $('cards'), refs = {};
+  cardsEl.innerHTML = ACTS.map(function (a) {
+    var m = META[a];
+    return '<article class="acard" data-act="' + a + '" style="--c:var(' + m.color + ')">' +
+      '<h2><i class="dotc"></i>' + m.icon + ' ' + m.label + '</h2>' +
+      '<div class="big" data-big>00:00:00</div>' +
+      '<div class="state" data-state></div>' +
+      '<div class="sub" data-sub></div>' +
+      '<div class="cbtns"><button type="button" class="tbtn" data-toggle>Start</button></div></article>';
+  }).join('');
+  ACTS.forEach(function (a) {
+    var el = cardsEl.querySelector('[data-act=' + a + ']');
+    refs[a] = { el: el, big: el.querySelector('[data-big]'), state: el.querySelector('[data-state]'),
+      sub: el.querySelector('[data-sub]'), btn: el.querySelector('[data-toggle]') };
+  });
+  var SUBS = { paused: 'Today · counts by itself', sleep: 'Today · keeps counting if closed' };
+
+  function renderLive() {
+    var now = Date.now(), T = TSA.todayTotals(now), tm = S.timer, pts = TSA.todayPoints(now), workRem = TSA.WORK_SEC;
+    ACTS.forEach(function (a) {
+      var r = refs[a], on = S.active === a;
+      r.el.classList.toggle('on', on);
+      r.btn.classList.toggle('on', on);
+      r.btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      if (a === 'work') {
+        workRem = tm.mode === 'running' ? Math.max(0, Math.ceil((tm.endAt - now) / 1000))
+          : tm.mode === 'paused' ? Math.ceil(tm.remainingMs / 1000) : TSA.WORK_SEC;
+        r.big.textContent = hms(workRem);
+        r.state.textContent = on ? 'Counting down' : tm.mode === 'paused' ? 'Stopped · time kept' : 'Ready · 1 hour';
+        r.sub.innerHTML = '<strong>' + pts + '</strong> point' + (pts === 1 ? '' : 's') + ' today · ' + TSA.fmtDur(T.work) + ' worked';
+        r.btn.textContent = on ? 'Stop' : tm.mode === 'paused' ? 'Resume' : 'Start';
+      } else {
+        r.big.textContent = hms(T[a]);
+        r.state.textContent = on ? 'Running since ' + clock(S.activeSince) : 'Stopped';
+        r.sub.textContent = SUBS[a] || 'Today';
+        r.btn.textContent = on ? (a === 'paused' ? 'Running' : 'Stop') : 'Start';
+      }
+    });
+    var shown = S.active === 'work' ? workRem : T[S.active];
+    document.title = META[S.active].icon + ' ' + hms(shown) + ' · ' + META[S.active].label;
+    TSA.setFavicon(S.active);
+    renderOutreach(now);
+  }
+
+  /* ---------- settings bar ---------- */
+  function renderAll() {
+    $('auto').checked = !!S.settings.autoRestart;
+    var v = Math.round((S.settings.volume == null ? 0.5 : S.settings.volume) * 100);
+    $('vol').value = v; $('volVal').textContent = v + '%';
+    $('beepMin').value = String(S.settings.beepMinutes);
+    document.querySelectorAll('[data-bell]').forEach(function (c) { c.checked = S.settings.beep[c.dataset.bell] !== false; });
+    renderLive();
+    $('todayLbl').textContent = TSA.keyToDate(TSA.dayKey(Date.now())).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  }
+  $('auto').addEventListener('change', function () { S.settings.autoRestart = $('auto').checked; TSA.save(); });
+  $('vol').addEventListener('input', function () { S.settings.volume = $('vol').value / 100; $('volVal').textContent = $('vol').value + '%'; TSA.save(); });
+  $('vol').addEventListener('change', function () { TSA.beep(1000, .22, .4); });
+  $('beepMin').addEventListener('change', function () { S.settings.beepMinutes = +$('beepMin').value; TSA.save(); });
+  document.querySelectorAll('[data-bell]').forEach(function (c) {
+    c.addEventListener('change', function () { S.settings.beep[c.dataset.bell] = c.checked; TSA.save(); });
+  });
+
+  /* ---------- switching timers and notes ---------- */
+  function askNote(seg) {
+    $('noteTitle').textContent = META[seg.act].label + ' session saved';
+    $('noteInfo').textContent = 'Duration ' + TSA.fmtDur((seg.end - seg.start) / 1000) + '. Add a note if you like (Esc skips it).';
+    $('noteInput').value = '';
+    $('noteDlg').returnValue = '';
+    $('noteDlg').dataset.id = seg.id;
+    $('noteDlg').showModal();
+  }
+  $('noteDlg').addEventListener('close', function () {
+    if (this.returnValue === 'save') { TSA.setNote(this.dataset.id, $('noteInput').value); S = TSA.get(); }
+  });
+
+  cardsEl.addEventListener('click', function (e) {
+    TSA.audio();
+    var b = e.target.closest('[data-toggle]'); if (!b) return;
+    var act = b.closest('.acard').dataset.act, res;
+    if (S.active === act) { if (act === 'paused') return; res = TSA.switchTo('paused'); }   // clicking a running card only stops it
+    else { if (act === 'work') TSA.alarmStop(); res = TSA.switchTo(act); }
+    S = TSA.get(); renderAll();
+    if (res && res.closed && TSA.NOTE_ACTS.indexOf(res.closed.act) >= 0 && res.closed.end - res.closed.start >= 1000) askNote(res.closed);
+  });
+
+  /* ---------- outreach counter ---------- */
+  function renderOutreach(now) {
+    var n = TSA.outreachToday(now), g = S.outreach.goal;
+    $('ocCount').textContent = n + ' / ' + g;
+    $('ocCount').classList.toggle('met', n >= g);
+    $('ocMinus').disabled = n === 0;
+  }
+  $('ocPlus').addEventListener('click', function () { TSA.outreachAdd(); renderOutreach(Date.now()); });
+  $('ocMinus').addEventListener('click', function () { TSA.outreachUndo(); renderOutreach(Date.now()); });
+  $('ocGoal').addEventListener('click', function () { $('goalInput').value = S.outreach.goal; $('goalDlg').returnValue = ''; $('goalDlg').showModal(); });
+  $('goalDlg').addEventListener('close', function () {
+    if (this.returnValue === 'save') { TSA.setGoal($('goalInput').value); S = TSA.get(); renderOutreach(Date.now()); }
+  });
+
+  /* ---------- extra chronometer (separate: its own storage, not in the export or dashboard) ---------- */
+  var C = { running: false, startedAt: 0, accMs: 0 };
+  function loadChrono() {
+    try { var o = JSON.parse(localStorage.getItem(TSA.CHRONO_KEY)); if (o && typeof o.accMs === 'number') C = o; } catch (e) {}
+  }
+  function saveChrono() { try { localStorage.setItem(TSA.CHRONO_KEY, JSON.stringify(C)); } catch (e) {} }
+  function chronoMs() { return C.accMs + (C.running ? Date.now() - C.startedAt : 0); }
+  function fmtChrono(ms) {
+    var t = Math.floor(ms / 100), tenth = t % 10, s = Math.floor(t / 10), h = Math.floor(s / 3600);
+    return h + ':' + pad(Math.floor((s % 3600) / 60)) + ':' + pad(s % 60) + '.' + tenth;
+  }
+  function renderChrono() {
+    $('cd').textContent = fmtChrono(chronoMs());
+    $('cGo').textContent = C.running ? 'Pause' : 'Start';
+    $('cGo').classList.toggle('on', C.running);
+    $('cReset').disabled = !C.running && C.accMs === 0;
+  }
+  $('cGo').addEventListener('click', function () {
+    if (C.running) { C.accMs = chronoMs(); C.running = false; } else { C.startedAt = Date.now(); C.running = true; }
+    saveChrono(); renderChrono();
+  });
+  $('cReset').addEventListener('click', function () { C = { running: false, startedAt: 0, accMs: 0 }; saveChrono(); renderChrono(); });
+  window.addEventListener('storage', function (e) { if (e.key === TSA.CHRONO_KEY) { loadChrono(); renderChrono(); } });
+  loadChrono(); renderChrono();
+  setInterval(renderChrono, 100);
+
+  /* ---------- run ---------- */
+  TSA.engine(function (kind) {
+    S = TSA.get();
+    if (kind === 'tick') renderLive(); else renderAll();
+  });
+  renderAll();
+  if (!TSA.storageOK()) showNotice('Your browser is blocking storage, so nothing will be saved. Try a normal (non-private) window.');
+  else if (boot.closedAct) showNotice('The page was closed, so ' + META[boot.closedAct.act].label + ' stopped at ' + clock(boot.closedAct.at) + '. The time since then counted as Paused.');
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thoughtless experiment's Retention Analyzer</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Lato:wght@400;700&display=swap" rel="stylesheet">
+
+<!-- favicon -->
+<link rel="apple-touch-icon" sizes="180x180" href="./media/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./media/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="./media/favicon-16x16.png">
+<link rel="manifest" href="./media/site.webmanifest">
+
+
+<!-- things -->
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Thoughtless experiment's Retention Analyzer" />
+<meta name="keywords" content="Gabryan, The Gabryan, Gabryan video editor, YouTube video editor, freelance video editor, documentary video editor, educational video editor, documentary-style video editing, educational video editing, YouTube documentary editor, video editing for educational creators, video editing for YouTubers, storytelling video editor, cinematic video editing, long-form video editor, science video editor, explainer video editor, psychology-driven storytelling, documentary storytelling, professional video editing">
+<meta property="og:description" content="Audience retention and engagement analysis tool created for Thoughtless Expetiment. Analyze video drop-offs, rewatch spikes, and retention metrics to refine long-form video editing and structure." />
+
+<meta property="og:image" content="https://gabryan.com/thexp/retention/media/banner.webp" />
+<meta property="og:url" content="https://gabryan.com/thexp/retention/" />
+<meta property="og:site_name" content="Gabryan" />
+
+<!-- Enables large image preview format in Discord and Twitter/X -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="theme-color" content="#00aaff" />
+
+<style>
+:root{
+  /* palette sampled from the channel logo: plum background, cream type, orange dot */
+  --bg:#2a1f33; --panel:#33263e; --panel2:#3d2f49; --hl:#4b3754; --line:#5a4866;
+  --text:#f6edd9; --muted:#bba9c8;
+  --accent:#e8941a; --accent-ink:#2a1a05; --danger:#ff7b7b; --good:#8fdc9a; --radius:12px;
+  --head:'Anton','Oswald','Bebas Neue','Arial Narrow',Impact,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:14px/1.45 'Lato',system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:20;flex-wrap:wrap}
+header h1{margin:0 auto 0 4px;display:flex;flex-direction:column;align-items:flex-start;line-height:1;font-weight:400}
+header h1 .mark{font-family:var(--head);font-size:24px;letter-spacing:.5px;text-transform:uppercase;color:var(--text);padding:2px 8px 1px;background:var(--hl);border-left:4px solid var(--hl);box-shadow:-4px 0 0 var(--hl)}
+header h1 .sub{font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--text);background:var(--hl);padding:2px 8px;margin-left:14px;margin-top:2px}
+header h1 .sub::after{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);margin-left:3px}
+button,.btn{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:7px 12px;font:inherit;cursor:pointer;transition:.15s}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:700}
+button.active{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700}
+button.small{padding:3px 8px;font-size:12px}
+.layout{display:grid;grid-template-columns:340px 1fr;min-height:calc(100% - 55px)}
+aside{background:var(--panel);border-right:1px solid var(--line);padding:14px;overflow-y:auto;max-height:calc(100vh - 55px);position:sticky;top:55px}
+aside.hidden{display:none}
+.layout.nopanel{grid-template-columns:1fr}
+main{padding:16px;min-width:0}
+details{border:1px solid var(--line);border-radius:var(--radius);margin-bottom:12px;background:var(--panel2)}
+summary{cursor:pointer;padding:10px 12px;font-family:var(--head);font-weight:400;font-size:15px;letter-spacing:.8px;text-transform:uppercase;list-style:none;background:var(--hl);border-radius:var(--radius) var(--radius) 0 0;border-left:4px solid var(--accent)}
+details:not([open]) summary{border-radius:var(--radius)}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"▾";float:right;color:var(--muted)}
+details:not([open]) summary::after{content:"▸"}
+.sec{padding:4px 12px 12px;display:grid;gap:10px}
+label{display:grid;gap:4px;color:var(--muted);font-size:12px}
+.row{display:flex;gap:8px;align-items:center}
+.row>*{flex:1;min-width:0}
+.row.check{gap:6px}
+.row.check input{flex:0 0 auto}
+.row.check label{display:inline;color:var(--text);font-size:13px}
+input[type=text],input[type=number],select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font:inherit}
+input[type=range]{width:100%;accent-color:var(--accent)}
+input[type=color]{width:36px;height:30px;padding:0;border:1px solid var(--line);border-radius:6px;background:none;flex:0 0 36px}
+.seg{display:flex;gap:6px}
+.seg button{flex:1}
+#drop{border:2px dashed var(--line);border-radius:var(--radius);padding:26px 16px;text-align:center;color:var(--muted);cursor:pointer;transition:.15s;background:var(--panel)}
+#drop.over,#drop:hover{border-color:var(--accent);color:var(--text);background:var(--panel2)}
+#drop b{color:var(--accent)}
+.card{border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--bg);display:grid;gap:8px}
+.card .head{display:flex;gap:8px;align-items:center}
+.card .head .name{flex:1;font-weight:600;word-break:break-all;font-size:13px}
+.hint{font-size:11px;color:var(--muted)}
+.warn{color:#ffc15e}
+.card.off{opacity:.6}
+.card.off .head .name{text-decoration:line-through}
+.thumb{position:relative;display:block;width:100%;padding:0;border:0;border-radius:8px;overflow:hidden;background:#000;aspect-ratio:16/9}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb .play{position:absolute;inset:0;display:grid;place-items:center;font-size:26px;color:#fff;background:rgba(42,31,51,.28);transition:.15s}
+.thumb:hover .play{background:rgba(232,148,26,.38)}
+tr.off{opacity:.45}
+#modal{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:rgba(20,12,26,.84);padding:16px}
+#modal[hidden]{display:none}
+.modal-card{width:min(960px,100%);background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.modal-head{display:flex;align-items:center;gap:12px;padding:8px 12px;background:var(--hl)}
+.modal-head span{flex:1;font-family:var(--head);letter-spacing:.8px;text-transform:uppercase;font-size:15px}
+.modal-head a{color:var(--accent);text-decoration:none;font-size:12px;white-space:nowrap}
+.modal-body{aspect-ratio:16/9;background:#000}
+.modal-body iframe{width:100%;height:100%;border:0;display:block}
+#charts{display:grid;gap:14px;margin-top:14px}
+#charts.side{grid-template-columns:repeat(auto-fit,minmax(380px,1fr))}
+.plotbox{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:8px;min-width:0}
+.plotbox h3{margin:4px 8px 0;font-family:var(--head);font-size:15px;letter-spacing:.8px;text-transform:uppercase;color:var(--text);font-weight:400}
+.plot{width:100%;height:480px}
+#charts.side .plot{height:420px}
+.tablewrap{margin-top:14px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:640px}
+th,td{padding:10px 12px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--text);font-family:var(--head);font-weight:400;font-size:13px;text-transform:uppercase;letter-spacing:.8px;background:var(--hl)}
+tr:last-child td{border-bottom:0}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px}
+.empty{padding:40px;text-align:center;color:var(--muted)}
+.tip{margin-top:10px;font-size:12px;color:var(--muted)}
+@media (max-width:900px){
+  .layout{grid-template-columns:1fr}
+  aside{position:static;max-height:none;border-right:0;border-bottom:1px solid var(--line)}
+  #charts.side{grid-template-columns:1fr}
+  .plot{height:380px}
+}
+</style>
+</head>
+<body>
+<header>
+  <button id="togglePanel" title="Show/hide controls">☰ Controls</button>
+  <h1><span class="mark">Retention</span><span class="sub">Analyzer</span></h1>
+  <button id="btnSample">Load sample</button>
+  <button id="btnReset">Reset view</button>
+  <button id="btnPng">Export PNG</button>
+</header>
+
+<div class="layout" id="layout">
+<aside id="panel">
+
+  <details open>
+    <summary>Files</summary>
+    <div class="sec">
+      <div id="fileCards" style="display:grid;gap:10px"></div>
+      <div class="hint">Column mapping, X unit and video length are per file. YouTube exports use <i>Video position (%)</i>, which has no length, so enter each video's real duration (mm:ss or seconds).</div>
+    </div>
+  </details>
+
+  <details open>
+    <summary>Chart</summary>
+    <div class="sec">
+      <label>Layout
+        <div class="seg"><button id="lyOverlay" class="active">Overlay</button><button id="lySide">Side-by-side</button></div>
+      </label>
+      <label>X axis shows
+        <div class="seg"><button id="xTime" class="active">Time</button><button id="xPct">% of video</button></div>
+      </label>
+      <label>Drag mode
+        <div class="seg"><button id="dmZoom">Zoom</button><button id="dmPan" class="active">Pan</button></div>
+      </label>
+      <label>Zoom axes
+        <select id="zoomAxes"><option value="xy">X and Y (box)</option><option value="x">X only</option><option value="y">Y only</option></select>
+      </label>
+      <div class="row check"><input type="checkbox" id="showMarkers" checked><label for="showMarkers">Show data points</label></div>
+      <div class="row check"><input type="checkbox" id="fillArea"><label for="fillArea">Fill under curve</label></div>
+    </div>
+  </details>
+
+  <details open>
+    <summary>Grid &amp; ticks</summary>
+    <div class="sec">
+      <div class="row check"><input type="checkbox" id="xAuto" checked><label for="xAuto">Auto X step</label></div>
+      <label><span id="xStepLabel">X step (seconds)</span>
+        <div class="row"><input type="range" id="xStepR" min="1" max="600" value="30"><input type="number" id="xStep" min="0.1" step="any" value="30" style="flex:0 0 80px"></div>
+      </label>
+      <label>Y step (%)
+        <div class="row"><input type="range" id="yStepR" min="1" max="50" value="10"><input type="number" id="yStep" min="0.1" step="any" value="10" style="flex:0 0 80px"></div>
+        <div class="seg"><button class="small ypre" data-v="5">5%</button><button class="small ypre" data-v="10">10%</button><button class="small ypre" data-v="25">25%</button></div>
+      </label>
+      <div class="row">
+        <label>Y min (blank = 0)<input type="number" id="yMin" step="any" placeholder="0"></label>
+        <label>Y max (blank = auto)<input type="number" id="yMax" step="any" placeholder="auto"></label>
+      </div>
+      <div class="row check"><input type="checkbox" id="gridX" checked><label for="gridX">X gridlines</label></div>
+      <div class="row check"><input type="checkbox" id="gridY" checked><label for="gridY">Y gridlines</label></div>
+    </div>
+  </details>
+
+  <details open>
+    <summary>Drop-offs &amp; rewatches</summary>
+    <div class="sec">
+      <div class="row check"><input type="checkbox" id="showDrops" checked><label for="showDrops">Mark sharp drop-offs</label></div>
+      <div class="row check"><input type="checkbox" id="showSpikes" checked><label for="showSpikes">Mark rewatch spikes</label></div>
+      <div class="row">
+        <label>Drop ≥ (% pts)<input type="number" id="dropThr" value="5" min="0.1" step="any"></label>
+        <label>within (sec)<input type="number" id="dropWin" value="5" min="1" step="any"></label>
+      </div>
+      <div class="row">
+        <label>Spike ≥ (% pts)<input type="number" id="spikeThr" value="0.5" min="0.05" step="any"></label>
+        <label>Ignore first (sec)<input type="number" id="ignoreIntro" value="0" min="0" step="any"></label>
+      </div>
+      <label>Max labels per video<input type="number" id="maxLabels" value="6" min="0" max="40"></label>
+      <div class="hint">A drop is flagged when the loss, scaled to the window length, reaches the threshold. Sampling is coarse (one point per 1% of the video), so the effective window is at least one sample step.</div>
+      <div class="hint">Click a green rewatch marker to watch that moment in a popup. Each video needs its YouTube link (set it in the file card or in retention-config.json).</div>
+    </div>
+  </details>
+
+</aside>
+
+<main>
+  <div id="drop">
+    <div><b>Drop CSV files here</b> or click to browse</div>
+    <div class="hint" style="margin-top:6px">Select two or more files to compare retention curves</div>
+    <input type="file" id="fileInput" accept=".csv,.tsv,.txt,text/csv" multiple hidden>
+  </div>
+  <div id="msg" class="tip"></div>
+  <div id="charts"></div>
+  <div id="tableArea"></div>
+</main>
+</div>
+
+<div id="modal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-label="Video">
+    <div class="modal-head"><span id="modalTitle"></span><a id="modalYt" href="#" target="_blank" rel="noopener">Open on YouTube ↗</a><button class="small" id="modalClose" title="Close (Esc)">✕</button></div>
+    <div class="modal-body"><iframe id="modalFrame" title="YouTube video" src="about:blank" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
+  </div>
+</div>
+
+<!-- Optional: generated by build-data.py / build-data.js. Missing file is fine. -->
+<script src="retention-data.js"></script>
+<script>
+// ============ PURE LOGIC ============
+const PALETTE = ['#f0a030','#f6edd9','#b79cf0','#f27ab0','#5fd0c4','#ffd166','#e08bff','#ff9a76'];
+
+function parseCSV(text){
+  text = text.replace(/^\uFEFF/, '');
+  const firstLine = text.split(/\r?\n/).find(l => l.trim().length) || '';
+  const delims = [',', ';', '\t'];
+  let delim = ',', best = -1;
+  for (const d of delims){ const c = firstLine.split(d).length; if (c > best){ best = c; delim = d; } }
+  const rows = []; let row = [], cell = '', q = false;
+  for (let i = 0; i < text.length; i++){
+    const ch = text[i];
+    if (q){
+      if (ch === '"'){ if (text[i+1] === '"'){ cell += '"'; i++; } else q = false; }
+      else cell += ch;
+    } else if (ch === '"') q = true;
+    else if (ch === delim){ row.push(cell); cell = ''; }
+    else if (ch === '\n' || ch === '\r'){
+      if (ch === '\r' && text[i+1] === '\n') i++;
+      row.push(cell); cell = '';
+      if (row.some(c => c.trim() !== '')) rows.push(row);
+      row = [];
+    } else cell += ch;
+  }
+  row.push(cell);
+  if (row.some(c => c.trim() !== '')) rows.push(row);
+  return rows;
+}
+
+function parseClock(s){
+  if (typeof s === 'number') return s;
+  s = String(s).trim();
+  if (!s) return NaN;
+  if (s.includes(':')){
+    const p = s.split(':').map(Number);
+    if (p.some(isNaN)) return NaN;
+    return p.reduce((a, v) => a * 60 + v, 0);
+  }
+  return parseFloat(s.replace(',', '.'));
+}
+
+function fmtClock(sec){
+  if (!isFinite(sec)) return '—';
+  sec = Math.max(0, Math.round(sec));
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+  const pad = n => String(n).padStart(2, '0');
+  return h ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
+}
+
+function guessColumns(headers, rows){
+  const h = headers.map(x => String(x).toLowerCase());
+  let xi = h.findIndex(x => /position|elapsed|time|second|timestamp|minute/.test(x));
+  let yi = h.findIndex(x => /retention|watch|audience|viewers|percent/.test(x) && !/position|elapsed/.test(x));
+  if (xi < 0) xi = 0;
+  if (yi < 0 || yi === xi) yi = headers.length > 1 ? (xi === 0 ? 1 : 0) : 0;
+  return { xi, yi };
+}
+
+function guessUnit(header, values){
+  const h = String(header).toLowerCase();
+  if (/%|percent/.test(h)) return 'percent';
+  if (/minute/.test(h)) return 'minutes';
+  if (/second|\(s\)|sec/.test(h)) return 'seconds';
+  if (values.some(v => String(v).includes(':'))) return 'clock';
+  return 'seconds';
+}
+
+// Build clean point list [{x (raw), t (sec), pct (0-100), r}]
+function buildPoints(f){
+  const pts = [];
+  for (const row of f.rows){
+    const xr = row[f.xi], yr = row[f.yi];
+    if (xr === undefined || yr === undefined) continue;
+    let x = f.xUnit === 'clock' ? parseClock(xr) : parseFloat(String(xr).replace('%','').replace(',', '.'));
+    let r = parseFloat(String(yr).replace('%','').replace(',', '.'));
+    if (!isFinite(x) || !isFinite(r)) continue;
+    pts.push({ x, r });
+  }
+  pts.sort((a, b) => a.x - b.x);
+  if (pts.length && Math.max(...pts.map(p => p.r)) <= 1.0001) pts.forEach(p => p.r *= 100);
+  let toSec;
+  if (f.xUnit === 'percent') toSec = x => x / 100 * f.duration;
+  else if (f.xUnit === 'minutes') toSec = x => x * 60;
+  else toSec = x => x;
+  pts.forEach(p => { p.t = toSec(p.x); });
+  return pts;
+}
+
+function interp(pts, t){
+  if (!pts.length) return NaN;
+  if (t <= pts[0].t) return pts[0].r;
+  const last = pts[pts.length - 1];
+  if (t >= last.t) return last.r;
+  for (let i = 1; i < pts.length; i++){
+    if (pts[i].t >= t){
+      const a = pts[i-1], b = pts[i];
+      const k = (t - a.t) / ((b.t - a.t) || 1);
+      return a.r + (b.r - a.r) * k;
+    }
+  }
+  return last.r;
+}
+
+function analyze(pts, D, o){
+  const out = { drops: [], spikes: [], dropCount: 0, spikeCount: 0 };
+  if (pts.length < 2) return out;
+  for (let i = 1; i < pts.length; i++){
+    const a = pts[i-1], b = pts[i];
+    const dt = b.t - a.t;
+    if (dt <= 0 || b.t < o.ignoreIntro) continue;
+    const delta = b.r - a.r;
+    if (delta < 0){
+      const rate = (-delta) / dt * o.dropWin;
+      if (rate >= o.dropThr) out.drops.push({ t0: a.t, t1: b.t, t: b.t, r: b.r, loss: -delta, rate });
+    } else if (delta >= o.spikeThr){
+      out.spikes.push({ t0: a.t, t1: b.t, t: b.t, r: b.r, gain: delta });
+    }
+  }
+  out.dropCount = out.drops.length;
+  out.spikeCount = out.spikes.length;
+  out.drops.sort((p, q) => q.rate - p.rate);
+  out.spikes.sort((p, q) => q.gain - p.gain);
+  return out;
+}
+
+function benchmarks(pts, D){
+  if (!pts.length) return { r30: NaN, apv: NaN, final10: NaN };
+  const T = Math.max(D, pts[pts.length - 1].t);
+  const r30 = interp(pts, 30);
+  // APV: time-weighted mean of retention over the curve
+  let area = 0, span = 0;
+  for (let i = 1; i < pts.length; i++){
+    const dt = pts[i].t - pts[i-1].t;
+    area += (pts[i].r + pts[i-1].r) / 2 * dt; span += dt;
+  }
+  const apv = span > 0 ? area / span : pts[0].r;
+  // Final 10s: mean retention across the last 10 seconds
+  const t0 = Math.max(0, T - 10), n = 20; let s = 0;
+  for (let k = 0; k <= n; k++) s += interp(pts, t0 + (T - t0) * k / n);
+  return { r30, apv, final10: s / (n + 1) };
+}
+
+function niceStep(span, target){
+  const raw = span / target;
+  const steps = [1,2,5,10,15,30,60,120,300,600,900,1800,3600,7200];
+  return steps.find(s => s >= raw) || steps[steps.length - 1];
+}
+
+function makeTicks(lo, hi, step, fmt){
+  if (!(step > 0)) step = 1;
+  let n = (hi - lo) / step;
+  if (n > 60) step = step * Math.ceil(n / 60);
+  const vals = [], text = [];
+  const start = Math.ceil(lo / step - 1e-9) * step;
+  for (let v = start; v <= hi + step * 1e-9; v += step){
+    const vv = Math.round(v * 1e6) / 1e6;
+    vals.push(vv); text.push(fmt(vv));
+  }
+  return { vals, text };
+}
+
+// ============ UI ============
+const $ = id => document.getElementById(id);
+const state = { files: [], layout: 'overlay', xMode: 'time', dragmode: 'pan', nextId: 1 };
+
+function opt(){
+  return {
+    dropThr: Math.max(0.01, parseFloat($('dropThr').value) || 5),
+    dropWin: Math.max(0.1, parseFloat($('dropWin').value) || 5),
+    spikeThr: Math.max(0.01, parseFloat($('spikeThr').value) || 0.5),
+    ignoreIntro: Math.max(0, parseFloat($('ignoreIntro').value) || 0),
+    maxLabels: Math.max(0, parseInt($('maxLabels').value) || 0)
+  };
+}
+
+function say(text, warn){ $('msg').innerHTML = text ? `<span class="${warn ? 'warn' : ''}">${text}</span>` : ''; }
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function cleanName(n){
+  return n.replace(/\.[^.]+$/, '').replace(/^retention\s*[-_–—]+\s*/i, '').replace(/_+/g, ' ').trim() || n;
+}
+// Video lengths are remembered per file name in this browser
+function savedDuration(name){
+  try { const v = parseFloat(localStorage.getItem('ret-dur:' + name)); return v > 0 ? v : null; } catch (e){ return null; }
+}
+function saveDuration(name, v){
+  try { localStorage.setItem('ret-dur:' + name, String(v)); } catch (e){}
+}
+function savedLink(name){
+  try { return localStorage.getItem('ret-link:' + name) || ''; } catch (e){ return ''; }
+}
+function saveLink(name, v){
+  try { localStorage.setItem('ret-link:' + name, v || ''); } catch (e){}
+}
+// YouTube video id from youtu.be/ID, watch?v=ID, /shorts/ID, /live/ID, /embed/ID or a bare 11-char id
+function ytId(url){
+  if (!url) return null;
+  url = String(url).trim();
+  const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:[^#]*&)?v=|shorts\/|embed\/|live\/|v\/)|youtube-nocookie\.com\/embed\/)([A-Za-z0-9_-]{11})/);
+  if (m) return m[1];
+  return /^[A-Za-z0-9_-]{11}$/.test(url) ? url : null;
+}
+
+// Turn CSV text into a file entry. preset = { title, duration, link } (optional, from retention-config.json)
+function ingest(rawName, text, preset){
+  const rows = parseCSV(text);
+  if (rows.length < 2) { say(`“${esc(rawName)}” has no data rows.`, true); return false; }
+  const headers = rows[0].map(h => h.trim());
+  const body = rows.slice(1);
+  const g = guessColumns(headers, body);
+  const unit = guessUnit(headers[g.xi], body.slice(0, 50).map(r => r[g.xi]));
+  const name = (preset && preset.title) || cleanName(rawName);
+  const dur = (preset && preset.duration > 0) ? preset.duration : savedDuration(name);
+  const f = {
+    id: state.nextId++, name,
+    headers, rows: body, xi: g.xi, yi: g.yi, xUnit: unit,
+    duration: dur || 600, durationAuto: unit !== 'percent' && !dur,
+    link: (preset && preset.link) || savedLink(name), hidden: false,
+    color: PALETTE[(state.nextId - 2) % PALETTE.length]
+  };
+  state.files.push(f);
+  refreshDuration(f);
+  return true;
+}
+
+async function addFiles(fileList){
+  for (const file of Array.from(fileList)){
+    try { ingest(file.name, await file.text()); }
+    catch (e){ say('Could not read ' + esc(file.name) + ': ' + esc(e.message), true); }
+  }
+  renderCards(); render();
+}
+
+// Find CSVs on the server. Looks in data/ first, then next to index.html.
+// In each place: manifest.json (["a.csv", ...] or [{file,title,duration}]) wins.
+// For data/ only, the server's directory listing is parsed as a fallback (needs autoindex, e.g. Apache/nginx or python -m http.server).
+async function discoverCSVs(){
+  for (const base of ['data/', '']){
+    try {
+      const r = await fetch(base + 'manifest.json', { cache: 'no-cache' });
+      if (r.ok){
+        const m = await r.json();
+        const arr = (Array.isArray(m) ? m : (m.files || [])).map(x => typeof x === 'string' ? { file: x } : x).filter(x => x && x.file);
+        if (arr.length) return arr.map(x => ({ ...x, url: base + encodeURI(x.file) }));
+      }
+    } catch (e){}
+    if (!base) continue; // a folder containing index.html is never shown as a listing, so only data/ can be listed
+    try {
+      const r = await fetch(base, { cache: 'no-cache' });
+      if (r.ok && /html/i.test(r.headers.get('content-type') || '')){
+        const html = await r.text();
+        const names = [...html.matchAll(/href\s*=\s*["']([^"']+?\.csv)["']/gi)]
+          .map(m => { try { return decodeURIComponent(m[1].split('/').pop()); } catch (e){ return m[1].split('/').pop(); } });
+        const uniq = [...new Set(names)];
+        if (uniq.length) return uniq.map(f => ({ file: f, url: base + encodeURIComponent(f) }));
+      }
+    } catch (e){}
+  }
+  return [];
+}
+
+async function loadPreloaded(){
+  // 1) Hosted (http/https): fetch the CSVs straight from the folder
+  if (location.protocol !== 'file:'){
+    let cfg = {};
+    try { const r = await fetch('retention-config.json', { cache: 'no-cache' }); if (r.ok) cfg = await r.json(); } catch (e){}
+    const list = await discoverCSVs();
+    let n = 0;
+    for (const it of list){
+      try {
+        const r = await fetch(it.url, { cache: 'no-cache' });
+        if (!r.ok) continue;
+        const c = cfg[it.file] || cfg[it.file.replace(/\.[^.]+$/, '')] || {};
+        const ok = ingest(it.file, await r.text(), { title: it.title || c.title, duration: parseClock(it.duration || c.duration), link: it.link || c.link });
+        if (ok) n++;
+      } catch (e){ console.warn('Could not load', it.file, e); }
+    }
+    if (n){ renderCards(); return; }
+  }
+  // 2) Opened from disk (file://): use the bundle made by build-data.py / build-data.js, if present
+  const list = window.PRELOADED_CSVS;
+  if (!Array.isArray(list)) return;
+  list.forEach(item => {
+    try { ingest(item.file, item.text, { title: item.title, duration: parseClock(item.duration), link: item.link }); }
+    catch (e){ console.warn('Preloaded file failed:', item && item.file, e); }
+  });
+  renderCards();
+}
+
+function refreshDuration(f){
+  if (f.xUnit !== 'percent' && f.durationAuto){
+    const saved = f.duration;
+    const tmp = { ...f, duration: 1 };
+    const pts = buildPoints(tmp);
+    f.duration = pts.length ? pts[pts.length - 1].t : saved;
+  }
+}
+
+function renderCards(){
+  const box = $('fileCards');
+  box.innerHTML = '';
+  for (const f of state.files){
+    const el = document.createElement('div');
+    el.className = 'card' + (f.hidden ? ' off' : '');
+    const vid = ytId(f.link);
+    const optH = sel => f.headers.map((h, i) => `<option value="${i}" ${i === sel ? 'selected' : ''}>${esc(h || 'Column ' + (i+1))}</option>`).join('');
+    el.innerHTML = `
+      <div class="head"><input type="color" value="${f.color}" data-k="color"><span class="name">${esc(f.name)}</span><button class="small" data-k="hide" title="${f.hidden ? 'Show this line on the chart' : 'Hide this line from the chart'}">${f.hidden ? 'Show' : 'Hide'}</button><button class="small" data-k="remove" title="Remove file">✕</button></div>
+      ${vid ? `<button class="thumb" data-k="play" title="Watch the video"><img src="https://i.ytimg.com/vi/${vid}/mqdefault.jpg" alt="" loading="lazy" onerror="this.parentNode.style.display='none'"><span class="play">▶</span></button>` : ''}
+      <label>YouTube link<input type="text" data-k="link" value="${esc(f.link || '')}" placeholder="https://youtu.be/..."></label>
+      ${f.link && !vid ? '<div class="hint warn">That doesn\'t look like a YouTube link.</div>' : ''}
+      <div class="row"><label>X column<select data-k="xi">${optH(f.xi)}</select></label><label>Retention column<select data-k="yi">${optH(f.yi)}</select></label></div>
+      <div class="row">
+        <label>X unit<select data-k="xUnit">
+          ${[['percent','% of video'],['seconds','Seconds'],['minutes','Minutes'],['clock','mm:ss text']].map(([v,t]) => `<option value="${v}" ${f.xUnit === v ? 'selected' : ''}>${t}</option>`).join('')}
+        </select></label>
+        <label>Video length<input type="text" data-k="duration" value="${fmtClock(f.duration)}"></label>
+      </div>
+      ${f.xUnit === 'percent' ? '<div class="hint warn">X is a % of the video, so the real length is needed for timestamps, 30s retention and drop windows.</div>' : '<div class="hint">Length auto-detected from the last point; edit to override.</div>'}`;
+    el.querySelectorAll('[data-k]').forEach(inp => {
+      const k = inp.dataset.k;
+      const ev = (k === 'duration' || k === 'color') ? 'change' : (inp.tagName === 'BUTTON' ? 'click' : 'change');
+      inp.addEventListener(ev, () => {
+        if (k === 'remove'){ state.files = state.files.filter(x => x.id !== f.id); renderCards(); render(); return; }
+        if (k === 'play'){ openVideo(f, 0); return; }
+        if (k === 'hide'){ f.hidden = !f.hidden; renderCards(); render(); return; }
+        if (k === 'xi' || k === 'yi') f[k] = parseInt(inp.value);
+        else if (k === 'xUnit'){ f.xUnit = inp.value; f.durationAuto = f.xUnit !== 'percent'; if (f.xUnit === 'percent' && f.duration < 5) f.duration = 600; refreshDuration(f); renderCards(); }
+        else if (k === 'duration'){ const v = parseClock(inp.value); if (v > 0){ f.duration = v; f.durationAuto = false; saveDuration(f.name, v); } inp.value = fmtClock(f.duration); }
+        else if (k === 'color') f.color = inp.value;
+        else if (k === 'link'){ f.link = inp.value.trim(); saveLink(f.name, f.link); renderCards(); }
+        render();
+      });
+    });
+    box.appendChild(el);
+  }
+}
+
+let rafId = 0;
+function render(){ cancelAnimationFrame(rafId); rafId = requestAnimationFrame(doRender); }
+
+function xFmt(){ return state.xMode === 'time' ? v => fmtClock(v) : v => v + '%'; }
+
+function doRender(){
+  const charts = $('charts');
+  if (!window.Plotly){ say('Plotly.js could not be loaded. An internet connection is needed for the chart library (cdn.plot.ly).', true); return; }
+  if (!state.files.length){
+    Plotly.purge && charts.querySelectorAll('.plot').forEach(p => Plotly.purge(p));
+    charts.innerHTML = '<div class="empty">Upload one or more YouTube retention CSVs, or click “Load sample”.</div>';
+    $('tableArea').innerHTML = '';
+    return;
+  }
+  const o = opt();
+  const data = state.files.map(f => {
+    const pts = buildPoints(f);
+    const D = f.xUnit === 'percent' ? f.duration : Math.max(f.duration, pts.length ? pts[pts.length - 1].t : 0);
+    const an = analyze(pts, D, o);
+    const bm = benchmarks(pts, D);
+    return { f, pts, D, an, bm };
+  });
+  const empties = data.filter(d => d.pts.length < 2);
+  say(empties.length ? 'No numeric data found for: ' + empties.map(d => esc(d.f.name)).join(', ') + '. Check the column mapping.' : '', true);
+
+  const xt = state.xMode === 'time';
+  const xOf = (p, d) => xt ? p.t : (p.t / d.D * 100);
+  // hidden files stay in the axis ranges (so the view doesn't jump) but get no traces; side-by-side drops their panel
+  const groups = state.layout === 'overlay' ? [data] : data.filter(d => !d.f.hidden).map(d => [d]);
+
+  charts.className = state.layout === 'side' ? 'side' : '';
+  if (!groups.length){
+    charts.querySelectorAll('.plot').forEach(p => Plotly.purge(p));
+    charts.innerHTML = '<div class="empty">All files are hidden. Use “Show” on a file card.</div>';
+    charts.dataset.layout = '';
+    renderTable(data);
+    return;
+  }
+  // rebuild DOM when the number of plots changes
+  const existing = charts.querySelectorAll('.plot');
+  if (existing.length !== groups.length || charts.dataset.layout !== state.layout){
+    existing.forEach(p => Plotly.purge(p));
+    charts.innerHTML = '';
+    groups.forEach((g, i) => {
+      const box = document.createElement('div'); box.className = 'plotbox';
+      box.innerHTML = `<h3>${state.layout === 'overlay' ? 'Audience retention' : esc(g[0].f.name)}</h3><div class="plot"></div>`;
+      charts.appendChild(box);
+    });
+    charts.dataset.layout = state.layout;
+  }
+  const plots = charts.querySelectorAll('.plot');
+
+  const yStep = Math.max(0.1, parseFloat($('yStep').value) || 10);
+  const yMinIn = $('yMin').value === '' ? 0 : parseFloat($('yMin').value);
+  const yMaxIn = $('yMax').value === '' ? null : parseFloat($('yMax').value);
+  const grid = 'rgba(187,169,200,.18)';
+
+  groups.forEach((g, gi) => {
+    const gd = plots[gi];
+    const traces = [], annotations = [];
+    let maxR = 0, maxX = 0;
+    g.forEach(d => {
+      const xs = d.pts.map(p => xOf(p, d));
+      const ys = d.pts.map(p => p.r);
+      d.pts.forEach(p => { maxR = Math.max(maxR, p.r); });
+      maxX = Math.max(maxX, xt ? d.D : 100);
+      if (d.f.hidden) return;
+      traces.push({
+        x: xs, y: ys, type: 'scatter', mode: $('showMarkers').checked ? 'lines+markers' : 'lines',
+        name: d.f.name, line: { color: d.f.color, width: 2.5, shape: 'linear' },
+        marker: { size: 4, color: d.f.color },
+        fill: $('fillArea').checked ? 'tozeroy' : 'none',
+        fillcolor: d.f.color + '22',
+        customdata: d.pts.map(p => [fmtClock(p.t), (p.t / d.D * 100).toFixed(1)]),
+        hovertemplate: '<b>%{customdata[0]}</b> &nbsp;·&nbsp; %{y:.2f}% retained<br>%{customdata[1]}% of video<extra>' + esc(d.f.name) + '</extra>'
+      });
+      const mk = (arr, key) => arr.slice(0, o.maxLabels);
+      if ($('showDrops').checked){
+        const top = mk(d.an.drops);
+        traces.push({
+          x: d.an.drops.map(s => xt ? s.t : s.t / d.D * 100), y: d.an.drops.map(s => s.r),
+          mode: 'markers', type: 'scatter', name: d.f.name + ' drops', showlegend: false,
+          marker: { symbol: 'triangle-down', size: 9, color: '#ff7b7b', line: { color: '#2a1f33', width: 1 } },
+          customdata: d.an.drops.map(s => [fmtClock(s.t0) + '–' + fmtClock(s.t1), s.loss.toFixed(1)]),
+          hovertemplate: '<b>Drop-off</b> %{customdata[0]}<br>−%{customdata[1]} pts<extra>' + esc(d.f.name) + '</extra>'
+        });
+        top.forEach(s => annotations.push({
+          x: xt ? s.t : s.t / d.D * 100, y: s.r, xref: 'x', yref: 'y', text: '−' + s.loss.toFixed(1) + '%',
+          showarrow: true, arrowhead: 0, arrowcolor: '#ff7b7b', ax: 0, ay: 28, font: { color: '#ffb4ae', size: 10 },
+          bgcolor: 'rgba(42,31,51,.85)', borderpad: 2
+        }));
+      }
+      if ($('showSpikes').checked){
+        const top = mk(d.an.spikes);
+        traces.push({
+          x: d.an.spikes.map(s => xt ? s.t : s.t / d.D * 100), y: d.an.spikes.map(s => s.r),
+          mode: 'markers', type: 'scatter', name: d.f.name + ' rewatches', showlegend: false,
+          marker: { symbol: 'triangle-up', size: 9, color: '#8fdc9a', line: { color: '#2a1f33', width: 1 } },
+          customdata: d.an.spikes.map(s => [fmtClock(s.t0) + '–' + fmtClock(s.t1), s.gain.toFixed(2), Math.round(s.t)]),
+          meta: { kind: 'spike', fid: d.f.id },
+          hovertemplate: '<b>Rewatch spike</b> %{customdata[0]}<br>+%{customdata[1]} pts' + (ytId(d.f.link) ? '<br><i>Click to watch this moment</i>' : '') + '<extra>' + esc(d.f.name) + '</extra>'
+        });
+        top.forEach(s => annotations.push({
+          x: xt ? s.t : s.t / d.D * 100, y: s.r, xref: 'x', yref: 'y', text: '+' + s.gain.toFixed(1) + '%',
+          showarrow: true, arrowhead: 0, arrowcolor: '#8fdc9a', ax: 0, ay: -28, font: { color: '#bdf0c4', size: 10 },
+          bgcolor: 'rgba(42,31,51,.85)', borderpad: 2
+        }));
+      }
+    });
+
+    // ranges
+    const yHi = yMaxIn !== null ? yMaxIn : Math.max(10, Math.ceil(maxR * 1.04 / yStep) * yStep);
+    const yLo = yMinIn;
+    const xr = [0, maxX];
+    gd._init = { x: xr, y: [yLo, yHi] };
+
+    const xAuto = $('xAuto').checked;
+    const xStep = xAuto ? (xt ? niceStep(maxX, 10) : 10) : Math.max(0.1, parseFloat($('xStep').value) || 30);
+    const xs = makeTicks(xr[0], xr[1], xStep, xFmt());
+    const ys = makeTicks(yLo, yHi, yStep, v => v + '%');
+
+    const layout = {
+      paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+      font: { color: '#e9dff0', family: 'system-ui, sans-serif', size: 12 },
+      margin: { l: 56, r: 20, t: 16, b: 48 },
+      hovermode: 'x', dragmode: state.dragmode,
+      hoverlabel: { bgcolor: '#2a1f33', bordercolor: '#e8941a', font: { color: '#f6edd9', size: 12 } },
+      showlegend: g.length > 1, legend: { orientation: 'h', y: 1.1, x: 0 },
+      xaxis: {
+        range: xr, title: { text: xt ? 'Elapsed time' : '% of video', standoff: 8 },
+        tickmode: 'array', tickvals: xs.vals, ticktext: xs.text,
+        showgrid: $('gridX').checked, gridcolor: grid, zeroline: false, linecolor: '#5a4866',
+        showspikes: true, spikemode: 'across', spikethickness: 1, spikedash: 'dot', spikecolor: '#bba9c8',
+        fixedrange: state.zoomAxes === 'y'
+      },
+      yaxis: {
+        range: [yLo, yHi], title: { text: 'Audience retention', standoff: 6 },
+        tickmode: 'array', tickvals: ys.vals, ticktext: ys.text,
+        showgrid: $('gridY').checked, gridcolor: grid, zeroline: false, linecolor: '#5a4866',
+        fixedrange: state.zoomAxes === 'x'
+      },
+      annotations
+    };
+    const config = { responsive: true, displaylogo: false, scrollZoom: true,
+      modeBarButtonsToRemove: ['select2d', 'lasso2d', 'autoScale2d', 'toImage'], toImageButtonOptions: { format: 'png', scale: 2 } };
+    Plotly.react(gd, traces, layout, config);
+    if (!gd._bound){
+      gd._bound = true;
+      gd.on('plotly_relayout', ev => {
+        const keys = Object.keys(ev || {});
+        if (keys.length && keys.every(k => /^(x|y)axis\.(tick|dtick)/.test(k))) return;
+        retick(gd);
+      });
+      // clicking a rewatch spike opens that moment of the video in a popup
+      gd.on('plotly_click', ev => {
+        const p = (ev.points || []).find(q => q.data && q.data.meta && q.data.meta.kind === 'spike');
+        if (!p) return;
+        const f = state.files.find(x => x.id === p.data.meta.fid);
+        const sec = Array.isArray(p.customdata) ? p.customdata[2] : null;
+        if (f && sec != null) openVideo(f, sec);
+      });
+    }
+  });
+
+  renderTable(data);
+}
+
+// Regenerate ticks for whatever range the user zoomed/panned to
+function retick(gd){
+  const fl = gd._fullLayout; if (!fl) return;
+  const xr = fl.xaxis.range, yr = fl.yaxis.range;
+  const xt = state.xMode === 'time';
+  const xAuto = $('xAuto').checked;
+  let xStep = xAuto ? (xt ? niceStep(xr[1] - xr[0], 10) : niceStepPct(xr[1] - xr[0])) : Math.max(0.1, parseFloat($('xStep').value) || 30);
+  let yStep = Math.max(0.1, parseFloat($('yStep').value) || 10);
+  const xs = makeTicks(xr[0], xr[1], xStep, xFmt());
+  const ys = makeTicks(yr[0], yr[1], yStep, v => (Math.round(v * 100) / 100) + '%');
+  Plotly.relayout(gd, { 'xaxis.tickvals': xs.vals, 'xaxis.ticktext': xs.text, 'yaxis.tickvals': ys.vals, 'yaxis.ticktext': ys.text });
+}
+function niceStepPct(span){
+  const raw = span / 10, steps = [0.5,1,2,5,10,20,25,50];
+  return steps.find(s => s >= raw) || 50;
+}
+
+function resetView(){
+  document.querySelectorAll('#charts .plot').forEach(gd => {
+    if (!gd._init) return;
+    Plotly.relayout(gd, { 'xaxis.range': gd._init.x, 'yaxis.range': gd._init.y }).then(() => retick(gd));
+  });
+}
+
+function renderTable(data){
+  const f1 = v => isFinite(v) ? v.toFixed(1) + '%' : '—';
+  const rows = data.map(d => `<tr${d.f.hidden ? ' class="off"' : ''}>
+    <td><span class="dot" style="background:${d.f.color}"></span>${esc(d.f.name)}</td>
+    <td>${fmtClock(d.D)}</td>
+    <td>${f1(d.bm.r30)}</td><td>${f1(d.bm.apv)}</td><td>${f1(d.bm.final10)}</td>
+    <td>${d.an.dropCount}</td><td>${d.an.spikeCount}</td></tr>`).join('');
+  $('tableArea').innerHTML = `<div class="tablewrap"><table>
+    <thead><tr><th>Video</th><th>Length</th><th>30s retention</th><th>Avg % viewed (APV)</th><th>Final 10s retention</th><th>Drop-offs</th><th>Rewatch spikes</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>
+    <div class="tip">30s retention is interpolated at 0:30. APV is the time-weighted mean of the retention curve. Final 10s is the mean retention over the last 10 seconds of the video.</div>`;
+}
+
+// ---------- video popup ----------
+function openVideo(f, sec){
+  const id = ytId(f.link);
+  if (!id){ say(`Add a YouTube link for “${esc(f.name)}” in its file card to watch this moment.`, true); return; }
+  sec = Math.max(0, Math.round(sec));
+  $('modalTitle').textContent = f.name + (sec ? ' · ' + fmtClock(sec) : '');
+  $('modalYt').href = `https://youtu.be/${id}?t=${sec}`;
+  $('modalFrame').src = `https://www.youtube-nocookie.com/embed/${id}?start=${sec}&autoplay=1&rel=0`;
+  $('modal').hidden = false;
+}
+function closeVideo(){
+  $('modal').hidden = true;
+  $('modalFrame').src = 'about:blank'; // stops playback
+}
+$('modalClose').addEventListener('click', closeVideo);
+$('modal').addEventListener('click', e => { if (e.target === $('modal')) closeVideo(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('modal').hidden) closeVideo(); });
+
+// ---------- wiring ----------
+function seg(ids, key, extra){
+  ids.forEach(([id, val]) => $(id).addEventListener('click', () => {
+    state[key] = val;
+    ids.forEach(([i, v]) => $(i).classList.toggle('active', v === val));
+    if (extra) extra();
+    render();
+  }));
+}
+seg([['lyOverlay','overlay'],['lySide','side']], 'layout');
+seg([['xTime','time'],['xPct','pct']], 'xMode', () => {
+  $('xStepLabel').textContent = state.xMode === 'time' ? 'X step (seconds)' : 'X step (% of video)';
+  if (state.xMode === 'pct'){ $('xStepR').max = 50; $('xStepR').value = 10; $('xStep').value = 10; }
+  else { $('xStepR').max = 600; $('xStepR').value = 30; $('xStep').value = 30; }
+});
+seg([['dmZoom','zoom'],['dmPan','pan']], 'dragmode', () => {
+  document.querySelectorAll('#charts .plot').forEach(gd => Plotly.relayout(gd, { dragmode: state.dragmode }));
+});
+state.zoomAxes = 'xy';
+$('zoomAxes').addEventListener('change', e => { state.zoomAxes = e.target.value; render(); });
+
+// slider <-> number sync
+[['xStepR','xStep'],['yStepR','yStep']].forEach(([r, n]) => {
+  $(r).addEventListener('input', () => { $(n).value = $(r).value; if (r === 'xStepR') $('xAuto').checked = false; render(); });
+  $(n).addEventListener('input', () => { if (parseFloat($(n).value) > 0) $(r).value = $(n).value; if (n === 'xStep') $('xAuto').checked = false; render(); });
+});
+document.querySelectorAll('.ypre').forEach(b => b.addEventListener('click', () => { $('yStep').value = b.dataset.v; $('yStepR').value = b.dataset.v; render(); }));
+['xAuto','yMin','yMax','gridX','gridY','showDrops','showSpikes','dropThr','dropWin','spikeThr','ignoreIntro','maxLabels','showMarkers','fillArea']
+  .forEach(id => $(id).addEventListener('input', render));
+
+$('btnReset').addEventListener('click', resetView);
+$('btnPng').addEventListener('click', () => {
+  const gd = document.querySelector('#charts .plot');
+  if (gd && window.Plotly) Plotly.downloadImage(gd, { format: 'png', width: 1400, height: 700, filename: 'retention' });
+});
+$('togglePanel').addEventListener('click', () => {
+  $('panel').classList.toggle('hidden');
+  $('layout').classList.toggle('nopanel');
+  setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
+});
+if (window.innerWidth <= 900){ /* panel visible stacked above on mobile; user can collapse */ }
+
+// drag & drop
+const drop = $('drop'), input = $('fileInput');
+drop.addEventListener('click', () => input.click());
+input.addEventListener('change', () => { addFiles(input.files); input.value = ''; });
+['dragenter','dragover'].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', ev => addFiles(ev.dataTransfer.files));
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('drop', e => { e.preventDefault(); if (e.target !== drop && !drop.contains(e.target)) addFiles(e.dataTransfer.files); });
+
+// sample data
+$('btnSample').addEventListener('click', () => {
+  const mk = (name, D, seed, bump) => {
+    const rows = [];
+    let r = 92;
+    for (let i = 0; i < 100; i++){
+      if (i === 0) r = 92; else if (i === 1) r = 55;
+      else r = Math.max(8, r - (1.2 - i * 0.008) - Math.abs(Math.sin(i * seed)) * 0.9 + (bump.includes(i) ? 3.2 : 0));
+      rows.push([i, r.toFixed(2)]);
+    }
+    return { id: state.nextId++, name, headers: ['Video position (%)', 'Absolute audience retention (%)'], rows,
+      xi: 0, yi: 1, xUnit: 'percent', duration: D, durationAuto: false, color: PALETTE[(state.nextId - 2) % PALETTE.length] };
+  };
+  state.files.push(mk('Sample A (12:40)', 760, 1.7, [34, 35, 71]));
+  state.files.push(mk('Sample B (9:05)', 545, 2.3, [22, 58]));
+  renderCards(); render();
+});
+
+render();
+loadPreloaded().then(render);
+</script>
+</body>
+</html>

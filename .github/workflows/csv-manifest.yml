@@ -1,0 +1,50 @@
+name: Update CSV manifest
+
+# Rebuilds thexp/retention/data/manifest.json (the list of CSVs the retention page loads)
+# whenever a CSV in that folder is added, renamed or removed.
+# Edit `branches` to the branch GitHub Pages publishes from.
+on:
+  push:
+    branches: [main, gh-pages]
+    paths:
+      - 'thexp/retention/data/**'
+      - '!thexp/retention/data/manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write   # commit the manifest
+  pages: write      # ask Pages to rebuild afterwards
+
+jobs:
+  manifest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate thexp/retention/data/manifest.json
+        run: |
+          python3 - <<'EOF'
+          import json, pathlib
+          d = pathlib.Path('thexp/retention/data')
+          d.mkdir(parents=True, exist_ok=True)
+          names = sorted((p.name for p in d.glob('*.csv')), key=str.lower)
+          (d / 'manifest.json').write_text(
+              json.dumps(names, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+          print(f'{len(names)} CSV file(s):', *names, sep='\n  ')
+          EOF
+
+      - name: Commit and republish if the list changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add thexp/retention/data/manifest.json
+          if git diff --cached --quiet; then
+            echo "Manifest already up to date."
+          else
+            git commit -m "Update CSV manifest"
+            git push
+            # commits made with the built-in token may not start a Pages build on their own
+            gh api -X POST "repos/${{ github.repository }}/pages/builds" || true
+          fi

@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gabryan | Documentary & Educational Video Editor</title>
+
+<!-- Browser tab icon -->
+<link rel="icon" href="./media/favicon/favicon.ico" sizes="any">
+
+<!-- PNG favicons -->
+<link rel="icon" type="image/png" sizes="32x32" href="./media/favicon/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="./media/favicon/favicon-16x16.png">
+
+<!-- Apple devices -->
+<link rel="apple-touch-icon" sizes="180x180" href="./media/favicon/apple-touch-icon.png">
+
+<!-- Web app manifest -->
+<link rel="manifest" href="./media/site.webmanifest">
+
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Gabryan | Documentary & Educational Video Editor" />
+<meta name="keywords" content="Gabryan, The Gabryan, Gabryan video editor, YouTube video editor, freelance video editor, documentary video editor, educational video editor, documentary-style video editing, educational video editing, YouTube documentary editor, video editing for educational creators, video editing for YouTubers, storytelling video editor, cinematic video editing, long-form video editor, science video editor, explainer video editor, psychology-driven storytelling, documentary storytelling, professional video editing">
+<meta property="og:description" content="Looking for a video editor who cares about the story? I help educational and documentary creators craft engaging videos through thoughtful editing, music, and sound design." />
+<meta property="og:image" content="https://gabryan.com/media/banner_port_site.png" />
+<meta property="og:url" content="https://gabryan.com/" />
+<meta property="og:site_name" content="Gabryan" />
+
+<!-- Enables large image preview format in Discord and Twitter/X -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="theme-color" content="#00aaff" />
+
+<!-- JavaScript
+  Apply the saved theme BEFORE first paint so there is no flash.
+  Default is dark; only an explicit "light" choice overrides it.
+
+  THEME TOGGLE
+  Flips data-theme on <html> between "dark" and "light",
+  keeps the switch's aria-checked in sync, and remembers the
+  choice (storage wrapped in try/catch for private windows).
+========================================================== -->
+<script src="script.js" defer></script>
+
+<!-- Fonts: serif headlines + heavy slab/sans labels -->
+<!-- <link rel="preconnect" href="https://fonts.googleapis.com"> -->
+<!-- <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin> -->
+<!-- <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,500&family=Roboto+Slab:wght@400;700;900&family=Archivo+Black&display=swap" rel="stylesheet"> -->
+
+<link rel="stylesheet" href="style.css">
+<!-- <style> -->
+<!-- </style> -->
+</head>
+<body>
+
+<!-- Star icon sprite: reused by every review via <use href="#icon-star"> -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="icon-star" viewBox="0 0 24 24">
+    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+  </symbol>
+</svg>
+
+<!-- ===== Sticky header with theme toggle ===== -->
+<header class="masthead">
+    <span class="masthead__brand">Gabryan's portfolio <span style='font-size: 1rem'>💼</span> &nbsp;/&nbsp;</span>
+
+  <div class="masthead__right">
+    <nav aria-label="Primary">
+      <!-- <a href="#about">[About]</a> -->
+      <a href="#clients">[Clients]</a>
+      <a href="#feedback">[Feedback]</a>
+      <a href="#hire">[Hire me]</a>
+    </nav>
+
+    <!-- role="switch": aria-checked="true" means dark mode is ON -->
+    <button class="switch" id="themeToggle" type="button" role="switch"
+            aria-checked="true" aria-label="Dark mode">
+      <span class="switch__knob" aria-hidden="true"></span>
+    </button>
+  </div>
+</header>
+
+<main>
+  <!-- ===== HERO: two-column split ===== -->
+  <section class="hero" id="about">
+
+    <!-- LEFT: headline, bio, button -->
+    <div class="hero__text">
+        <!---
+      <span class="tag hero__kicker">Educational Content Editor</span><br>
+      --->
+
+      <h1 class="hero__title"><mark>Educational Content</mark>, The Way it Should Be.</h1>
+
+      <p class="hero__bio">
+      <!-- first word of the paragraph in a medieval style -->
+      </p>
+
+      <a class="btn" href="#clients">See my work</a>
+      <a id="btn_cta" class="btn" href="#hire">Hire me</a>
+    </div>
+
+    <!-- RIGHT: 16:9 iframe inside a collage frame -->
+    <div class="hero__media">
+      <span class="tape tape--1" aria-hidden="true"></span>
+      <span class="tape tape--2" aria-hidden="true"></span>
+
+      <figure class="frame grid-bg">
+        <div class="embed">
+          <!--
+            SWAP ME: replace srcdoc with your own src, e.g.
+            src="https://www.youtube.com/embed/VIDEO_ID"
+            (srcdoc below is just a self-contained placeholder.)
+          -->
+        <iframe width="560" height="315" src="https://www.youtube.com/embed/QhQbiWRwJ0w" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>
+        </div>
+        <!--
+        <figcaption class="frame__caption">Fig. 1 — A featured piece, pinned to the board.</figcaption>
+        -->
+      </figure>
+    </div>
+  </section>
+
+  <!-- ===== SECOND SECTION: Featured collaborations ===== -->
+  <section class="section grid-bg" id="clients">
+    <div class="section__head">
+        <!--
+      <span class="tag tag--olive">Chapter 02</span>
+        -->
+      <h2 class="section__title">My <em>collaborations</em></h2>
+    </div>
+
+    <div class="collabs">
+
+      <!-- Collaboration 1 — duplicate this <article> for more clients -->
+      <article class="collab">
+        <!-- LEFT: square channel picture + client name -->
+        <div class="collab__who">
+          <!--
+            Replace the initials with a real picture:
+            <div class="avatar"><img src="channel.jpg" alt="Northwind Studio channel picture"></div>
+          -->
+          <div class="avatar" style="--c: var(--ochre);" role="img" aria-label="Channel picture placeholder for Northwind Studio">
+            <span class="tape" aria-hidden="true"></span>
+            <div class="avatar"><img src="./media/channel_pic/th_exp.jpg" alt="Northwind Studio channel picture"></div>
+          </div>
+          <div>
+            <h3 class="collab__name">Thoughtless Experiment</h3>
+            <p class="collab__meta">Philosophy documentary channel</p>
+          </div>
+        </div>
+
+        <!-- RIGHT: the video (swap srcdoc for src="https://www.youtube.com/embed/VIDEO_ID") -->
+        <div class="embed">
+        <iframe width="560" height="315" src="https://www.youtube.com/embed/QhQbiWRwJ0w?si=6KYRpAaQCjw3DyJR" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>
+        <!-- REVIEW TEMPLATE: copy this whole <figure> into any .collab article to add a review.
+             Stars: keep 5 <svg> icons; add class="star--off" to any that should be empty,
+             and update the aria-label to match. -->
+        <figure class="review">
+          <blockquote class="review__text">
+            <p>“Working with Gabriel has been a delight. He is very cooperative, receptive, and a hard worker. He's creative and eager to try new things, and he is quick to make improvements when we give feedback. He's also very chill, which made collaborating with him fun.”</p>
+          </blockquote>
+          <div class="review__stars" role="img" aria-label="Rated 5 out of 5 stars">
+            <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+            <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+            <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+            <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+            <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+          </div>
+        </figure>
+      </article>
+
+      <!-- Collaboration 2 -->
+      <article class="collab">
+        <div class="collab__who">
+          <div class="avatar" style="--c: var(--olive);" role="img" aria-label="Channel picture placeholder for Kitchen Table">
+            <span class="tape" aria-hidden="true"></span>
+            <div class="avatar"><img src="./media/channel_pic/fin_eng.jpg" alt="Northwind Studio channel picture"></div>
+          </div>
+          <div>
+            <h3 class="collab__name">Financial Engineering</h3>
+            <p class="collab__meta">Educational finance channel</p>
+          </div>
+        </div>
+        <div class="embed">
+<iframe width="560" height="315" src="https://www.youtube.com/embed/zoCy7zlZ4Ic?si=-W1BtWV_4_Uxdhid" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+        </div>
+        <figure class="review">
+          <blockquote class="review__text">
+            <p>“Very professional and reliable. Communication is smooth, deadlines are always met, and the whole process feels effortless on my end. Every video comes back polished, engaging, and exactly aligned with what I had in mind (often even better than I envisioned myself). If you're looking for someone who combines technical skill with creative intuition, I highly recommend you work with Gabryan!”</p>
+          </blockquote>
+          <div class="review__stars" role="img" aria-label="Rated 5 out of 5 stars">
+            <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+            <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+            <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+            <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+            <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+          </div>
+        </figure>
+      </article>
+
+      <!-- Collaboration 3 -->
+      <article class="collab">
+        <div class="collab__who">
+          <div class="avatar" style="--c: var(--rust);" role="img" aria-label="Channel picture placeholder for Daily Orbit">
+            <span class="tape" aria-hidden="true"></span>
+            <div class="avatar"><img src="./media/channel_pic/heal_nat.jpg" alt="Northwind Studio channel picture"></div>
+          </div>
+          <div>
+            <h3 class="collab__name">Heal By Nature </h3>
+            <p class="collab__meta">Educational natural wellness channel</p>
+          </div>
+        </div>
+        <div class="embed">
+        <iframe width="560" height="315" src="https://www.youtube.com/embed/RlxAuLyhq38?si=2O_qouyLdWeeVPQX" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>
+        <figure class="review">
+          <blockquote class="review__text">
+            <p>“I had a great experience working with Gabriel. He was professional, patient, and easy to communicate with throughout the editing process. He understood my vision and delivered a clean, high-quality video that I was very satisfied with. I appreciate his attention to detail and willingness to work with my ideas. I'm looking forward to collaborating with him again on future projects. Highly recommend.”</p>
+          </blockquote>
+          <div class="review__stars" role="img" aria-label="Rated 5 out of 5 stars">
+            <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+            <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+            <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+            <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+            <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+          </div>
+        </figure>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- ===== THIRD SECTION: Selected work ===== -->
+  <!--
+  <section class="section" id="work">
+    <div class="section__head">
+      <span class="tag tag--rust">Chapter 03</span>
+      <h2 class="section__title">Client <em>reviews</em>📝</h2>
+    </div>
+  -->
+<!--
+    <div class="cards">
+      <article class="card">
+        <span class="tape" aria-hidden="true"></span>
+        <div class="card__num">01</div>
+        <h3>The Housing Index</h3>
+        <p>An interactive data essay mapping rent against wages across twelve cities. Placeholder copy.</p>
+        <span class="card__meta">Data viz · 2026</span>
+      </article>
+
+      <article class="card">
+        <span class="tape" aria-hidden="true"></span>
+        <div class="card__num">02</div>
+        <h3>Salt &amp; Cinder</h3>
+        <p>Brand identity and storefront for a small-batch ceramics studio. Placeholder copy.</p>
+        <span class="card__meta">Branding · Web</span>
+      </article>
+
+      <article class="card">
+        <span class="tape" aria-hidden="true"></span>
+        <div class="card__num">03</div>
+        <h3>Quiet Hours</h3>
+        <p>A mobile app prototype for mindful screen-time habits. Placeholder copy.</p>
+        <span class="card__meta">Product · UX</span>
+      </article>
+    </div>
+  </section>
+-->
+
+
+  <!-- ===== CLIENT FEEDBACK: screenshots of messages ===== -->
+  <section class="section" id="feedback">
+    <div class="section__head section__head--center">
+      <h2 class="section__title">What Clients <em>Say</em></h2>
+    </div>
+
+    <!--
+      HOW TO SWAP: replace each src with your real screenshot (e.g. ./media/feedback/msg1.png)
+      and update the alt text. Keep width/height off the <img>: the CSS keeps the natural
+      aspect ratio, so any size works. Add or remove <figure class="shot"> blocks freely.
+      The placehold.co URLs below are only stand-ins with different shapes.
+    -->
+    <div class="feedback">
+      <figure class="shot">
+        <span class="tape" aria-hidden="true"></span>
+        <img src="./media/reviews/1.png" alt='Client message screenshot saying "the opening gave me goose bumps"' loading="lazy">
+      </figure>
+
+      <figure class="shot">
+        <span class="tape" aria-hidden="true"></span>
+        <img src="./media/reviews/2.png" alt='Client message screenshot saying "What can I say?  You outdid yourself again Perfect No changes You even learned chemistry for this one
+"' loading="lazy">
+      </figure>
+
+      <figure class="shot">
+        <span class="tape" aria-hidden="true"></span>
+        <img src="./media/reviews/3.png" alt='Client message screenshot saying "You captured the emotional depth of the video"' loading="lazy">
+      </figure>
+
+    </div>
+  </section>
+
+  <!-- ===== FOURTH SECTION: Hire me ===== -->
+  <section class="section grid-bg" id="hire">
+    <div class="section__head section__head--center">
+      <h2 class="section__title">Hire <em>Me</em></h2>
+    </div>
+    <!--
+    <blockquote class="pullquote" id="contact">
+        “He who has begun is half done; <b>dare to know, begin!</b>”
+      <cite>— Quintus Horatius Flaccus </cite>
+    </blockquote>
+    -->
+
+    <div class="hire">
+      <!-- LEFT: circular profile picture -->
+      <div class="hire__media">
+        <span class="tape" aria-hidden="true"></span>
+        <!--
+          Replace the placeholder with your square picture:
+          <div class="hire__photo"><img src="./media/profile.jpg" alt="Gabryan's profile picture"></div>
+        -->
+          <div class="hire__photo"><img src="./media/profile.jpg" alt="Gabryan's profile picture"></div>
+      </div>
+
+      <!-- RIGHT: call to action -->
+      <div class="hire__body">
+        <p class="hire__prompt">Send me a Twitter DM:</p>
+        <!-- Swap YOUR_HANDLE for your Twitter/X username -->
+        <a class="btn" href="https://x.com/thegabryan" target="_blank" rel="noopener noreferrer">DM Gabryan now!</a>
+      </div>
+    </div>
+
+    <!-- 5-star rating, centered below the Hire card -->
+    <div class="review__stars hire__stars" role="img" aria-label="Rated 5 out of 5 stars">
+      <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+      <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+      <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+      <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+      <svg class="star" aria-hidden="true"><use href="#icon-star"/></svg>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+    <!-- Lamp: all decorative, driven by footer:hover (see "FOOTER LAMP" in the CSS) -->
+    <div class="lamp__sky" aria-hidden="true">
+        <span class="lamp__halo"><i></i></span>
+        <span class="lamp__motes">
+            <span class="lamp__mote" style="--x:-2.6rem; --dx:.9rem;  --t:4.2s; --d:0s"></span>
+            <span class="lamp__mote" style="--x:-.9rem;  --dx:-.6rem; --t:3.6s; --d:.7s"></span>
+            <span class="lamp__mote" style="--x:1.1rem;  --dx:.5rem;  --t:4.6s; --d:1.4s"></span>
+            <span class="lamp__mote" style="--x:2.8rem;  --dx:-.9rem; --t:3.9s; --d:.3s"></span>
+            <span class="lamp__mote" style="--x:-1.8rem; --dx:.4rem;  --t:5s;   --d:2.1s"></span>
+            <span class="lamp__mote" style="--x:.2rem;   --dx:-.3rem; --t:4.4s; --d:2.8s"></span>
+        </span>
+    </div>
+    <div class="lamp__pool" aria-hidden="true"><i></i></div>
+    <div class="lamp" aria-hidden="true">
+        <svg class="lamp__bulb" viewBox="0 0 64 100" focusable="false">
+            <defs>
+                <radialGradient id="lampGlass" cx="50%" cy="52%" r="58%">
+                    <stop offset="0"   stop-color="#fffbe6"/>
+                    <stop offset=".38" stop-color="#ffe27a"/>
+                    <stop offset=".78" stop-color="#ffbf3b"/>
+                    <stop offset="1"   stop-color="#ff9f1c"/>
+                </radialGradient>
+                <linearGradient id="lampCollar" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#ffb02e" stop-opacity=".85"/>
+                    <stop offset="1" stop-color="#ffb02e" stop-opacity="0"/>
+                </linearGradient>
+            </defs>
+
+            <!-- OFF: glass + dark filament -->
+            <path class="glass" d="M22 68 C22 60 6 52 6 34 A26 26 0 0 1 58 34 C58 52 42 60 42 68 Z"/>
+            <path class="wire" d="M29 67 L27 53 L26 45 M35 67 L37 53 L38 45 M26 45 L29 39 L32 45 L35 39 L38 45"/>
+
+            <!-- ON: warm glass, white-hot filament, rays -->
+            <g class="lit"><g class="flick">
+                <path class="lit-glass" d="M22 68 C22 60 6 52 6 34 A26 26 0 0 1 58 34 C58 52 42 60 42 68 Z"/>
+                <path class="lit-wire" d="M29 67 L27 53 L26 45 M35 67 L37 53 L38 45 M26 45 L29 39 L32 45 L35 39 L38 45"/>
+                <g class="rays"><g class="rays-pulse">
+                    <path d="M65 34 H73 M60.6 17.5 L67.5 13.5 M48.5 5.4 L52.5 -1.5 M32 1 V-7 M15.5 5.4 L11.5 -1.5 M3.4 17.5 L-3.5 13.5 M-1 34 H-9"/>
+                </g></g>
+            </g></g>
+
+            <path class="shine" d="M13 31 C13 22 19 15 28 12"/>
+
+            <!-- Screw base -->
+            <rect class="metal" x="20" y="66" width="24" height="6" rx="2"/>
+            <rect class="metal" x="21" y="72" width="22" height="16"/>
+            <path class="groove" d="M21 76 H43 M21 80 H43 M21 84 H43"/>
+            <path class="metal" d="M25 88 H39 L36 96 H28 Z"/>
+            <rect class="metal" x="28" y="96" width="8" height="4" rx="2"/>
+            <g class="lit"><g class="flick"><rect class="lit-collar" x="20" y="66" width="24" height="14"/></g></g>
+        </svg>
+    </div>
+
+    <p>
+    <!-- <mark> -->
+        Gabryan editor
+    <!-- </mark> -->
+    </p>
+</footer>
+
+</body>
+</html>

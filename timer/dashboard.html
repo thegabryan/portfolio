@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dashboard · Focus Timer</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%8F%B8%EF%B8%8F%3C/text%3E%3C/svg%3E">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="nav">
+    <strong class="brand">Focus Timer</strong>
+    <button id="themeBtn" class="ghost" type="button">Theme: auto</button>
+    <nav>
+      <a href="index.html">Timer</a>
+      <a class="active" href="dashboard.html">Dashboard</a>
+    </nav>
+  </header>
+
+  <div id="now" class="notice nowbar"></div>
+
+  <div id="stats" class="grid"></div>
+
+  <section class="card">
+    <h2>Time per activity</h2>
+    <div id="acts" class="xscroll"></div>
+  </section>
+
+  <section class="card">
+    <div class="head">
+      <h2>Score per day</h2>
+      <select id="range" aria-label="Range">
+        <option value="14">Last 14 days</option>
+        <option value="30" selected>Last 30 days</option>
+        <option value="90">Last 90 days</option>
+        <option value="all">All time</option>
+      </select>
+    </div>
+    <div id="bars"></div>
+  </section>
+
+  <section class="card">
+    <div class="head">
+      <h2 id="calTitle">Calendar</h2>
+      <div class="nav-m"><button id="prevM" type="button" aria-label="Previous month">‹</button><button id="nextM" type="button" aria-label="Next month">›</button></div>
+    </div>
+    <div id="cal" class="cal"></div>
+  </section>
+
+  <section class="card">
+    <div class="head">
+      <h2>Where each day went</h2>
+      <select id="stackRange" aria-label="Range">
+        <option value="7">Last 7 days</option>
+        <option value="14" selected>Last 14 days</option>
+        <option value="30">Last 30 days</option>
+        <option value="90">Last 90 days</option>
+      </select>
+    </div>
+    <div id="legend" class="legend"></div>
+    <div id="stack"></div>
+  </section>
+
+  <section class="card">
+    <div class="head">
+      <h2>Share of the day</h2>
+      <select id="shareRange" aria-label="Range">
+        <option value="today" selected>Today</option>
+        <option value="7">Last 7 days</option>
+        <option value="all">All time</option>
+      </select>
+    </div>
+    <div id="share"></div>
+  </section>
+
+  <section class="card">
+    <div class="head">
+      <h2>Outreach</h2>
+      <select id="ocRange" aria-label="Range">
+        <option value="14">Last 14 days</option>
+        <option value="30" selected>Last 30 days</option>
+        <option value="90">Last 90 days</option>
+      </select>
+    </div>
+    <div id="ocStats" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(120px,1fr))"></div>
+    <div id="ocBars"></div>
+  </section>
+
+  <div class="two">
+    <section class="card">
+      <h2>Work rounds by hour of day</h2>
+      <div id="hours"></div>
+    </section>
+    <section class="card">
+      <h2>Outreaches by hour of day</h2>
+      <div id="ocHours"></div>
+    </section>
+  </div>
+
+  <section class="card">
+    <div class="head">
+      <h2>Sessions (every start and stop)</h2>
+      <select id="segAct" aria-label="Activity"></select>
+    </div>
+    <div id="segs" class="scroll"></div>
+  </section>
+
+  <section class="card">
+    <h2>Every day</h2>
+    <div id="table" class="scroll"></div>
+  </section>
+
+  <section class="card">
+    <h2>Your data</h2>
+    <p class="muted" style="margin-top:0">Export saves everything from this site in one file named with today's date and time. Import restores it. The extra chronometer on the timer page is not part of it.</p>
+    <div class="tools" id="tools"></div>
+  </section>
+</div>
+
+<script src="app.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var ACTS = TSA.ACTS, META = TSA.META, dur = TSA.fmtDur;
+  TSA.boot(Date.now(), {});
+  TSA.initTheme($('themeBtn'));
+  TSA.mountDataTools($('tools'), render);
+  var monthOffset = 0;
+
+  function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function fmtDay(k, long) {
+    return TSA.keyToDate(k).toLocaleDateString('en-US', long ? { month: 'short', day: 'numeric', year: 'numeric' } : { month: 'short', day: 'numeric' });
+  }
+  function clock(ms) { return new Date(ms).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); }
+  var f1 = function (n) { return (Math.round(n * 10) / 10).toString(); };
+  var dash = function (sec) { return sec >= 1 ? dur(sec) : '–'; };
+  var zeroT = function () { var o = {}; ACTS.forEach(function (a) { o[a] = 0; }); return o; };
+  function dot(a) { return '<i class="dotc" style="--c:var(' + META[a].color + ')"></i>'; }
+  function lastDays(todayK, n) {
+    var out = [];
+    for (var i = n - 1; i >= 0; i--) out.push(TSA.addDays(todayK, -i));
+    return out;
+  }
+  function statCard(c) {
+    return '<div class="stat"><div class="k">' + c[0] + '</div><div class="v">' + c[1] + '</div><div class="s">' + esc(c[2]) + '</div></div>';
+  }
+
+  function barsSvg(vals, labels, opts) {
+    var W = 720, H = 220, pl = 28, pr = 6, pt = 18, pb = 28, n = vals.length;
+    var max = Math.max.apply(null, vals.concat([1, opts.goal || 0]));
+    var iw = W - pl - pr, ih = H - pt - pb, step = iw / n, bw = Math.max(2, step * 0.68);
+    var every = Math.ceil(n / (opts.maxLabels || 10)), s = '';
+    s += '<line class="axis" x1="' + pl + '" y1="' + (H - pb) + '" x2="' + (W - pr) + '" y2="' + (H - pb) + '"/>';
+    s += '<text class="lbl" x="' + (pl - 6) + '" y="' + (pt + 4) + '" text-anchor="end">' + max + '</text>';
+    s += '<text class="lbl" x="' + (pl - 6) + '" y="' + (H - pb + 4) + '" text-anchor="end">0</text>';
+    vals.forEach(function (v, i) {
+      var h = v / max * ih, x = pl + i * step + (step - bw) / 2, y = H - pb - h;
+      s += '<rect class="bar' + (v === 0 ? ' zero' : '') + (opts.cls ? ' ' + opts.cls : '') + '" x="' + x + '" y="' + (v === 0 ? H - pb - 2 : y) + '" width="' + bw + '" height="' + (v === 0 ? 2 : h) + '" rx="3"><title>' + esc(labels[i].tip) + ': ' + v + '</title></rect>';
+      if (opts.showVals && v > 0) s += '<text class="val" x="' + (x + bw / 2) + '" y="' + (y - 4) + '" text-anchor="middle">' + v + '</text>';
+      if (i % every === 0) s += '<text class="lbl" x="' + (x + bw / 2) + '" y="' + (H - 9) + '" text-anchor="middle">' + esc(labels[i].short) + '</text>';
+    });
+    if (opts.goal) {
+      var gy = H - pb - opts.goal / max * ih;
+      s += '<line class="goal" x1="' + pl + '" y1="' + gy + '" x2="' + (W - pr) + '" y2="' + gy + '"><title>Goal: ' + opts.goal + '</title></line>';
+      s += '<text class="lbl" x="' + (W - pr) + '" y="' + (gy - 4) + '" text-anchor="end">goal ' + opts.goal + '</text>';
+    }
+    return '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(opts.aria) + '">' + s + '</svg>';
+  }
+
+  function stackedSvg(rows) {
+    var W = 720, H = 250, pl = 38, pr = 6, pt = 14, pb = 28, n = rows.length, maxH = 0.5;
+    rows.forEach(function (r) { if (r.total / 3600 > maxH) maxH = r.total / 3600; });
+    var max = Math.ceil(maxH * 2) / 2, iw = W - pl - pr, ih = H - pt - pb, step = iw / n, bw = Math.max(2, step * 0.68);
+    var every = Math.ceil(n / 10), s = '';
+    [max / 2, max].forEach(function (v) {
+      var y = H - pb - v / max * ih;
+      s += '<line class="grid" x1="' + pl + '" y1="' + y + '" x2="' + (W - pr) + '" y2="' + y + '"/>';
+      s += '<text class="lbl" x="' + (pl - 6) + '" y="' + (y + 4) + '" text-anchor="end">' + (v % 1 ? v.toFixed(1) : v) + 'h</text>';
+    });
+    s += '<line class="axis" x1="' + pl + '" y1="' + (H - pb) + '" x2="' + (W - pr) + '" y2="' + (H - pb) + '"/>';
+    s += '<text class="lbl" x="' + (pl - 6) + '" y="' + (H - pb + 4) + '" text-anchor="end">0</text>';
+    rows.forEach(function (r, i) {
+      var x = pl + i * step + (step - bw) / 2, y = H - pb;
+      ACTS.forEach(function (a) {
+        var h = r.t[a] / 3600 / max * ih;
+        if (h < 0.4) return;
+        y -= h;
+        s += '<rect class="seg" x="' + x + '" y="' + y + '" width="' + bw + '" height="' + h + '" style="fill:var(' + META[a].color + ')"><title>' +
+          esc(r.tip + ' · ' + META[a].label + ' ' + dur(r.t[a])) + '</title></rect>';
+      });
+      if (i % every === 0) s += '<text class="lbl" x="' + (x + bw / 2) + '" y="' + (H - 9) + '" text-anchor="middle">' + esc(r.short) + '</text>';
+    });
+    return '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Time per activity for each day">' + s + '</svg>';
+  }
+
+  function renderNow() {
+    var S = TSA.get(), m = META[S.active];
+    $('now').innerHTML = '<span>Now: ' + dot(S.active) + m.icon + ' <strong>' + m.label + '</strong> is running since ' + clock(S.activeSince) +
+      '. Timers keep running on this page.</span> <a href="index.html" style="margin-left:auto">Go to the timers</a>';
+  }
+
+  function render() {
+    var A = TSA.analyze();
+    renderNow();
+
+    /* score cards */
+    var today = A.per[A.todayK];
+    $('stats').innerHTML = [
+      ['Total points', A.points, A.trackedDays + ' days tracked'],
+      ['Today', today ? today.points : 0, 'points'],
+      ['Best day', A.best ? A.best.points : '–', A.best ? fmtDay(A.best.day, true) : ''],
+      ['Daily average', f1(A.avgPerDay), 'points per tracked day'],
+      ['Streak', A.streak.current + (A.streak.current === 1 ? ' day' : ' days'), 'longest: ' + A.streak.longest]
+    ].map(statCard).join('');
+
+    /* per-activity totals */
+    $('acts').innerHTML = '<table><thead><tr><th>Activity</th><th>Today</th><th>This week</th><th>Total</th><th>Avg / day</th><th>Best day</th><th>Sessions</th><th>Avg session</th></tr></thead><tbody>' +
+      ACTS.map(function (a) {
+        var p = A.perAct[a];
+        return '<tr><td>' + dot(a) + META[a].icon + ' ' + META[a].label + '</td><td>' + dash(p.todaySec) + '</td><td>' + dash(p.weekSec) + '</td><td>' + dash(p.totalSec) +
+          '</td><td>' + dash(p.avgDaySec) + '</td><td>' + (p.best ? dur(p.best.sec) + ' · ' + fmtDay(p.best.day) : '–') + '</td><td>' + p.count + '</td><td>' + dash(p.avgSessionSec) + '</td></tr>';
+      }).join('') + '</tbody></table><p class="muted" style="margin:10px 0 0">Weeks start on Sunday (this week began ' + fmtDay(A.weekStart) + ').</p>';
+
+    /* score per day */
+    var r = $('range').value, n;
+    if (r === 'all') {
+      var oldest = A.days.length ? A.days[A.days.length - 1].day : A.todayK, c = 1, k = oldest;
+      while (k < A.todayK && c < 3650) { k = TSA.addDays(k, 1); c++; }
+      n = Math.max(c, 7);
+    } else n = +r;
+    var keys = lastDays(A.todayK, n);
+    var vals = keys.map(function (key) { return A.per[key] ? A.per[key].points : 0; });
+    var labels = keys.map(function (key) { return { short: fmtDay(key), tip: fmtDay(key, true) }; });
+    $('bars').innerHTML = A.points === 0 ? '<div class="empty-msg">No finished work rounds yet. Finish one and it will show up here.</div>'
+      : barsSvg(vals, labels, { showVals: n <= 31, aria: 'Points per day', maxLabels: 10 });
+
+    /* calendar */
+    var base = TSA.keyToDate(A.todayK);
+    var first = new Date(base.getFullYear(), base.getMonth() + monthOffset, 1);
+    var y = first.getFullYear(), m = first.getMonth(), dim = new Date(y, m + 1, 0).getDate();
+    $('calTitle').textContent = first.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    var maxP = 1;
+    for (var dd = 1; dd <= dim; dd++) { var dk = y + '-' + TSA.pad(m + 1) + '-' + TSA.pad(dd); if (A.per[dk] && A.per[dk].points > maxP) maxP = A.per[dk].points; }
+    var html = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(function (w) { return '<div class="dow">' + w + '</div>'; }).join('');
+    for (var e = 0; e < first.getDay(); e++) html += '<div class="cell empty"></div>';
+    for (var day = 1; day <= dim; day++) {
+      var kk = y + '-' + TSA.pad(m + 1) + '-' + TSA.pad(day), p = A.per[kk] ? A.per[kk].points : 0;
+      var cls = 'cell' + (kk > A.todayK ? ' future' : '') + (kk === A.todayK ? ' today' : ''), st = '';
+      if (p > 0) { var pct = 18 + Math.round(p / maxP * 77); st = ' style="background:color-mix(in srgb, var(--accent) ' + pct + '%, var(--cell))"'; if (pct > 55) cls += ' hot'; }
+      html += '<div class="' + cls + '"' + st + ' title="' + fmtDay(kk, true) + ': ' + p + ' points"><span>' + day + '</span><b>' + (p || '') + '</b></div>';
+    }
+    $('cal').innerHTML = html;
+
+    /* where each day went */
+    $('legend').innerHTML = ACTS.map(function (a) { return '<span><i style="background:var(' + META[a].color + ')"></i>' + META[a].label + '</span>'; }).join('');
+    var sk = lastDays(A.todayK, +$('stackRange').value), any = false;
+    var rows = sk.map(function (key) {
+      var d = A.per[key];
+      if (d && d.total > 0) any = true;
+      return { short: fmtDay(key), tip: fmtDay(key, true), t: d ? d.t : zeroT(), total: d ? d.total : 0 };
+    });
+    $('stack').innerHTML = any ? stackedSvg(rows) : '<div class="empty-msg">No tracked time yet.</div>';
+
+    /* share of the day */
+    var sr = $('shareRange').value, sum = zeroT(), grand = 0;
+    var shareKeys = sr === 'today' ? [A.todayK] : sr === '7' ? lastDays(A.todayK, 7) : Object.keys(A.per);
+    shareKeys.forEach(function (key) { if (A.per[key]) ACTS.forEach(function (a) { sum[a] += A.per[key].t[a]; }); });
+    ACTS.forEach(function (a) { grand += sum[a]; });
+    $('share').innerHTML = grand < 1 ? '<div class="empty-msg">Nothing tracked in this range yet.</div>' :
+      '<div class="share" role="img" aria-label="Share of tracked time per activity">' + ACTS.map(function (a) {
+        return '<span style="width:' + (sum[a] / grand * 100).toFixed(2) + '%;background:var(' + META[a].color + ')" title="' + META[a].label + ' ' + dur(sum[a]) + '"></span>';
+      }).join('') + '</div><div class="shl">' + ACTS.map(function (a) {
+        return '<div>' + dot(a) + META[a].label + '<small>' + Math.round(sum[a] / grand * 100) + '%</small><b>' + dash(sum[a]) + '</b></div>';
+      }).join('') + '</div>';
+
+    /* outreach */
+    var O = A.outreach;
+    $('ocStats').innerHTML = [
+      ['Today', O.today + ' / ' + O.goal, O.today >= O.goal ? 'goal reached' : (O.goal - O.today) + ' to go'],
+      ['This week', O.week, 'since ' + fmtDay(A.weekStart)],
+      ['Total', O.total, O.trackedDays + ' days tracked'],
+      ['Daily average', f1(O.avgPerDay), 'per tracked day'],
+      ['Best day', O.best ? O.best.count : '–', O.best ? fmtDay(O.best.day, true) : ''],
+      ['Goal met', O.goalMetDays + ' of ' + O.trackedDays, 'days at ' + O.goal + ' or more']
+    ].map(statCard).join('');
+    var on = +$('ocRange').value, okeys = lastDays(A.todayK, on);
+    var ovals = okeys.map(function (key) { return A.per[key] ? A.per[key].outreach : 0; });
+    var olabels = okeys.map(function (key) { return { short: fmtDay(key), tip: fmtDay(key, true) }; });
+    $('ocBars').innerHTML = O.total === 0 ? '<div class="empty-msg">No outreaches counted yet. Press +1 on the timer page.</div>'
+      : barsSvg(ovals, olabels, { showVals: on <= 31, cls: 'out', goal: O.goal, aria: 'Outreaches per day', maxLabels: 10 });
+
+    /* hours */
+    var hv = A.byHour.map(function (h) { return h.points; });
+    var hl = A.byHour.map(function (h) { return { short: String(h.hour), tip: h.hour + ':00' }; });
+    $('hours').innerHTML = A.points === 0 ? '<div class="empty-msg">Nothing yet.</div>' : barsSvg(hv, hl, { showVals: false, aria: 'Work rounds by hour of day', maxLabels: 8 });
+    $('ocHours').innerHTML = O.total === 0 ? '<div class="empty-msg">Nothing yet.</div>' : barsSvg(O.byHour, hl, { showVals: false, cls: 'out', aria: 'Outreaches by hour of day', maxLabels: 8 });
+
+    /* sessions of one activity */
+    var sel = $('segAct');
+    if (!sel.options.length) {
+      sel.innerHTML = ACTS.map(function (a) { return '<option value="' + a + '">' + META[a].icon + ' ' + META[a].label + '</option>'; }).join('');
+      sel.value = 'work';
+    }
+    var act = sel.value, list = A.segs[act], more = list.length > 300, notes = TSA.NOTE_ACTS.indexOf(act) >= 0;
+    $('segs').innerHTML = list.length
+      ? '<table><thead><tr><th>Date</th><th>Start</th><th>Duration</th>' + (notes ? '<th>Note</th>' : '') + '</tr></thead><tbody>' +
+        list.slice(0, 300).map(function (g) {
+          return '<tr><td>' + fmtDay(TSA.dayKey(g.start), true) + '</td><td>' + clock(g.start) + '</td><td>' + dur(g.sec) + (g.live ? ' · running' : '') + '</td>' +
+            (notes ? '<td class="wrapt">' + (g.note ? esc(g.note) : '–') + '</td>' : '') + '</tr>';
+        }).join('') + '</tbody></table>' + (more ? '<p class="muted">Showing the latest 300 of ' + list.length + '.</p>' : '')
+      : '<div class="empty-msg">No ' + META[act].label.toLowerCase() + ' sessions yet.</div>';
+
+    /* every day */
+    $('table').innerHTML = A.days.length
+      ? '<table><thead><tr><th>Date</th><th>Points</th><th>Outreach</th>' + ACTS.map(function (a) { return '<th>' + META[a].label + '</th>'; }).join('') + '<th>First open</th></tr></thead><tbody>' +
+        A.days.map(function (d) {
+          return '<tr><td>' + fmtDay(d.day, true) + '</td><td><strong>' + d.points + '</strong></td><td>' + (d.outreach || '–') + '</td>' +
+            ACTS.map(function (a) { return '<td>' + dash(d.t[a]) + '</td>'; }).join('') +
+            '<td>' + (d.firstOpen ? clock(d.firstOpen) : '–') + '</td></tr>';
+        }).join('') + '</tbody></table>'
+      : '<div class="empty-msg">No days yet.</div>';
+  }
+
+  ['range', 'stackRange', 'shareRange', 'ocRange', 'segAct'].forEach(function (id) { $(id).addEventListener('change', render); });
+  $('prevM').addEventListener('click', function () { monthOffset--; render(); });
+  $('nextM').addEventListener('click', function () { monthOffset++; render(); });
+
+  var ticks = 0;
+  TSA.engine(function (kind) {
+    if (kind === 'tick') { renderNow(); if (++ticks % 20 === 0) render(); } else render();
+  });
+  render();
+})();
+</script>
+</body>
+</html>
