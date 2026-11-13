@@ -24,6 +24,14 @@
   <div id="stats" class="grid"></div>
 
   <section class="card">
+    <div class="head">
+      <h2>Timeline of the day</h2>
+      <div class="nav-m"><button id="tlPrev" type="button" aria-label="Previous day">‹</button><span id="tlDay" style="margin:0 8px"></span><button id="tlNext" type="button" aria-label="Next day">›</button></div>
+    </div>
+    <div id="tl"></div>
+  </section>
+
+  <section class="card">
     <h2>Time per activity</h2>
     <div id="acts" class="xscroll"></div>
   </section>
@@ -119,6 +127,8 @@
   </section>
 </div>
 
+<a id="runpop" class="runpop" href="index.html" title="Go to the timers"></a>
+
 <script src="app.js"></script>
 <script>
 (function () {
@@ -133,6 +143,7 @@
   function fmtDay(k, long) {
     return TSA.keyToDate(k).toLocaleDateString('en-US', long ? { month: 'short', day: 'numeric', year: 'numeric' } : { month: 'short', day: 'numeric' });
   }
+  function hms(sec) { return TSA.pad(Math.floor(sec / 3600)) + ':' + TSA.pad(Math.floor(sec % 3600 / 60)) + ':' + TSA.pad(sec % 60); }
   function clock(ms) { return new Date(ms).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); }
   var f1 = function (n) { return (Math.round(n * 10) / 10).toString(); };
   var dash = function (sec) { return sec >= 1 ? dur(sec) : '–'; };
@@ -195,7 +206,46 @@
     return '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Time per activity for each day">' + s + '</svg>';
   }
 
+  function renderPop() {
+    var S = TSA.get(), now = Date.now(), m = META[S.active], el = $('runpop'), t;
+    if (S.active === 'work' && S.timer.mode === 'running') t = 'time left ' + hms(Math.max(0, Math.ceil((S.timer.endAt - now) / 1000)));
+    else t = hms(Math.max(0, Math.floor((now - S.activeSince) / 1000)));
+    el.style.setProperty('--c', 'var(' + m.color + ')');
+    el.innerHTML = m.icon + ' <strong>' + m.label + '</strong> · <b>' + t + '</b>';
+  }
+  var tlDay = null, tlTimer = null;
+  function renderTimeline() {
+    var now = Date.now(), todayK = TSA.dayKey(now);
+    if (!tlDay) tlDay = todayK;
+    var blocks = TSA.timeline(tlDay, now);
+    $('tlDay').textContent = tlDay === todayK ? 'Today' : fmtDay(tlDay, true);
+    $('tlNext').disabled = tlDay >= todayK;
+    if (!blocks.length) { $('tl').innerHTML = '<div class="empty-msg">Nothing tracked on this day.</div>'; return; }
+    var t0 = blocks[0].start, t1 = blocks[blocks.length - 1].end, span = Math.max(1, t1 - t0);
+    var bar = blocks.map(function (b, i) {
+      return '<span tabindex="0" data-i="' + i + '" style="flex:' + (b.end - b.start) + ' 1 0;background:var(' + META[b.act].color + ')" title="' +
+        esc(META[b.act].label + ' · ' + clock(b.start) + '–' + clock(b.end) + ' · ' + dur(Math.round((b.end - b.start) / 1000))) + '"></span>';
+    }).join('');
+    var list = blocks.map(function (b, i) {
+      var sec = Math.round((b.end - b.start) / 1000);
+      return '<li><time>' + clock(b.start) + '</time>' + dot(b.act) + META[b.act].icon + ' ' + META[b.act].label + ' · ' + dur(sec) + (b.live ? ' · running' : '') +
+        (b.note ? ' — <em>' + esc(b.note) + '</em>' : '') + '</li>';
+    }).join('');
+    $('tl').innerHTML = '<div class="tl" role="img" aria-label="Timeline of the day">' + bar + '</div><div class="tl-ends"><span>' + clock(t0) + '</span><span>' +
+      (tlDay === todayK ? 'now ' : '') + clock(t1) + '</span></div><div class="tl-tip" id="tlTip">Tap a block for details.</div><ul class="tl-list">' + list + '</ul>';
+    var tip = $('tlTip');
+    var show = function (e) {
+      var i = e.target.getAttribute && e.target.getAttribute('data-i'); if (i == null) return;
+      var b = blocks[+i];
+      tip.innerHTML = dot(b.act) + META[b.act].icon + ' <strong>' + META[b.act].label + '</strong> · ' + clock(b.start) + '–' + clock(b.end) + ' · ' +
+        dur(Math.round((b.end - b.start) / 1000)) + (b.note ? '<br><em>' + esc(b.note) + '</em>' : '');
+    };
+    var barEl = $('tl').firstChild;
+    barEl.addEventListener('mouseover', show); barEl.addEventListener('click', show); barEl.addEventListener('focusin', show);
+  }
+
   function renderNow() {
+    renderPop();
     var S = TSA.get(), m = META[S.active];
     $('now').innerHTML = '<span>Now: ' + dot(S.active) + m.icon + ' <strong>' + m.label + '</strong> is running since ' + clock(S.activeSince) +
       '. Timers keep running on this page.</span> <a href="index.html" style="margin-left:auto">Go to the timers</a>';
@@ -204,6 +254,7 @@
   function render() {
     var A = TSA.analyze();
     renderNow();
+    renderTimeline();
 
     /* score cards */
     var today = A.per[A.todayK];
@@ -324,6 +375,8 @@
   }
 
   ['range', 'stackRange', 'shareRange', 'ocRange', 'segAct'].forEach(function (id) { $(id).addEventListener('change', render); });
+  $('tlPrev').addEventListener('click', function () { tlDay = TSA.addDays(tlDay || TSA.dayKey(Date.now()), -1); renderTimeline(); });
+  $('tlNext').addEventListener('click', function () { tlDay = TSA.addDays(tlDay, 1); renderTimeline(); });
   $('prevM').addEventListener('click', function () { monthOffset--; render(); });
   $('nextM').addEventListener('click', function () { monthOffset++; render(); });
 

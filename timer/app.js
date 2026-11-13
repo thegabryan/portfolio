@@ -1,5 +1,5 @@
 /* Focus Timer — shared logic.
-   Six activities (work, paused, workflow, workout, eating, sleep); exactly one is "active" at a time.
+   Seven activities (work, paused, workflow, workout, eating, shower, sleep); exactly one is "active" at a time.
    Every stretch of an activity is stored as a segment; daily totals are computed from segments.
    The outreach counter is a list of click times. Everything is saved in this browser's localStorage. */
 (function (root) {
@@ -8,7 +8,7 @@
   var KEY = 'tsa2_data', OLD_KEY = 'tsa1_data', CHRONO_KEY = 'tsa2_chrono', LEADER_KEY = 'tsa2_leader';
   var RESUME_MS = 30000;    // a page that comes back within 30 s keeps the running timer
   var WORK_SEC = 3600;      // every work round is one hour
-  var ACTS = ['work', 'paused', 'workflow', 'workout', 'eating', 'sleep'];
+  var ACTS = ['work', 'paused', 'workflow', 'workout', 'eating', 'shower', 'sleep'];
   var BEEP_ACTS = ['paused', 'workflow', 'workout', 'eating'];
   var NOTE_ACTS = ['work', 'workflow'];          // sessions that can carry a note
   var KEEPS_RUNNING = { sleep: true };           // counts by the clock even if the page is closed
@@ -18,6 +18,7 @@
     workflow: { label: 'Workflow', icon: '🛠️', color: '--c-flow'   },
     workout:  { label: 'Workout',  icon: '🏋️', color: '--c-gym'    },
     eating:   { label: 'Eating',   icon: '🍽️', color: '--c-eat'    },
+    shower:   { label: 'Shower',   icon: '🚿',       color: '--c-shower' },
     sleep:    { label: 'Sleep',    icon: '🌙',       color: '--c-sleep'  }
   };
 
@@ -323,6 +324,20 @@
     return n;
   }
 
+  /* The day as ordered blocks (clipped to the calendar day), for the dashboard timeline. */
+  function timeline(k, now) {
+    now = now || Date.now();
+    var t0 = keyToDate(k).getTime(), t1 = keyToDate(addDays(k, 1)).getTime(), out = [];
+    var put = function (g, live) {
+      var s = Math.max(g.start, t0), e = Math.min(g.end, t1);
+      if (e - s >= 1000) out.push({ act: g.act, start: s, end: e, note: g.note || '', live: !!live });
+    };
+    S.segments.forEach(function (g) { put(g, false); });
+    liveParts(now).forEach(function (g) { put(g, true); });
+    out.sort(function (a, b) { return a.start - b.start; });
+    return out;
+  }
+
   function analyze(now) {
     now = now || Date.now();
     var todayK = dayKey(now), per = {}, segs = {};
@@ -595,7 +610,7 @@
   }
 
   root.TSA = {
-    ACTS: ACTS, BEEP_ACTS: BEEP_ACTS, NOTE_ACTS: NOTE_ACTS, META: META, WORK_SEC: WORK_SEC, pad: pad,
+    timeline: timeline, ACTS: ACTS, BEEP_ACTS: BEEP_ACTS, NOTE_ACTS: NOTE_ACTS, META: META, WORK_SEC: WORK_SEC, pad: pad,
     dayKey: dayKey, addDays: addDays, keyToDate: keyToDate, fmtDur: fmtDur,
     boot: boot, get: function () { return S; }, reload: reload, save: save,
     storageOK: function () { return !memoryOnly; },
