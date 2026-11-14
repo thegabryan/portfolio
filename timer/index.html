@@ -35,6 +35,7 @@
           <option value="20">20 min</option><option value="30">30 min</option>
         </select>
       </label>
+      <label class="sel" title="If Paused has run less than this when you start a timer, that Paused time moves to the new timer. 0 = off.">Short pause <input id="shortPause" type="number" min="0" max="600" inputmode="numeric" style="width:64px"> s</label>
       <span class="bells">🔔
         <label><input type="checkbox" data-bell="paused"> Paused</label>
         <label><input type="checkbox" data-bell="workflow"> Workflow</label>
@@ -66,7 +67,7 @@
   <form method="dialog">
     <h2 id="noteTitle">Session saved</h2>
     <p id="noteInfo" class="muted" style="margin:0 0 12px"></p>
-    <input id="noteInput" type="text" maxlength="200" placeholder="Note (optional), e.g. fixed the backup script" autofocus>
+    <input id="noteInput" type="text" maxlength="200" placeholder="Write a note" autofocus>
     <div class="drow"><button class="primary" value="save">Save</button></div>
   </form>
 </dialog>
@@ -102,12 +103,13 @@
       '<div class="big" data-big>00:00:00</div>' +
       '<div class="state" data-state></div>' +
       '<div class="sub" data-sub></div>' +
-      '<div class="cbtns"><button type="button" class="tbtn" data-toggle>Start</button></div></article>';
+      '<div class="cbtns"><button type="button" class="tbtn" data-toggle>Start</button></div>' +
+      '<button type="button" class="nbtn" data-note>📝 Note</button></article>';
   }).join('');
   ACTS.forEach(function (a) {
     var el = cardsEl.querySelector('[data-act=' + a + ']');
     refs[a] = { el: el, big: el.querySelector('[data-big]'), state: el.querySelector('[data-state]'),
-      sub: el.querySelector('[data-sub]'), btn: el.querySelector('[data-toggle]') };
+      sub: el.querySelector('[data-sub]'), btn: el.querySelector('[data-toggle]'), nbtn: el.querySelector('[data-note]') };
   });
   var SUBS = { paused: 'Today · counts by itself', sleep: 'Today · keeps counting if closed' };
 
@@ -132,6 +134,12 @@
         r.btn.textContent = on ? (a === 'paused' ? 'Running' : 'Stop') : 'Start';
       }
     });
+    ACTS.forEach(function (a) {                        // note button: disabled until the timer has run at least once
+      var t = TSA.noteTarget(a), nb = refs[a].nbtn;
+      nb.disabled = !t;
+      nb.textContent = t && t.note ? '📝 Edit note' : '📝 Note';
+      nb.title = !t ? 'Nothing to attach a note to yet' : t.live ? 'Note for the run that is going now' : 'Note for the last run of this timer';
+    });
     var shown = S.active === 'work' ? workRem : T[S.active];
     document.title = META[S.active].icon + ' ' + hms(shown) + ' · ' + META[S.active].label;
     TSA.setFavicon(S.active);
@@ -144,6 +152,7 @@
     var v = Math.round((S.settings.volume == null ? 0.5 : S.settings.volume) * 100);
     $('vol').value = v; $('volVal').textContent = v + '%';
     $('beepMin').value = String(S.settings.beepMinutes);
+    $('shortPause').value = S.settings.shortPauseSec;
     document.querySelectorAll('[data-bell]').forEach(function (c) { c.checked = S.settings.beep[c.dataset.bell] !== false; });
     renderLive();
     $('todayLbl').textContent = TSA.keyToDate(TSA.dayKey(Date.now())).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
@@ -151,32 +160,41 @@
   $('auto').addEventListener('change', function () { S.settings.autoRestart = $('auto').checked; TSA.save(); });
   $('vol').addEventListener('input', function () { S.settings.volume = $('vol').value / 100; $('volVal').textContent = $('vol').value + '%'; TSA.save(); });
   $('vol').addEventListener('change', function () { TSA.beep(1000, .22, .4); });
+  $('shortPause').addEventListener('change', function () {
+    var v = Math.round(+$('shortPause').value);
+    S.settings.shortPauseSec = v >= 0 && v <= 600 ? v : 20; $('shortPause').value = S.settings.shortPauseSec; TSA.save();
+  });
   $('beepMin').addEventListener('change', function () { S.settings.beepMinutes = +$('beepMin').value; TSA.save(); });
   document.querySelectorAll('[data-bell]').forEach(function (c) {
     c.addEventListener('change', function () { S.settings.beep[c.dataset.bell] = c.checked; TSA.save(); });
   });
 
   /* ---------- switching timers and notes ---------- */
-  function askNote(seg) {
-    $('noteTitle').textContent = META[seg.act].label + ' session saved';
-    $('noteInfo').textContent = 'Duration ' + TSA.fmtDur((seg.end - seg.start) / 1000) + '. Add a note if you like (Esc skips it).';
-    $('noteInput').value = '';
+  function openNote(t, auto) {
+    var when = t.live ? 'running since ' + clock(t.start)
+      : TSA.keyToDate(TSA.dayKey(t.start)).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ', ' + clock(t.start) + '–' + clock(t.end);
+    $('noteTitle').textContent = META[t.act].icon + ' ' + META[t.act].label + ' · ' + when;
+    $('noteInfo').textContent = auto ? 'Session saved. Add a note if you like (Esc skips it).' : 'Save with empty text to remove the note. Esc cancels.';
+    $('noteInput').value = t.note || '';
     $('noteDlg').returnValue = '';
-    $('noteDlg').dataset.id = seg.id;
+    $('noteDlg').dataset.act = t.act; $('noteDlg').dataset.start = t.start;
     $('noteDlg').showModal();
+    $('noteInput').select();
   }
   $('noteDlg').addEventListener('close', function () {
-    if (this.returnValue === 'save') { TSA.setNote(this.dataset.id, $('noteInput').value); S = TSA.get(); }
+    if (this.returnValue === 'save') { TSA.setNoteAt(this.dataset.act, +this.dataset.start, $('noteInput').value); S = TSA.get(); renderAll(); }
   });
 
   cardsEl.addEventListener('click', function (e) {
     TSA.audio();
+    var nb = e.target.closest('[data-note]');
+    if (nb) { var t = TSA.noteTarget(nb.closest('.acard').dataset.act); if (t) openNote(t, false); return; }
     var b = e.target.closest('[data-toggle]'); if (!b) return;
     var act = b.closest('.acard').dataset.act, res;
     if (S.active === act) { if (act === 'paused') return; res = TSA.switchTo('paused'); }   // clicking a running card only stops it
     else { if (act === 'work') TSA.alarmStop(); res = TSA.switchTo(act); }
     S = TSA.get(); renderAll();
-    if (res && res.closed && TSA.NOTE_ACTS.indexOf(res.closed.act) >= 0 && res.closed.end - res.closed.start >= 1000) askNote(res.closed);
+    if (res && res.closed && TSA.NOTE_ACTS.indexOf(res.closed.act) >= 0 && res.closed.end - res.closed.start >= 1000) openNote({ act: res.closed.act, start: res.closed.start, end: res.closed.end, live: false, note: res.closed.note || '' }, true);
   });
 
   /* ---------- outreach counter ---------- */

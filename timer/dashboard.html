@@ -116,6 +116,17 @@
   </section>
 
   <section class="card">
+    <div class="head">
+      <h2>Notes</h2>
+      <div class="notes-bar">
+        <select id="noteAct" aria-label="Timer"></select>
+        <input id="noteQ" type="search" placeholder="Search notes" aria-label="Search notes">
+      </div>
+    </div>
+    <div id="notes"></div>
+  </section>
+
+  <section class="card">
     <h2>Every day</h2>
     <div id="table" class="scroll"></div>
   </section>
@@ -126,6 +137,14 @@
     <div class="tools" id="tools"></div>
   </section>
 </div>
+
+<dialog id="noteDlg">
+  <form method="dialog">
+    <h2 id="noteTitle">Note</h2>
+    <input id="noteInput" type="text" maxlength="200" placeholder="Write a note" autofocus>
+    <div class="drow"><button class="ghost" id="noteDel" type="button">Delete note</button><button class="primary" value="save">Save</button></div>
+  </form>
+</dialog>
 
 <a id="runpop" class="runpop" href="index.html" title="Go to the timers"></a>
 
@@ -206,6 +225,37 @@
     return '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Time per activity for each day">' + s + '</svg>';
   }
 
+  /* a run can take a note unless it is the stale 'paused' tail of a page that vanished */
+  function canEdit(act, start, live) {
+    if (!live) return true;
+    var S = TSA.get(); return S.active === act && S.activeSince === start;
+  }
+  function openNote(act, start, end, live, note) {
+    var when = live ? 'running since ' + clock(start) : fmtDay(TSA.dayKey(start), true) + ', ' + clock(start) + '–' + clock(end);
+    $('noteTitle').textContent = META[act].icon + ' ' + META[act].label + ' · ' + when;
+    $('noteInput').value = note || '';
+    $('noteDel').hidden = !note;
+    $('noteDlg').returnValue = '';
+    $('noteDlg').dataset.act = act; $('noteDlg').dataset.start = start;
+    $('noteDlg').showModal();
+    $('noteInput').select();
+  }
+  $('noteDel').addEventListener('click', function () { $('noteDlg').close('delete'); });
+  $('noteDlg').addEventListener('close', function () {
+    var v = this.returnValue;
+    if (v === 'save') TSA.setNoteAt(this.dataset.act, +this.dataset.start, $('noteInput').value);
+    else if (v === 'delete') TSA.setNoteAt(this.dataset.act, +this.dataset.start, '');
+    else return;
+    render();
+  });
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-edit]'); if (!b) return;
+    var act = b.dataset.act, start = +b.dataset.start, S = TSA.get(), live = S.active === act && S.activeSince === start, note = '', end = null;
+    if (live) note = S.liveNote || '';
+    else { var g = S.segments.find(function (x) { return x.act === act && x.start === start; }); if (!g) return; note = g.note || ''; end = g.end; }
+    openNote(act, start, end, live, note);
+  });
+
   function renderPop() {
     var S = TSA.get(), now = Date.now(), m = META[S.active], el = $('runpop'), t;
     if (S.active === 'work' && S.timer.mode === 'running') t = 'time left ' + hms(Math.max(0, Math.ceil((S.timer.endAt - now) / 1000)));
@@ -223,7 +273,7 @@
     if (!blocks.length) { $('tl').innerHTML = '<div class="empty-msg">Nothing tracked on this day.</div>'; return; }
     var t0 = blocks[0].start, t1 = blocks[blocks.length - 1].end, span = Math.max(1, t1 - t0);
     var bar = blocks.map(function (b, i) {
-      return '<span tabindex="0" data-i="' + i + '" style="flex:' + (b.end - b.start) + ' 1 0;background:var(' + META[b.act].color + ')" title="' +
+      return '<span tabindex="0" class="' + (b.note ? 'hasnote' : '') + '" data-i="' + i + '" style="flex:' + (b.end - b.start) + ' 1 0;background:var(' + META[b.act].color + ')" title="' +
         esc(META[b.act].label + ' · ' + clock(b.start) + '–' + clock(b.end) + ' · ' + dur(Math.round((b.end - b.start) / 1000))) + '"></span>';
     }).join('');
     var list = blocks.map(function (b, i) {
@@ -236,11 +286,12 @@
     var tip = $('tlTip');
     var showBlock = function (b) {
       tip.innerHTML = dot(b.act) + META[b.act].icon + ' <strong>' + META[b.act].label + '</strong> · ' + clock(b.start) + '–' + clock(b.end) + ' · ' +
-        dur(Math.round((b.end - b.start) / 1000)) + (b.note ? '<br><em>' + esc(b.note) + '</em>' : '');
+        dur(Math.round((b.end - b.start) / 1000)) + (b.note ? '<br><em>' + esc(b.note) + '</em>' : '') +
+        (canEdit(b.act, b.orig, b.live) ? ' <button type="button" class="linkbtn" data-edit data-act="' + b.act + '" data-start="' + b.orig + '">' + (b.note ? 'Edit note' : 'Add note') + '</button>' : '');
     };
     var show = function (e) {
       var i = e.target.getAttribute && e.target.getAttribute('data-i'); if (i == null) return;
-      tlSel = blocks[+i].start; showBlock(blocks[+i]);
+      tlSel = blocks[+i].start; showBlock(blocks[+i]);   // remembered across refreshes
     };
     if (tlSel != null) blocks.forEach(function (b) { if (b.start === tlSel) showBlock(b); });   // keep the chosen block after a refresh
     var barEl = $('tl').firstChild;
@@ -357,14 +408,25 @@
       sel.innerHTML = ACTS.map(function (a) { return '<option value="' + a + '">' + META[a].icon + ' ' + META[a].label + '</option>'; }).join('');
       sel.value = 'work';
     }
-    var act = sel.value, list = A.segs[act], more = list.length > 300, notes = TSA.NOTE_ACTS.indexOf(act) >= 0;
+    var act = sel.value, list = A.segs[act], more = list.length > 300, notes = true;
     $('segs').innerHTML = list.length
-      ? '<table><thead><tr><th>Date</th><th>Start</th><th>Duration</th>' + (notes ? '<th>Note</th>' : '') + '</tr></thead><tbody>' +
+      ? '<table><thead><tr><th>Date</th><th>Start</th><th>Duration</th><th>Note</th></tr></thead><tbody>' +
         list.slice(0, 300).map(function (g) {
           return '<tr><td>' + fmtDay(TSA.dayKey(g.start), true) + '</td><td>' + clock(g.start) + '</td><td>' + dur(g.sec) + (g.live ? ' · running' : '') + '</td>' +
-            (notes ? '<td class="wrapt">' + (g.note ? esc(g.note) : '–') + '</td>' : '') + '</tr>';
+            '<td class="wrapt">' + (g.note ? esc(g.note) + ' ' : '–') + (canEdit(act, g.start, g.live) ? '<button type="button" class="linkbtn" data-edit data-act="' + act + '" data-start="' + g.start + '">' + (g.note ? 'Edit' : 'Add') + '</button>' : '') + '</td></tr>';
         }).join('') + '</tbody></table>' + (more ? '<p class="muted">Showing the latest 300 of ' + list.length + '.</p>' : '')
       : '<div class="empty-msg">No ' + META[act].label.toLowerCase() + ' sessions yet.</div>';
+
+    /* notes */
+    var nact = $('noteAct'), nq = $('noteQ').value.trim().toLowerCase();
+    if (!nact.options.length) nact.innerHTML = '<option value="">All timers</option>' + ACTS.map(function (a) { return '<option value="' + a + '">' + META[a].icon + ' ' + META[a].label + '</option>'; }).join('');
+    var all = TSA.allNotes().filter(function (n) { return (!nact.value || n.act === nact.value) && (!nq || n.note.toLowerCase().indexOf(nq) >= 0); });
+    $('notes').innerHTML = all.length ? all.slice(0, 300).map(function (n) {
+      var sec = Math.round((n.end - n.start) / 1000);
+      return '<div class="nrow"><span class="nt">' + fmtDay(TSA.dayKey(n.start), true) + ' · ' + clock(n.start) + '</span><span>' + dot(n.act) + META[n.act].icon + ' ' + META[n.act].label + ' · ' + dur(sec) + (n.live ? ' · running' : '') +
+        '</span><span class="nx">' + esc(n.note) + '</span><button type="button" class="linkbtn" data-edit data-act="' + n.act + '" data-start="' + n.start + '">Edit</button></div>';
+    }).join('') + (all.length > 300 ? '<p class="muted">Showing the newest 300 of ' + all.length + '.</p>' : '')
+      : '<div class="empty-msg">' + (nq || nact.value ? 'No notes match.' : 'No notes yet. Use the 📝 Note button on a timer card.') + '</div>';
 
     /* every day */
     $('table').innerHTML = A.days.length
@@ -377,7 +439,8 @@
       : '<div class="empty-msg">No days yet.</div>';
   }
 
-  ['range', 'stackRange', 'shareRange', 'ocRange', 'segAct'].forEach(function (id) { $(id).addEventListener('change', render); });
+  ['range', 'stackRange', 'shareRange', 'ocRange', 'segAct', 'noteAct'].forEach(function (id) { $(id).addEventListener('change', render); });
+  $('noteQ').addEventListener('input', render);
   $('tlPrev').addEventListener('click', function () { tlDay = TSA.addDays(tlDay || TSA.dayKey(Date.now()), -1); tlSel = null; renderTimeline(); });
   $('tlNext').addEventListener('click', function () { tlDay = TSA.addDays(tlDay, 1); tlSel = null; renderTimeline(); });
   $('prevM').addEventListener('click', function () { monthOffset--; render(); });

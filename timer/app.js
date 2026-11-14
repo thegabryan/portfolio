@@ -1,5 +1,5 @@
 /* Focus Timer — shared logic.
-   Eight activities (work, paused, workflow, workout, eating, shower, family, sleep); exactly one is "active" at a time.
+   Seven activities (work, paused, workflow, workout, eating, shower, sleep); exactly one is "active" at a time.
    Every stretch of an activity is stored as a segment; daily totals are computed from segments.
    The outreach counter is a list of click times. Everything is saved in this browser's localStorage. */
 (function (root) {
@@ -8,7 +8,7 @@
   var KEY = 'tsa2_data', OLD_KEY = 'tsa1_data', CHRONO_KEY = 'tsa2_chrono', LEADER_KEY = 'tsa2_leader';
   var RESUME_MS = 30000;    // a page that comes back within 30 s keeps the running timer
   var WORK_SEC = 3600;      // every work round is one hour
-  var ACTS = ['work', 'paused', 'workflow', 'workout', 'eating', 'shower', 'family', 'sleep'];
+  var ACTS = ['work', 'paused', 'workflow', 'workout', 'eating', 'shower', 'sleep'];
   var BEEP_ACTS = ['paused', 'workflow', 'workout', 'eating'];
   var NOTE_ACTS = ['work', 'workflow'];          // sessions that can carry a note
   var KEEPS_RUNNING = { sleep: true };           // counts by the clock even if the page is closed
@@ -19,7 +19,6 @@
     workout:  { label: 'Workout',  icon: '🏋️', color: '--c-gym'    },
     eating:   { label: 'Eating',   icon: '🍽️', color: '--c-eat'    },
     shower:   { label: 'Shower',   icon: '🚿',       color: '--c-shower' },
-    family:   { label: 'Family',   icon: '👨‍👩‍👧', color: '--c-family' },
     sleep:    { label: 'Sleep',    icon: '🌙',       color: '--c-sleep'  }
   };
 
@@ -54,7 +53,7 @@
     return {
       version: 2,
       settings: {
-        autoRestart: false, theme: 'auto', volume: 0.5, beepMinutes: 10,
+        autoRestart: false, theme: 'auto', volume: 0.5, beepMinutes: 10, shortPauseSec: 20,
         beep: { paused: true, workflow: true, workout: true, eating: true }
       },
       timer: { mode: 'idle' },   // the work countdown: idle | running | paused
@@ -75,12 +74,15 @@
     r.settings = Object.assign(defaults().settings, o.settings || {});
     r.settings.beep = Object.assign({ paused: true, workflow: true, workout: true, eating: true }, (o.settings && o.settings.beep) || {});
     if (!(r.settings.beepMinutes > 0)) r.settings.beepMinutes = 10;
+    if (!(r.settings.shortPauseSec >= 0 && r.settings.shortPauseSec <= 600)) r.settings.shortPauseSec = 20;
     ['segments', 'sessions'].forEach(function (k) { if (!Array.isArray(r[k])) r[k] = defaults()[k]; });
     if (!r.outreach || typeof r.outreach !== 'object') r.outreach = { clicks: [], goal: 3 };
     if (!Array.isArray(r.outreach.clicks)) r.outreach.clicks = [];
     if (!(r.outreach.goal >= 1)) r.outreach.goal = 3;
+    if (typeof r.liveNote !== 'string') r.liveNote = '';
     if (!r.days || typeof r.days !== 'object') r.days = {};
     if (!r.timer || !r.timer.mode) r.timer = { mode: 'idle' };
+    r.segments.forEach(function (g) { if (g && g.act === 'family') { g.act = 'paused'; delete g.id; delete g.note; } });   // the removed Family timer counts as Paused
     if (ACTS.indexOf(r.active) < 0) r.active = 'paused';
     delete r.presets; delete r.selectedDurationSec;   // rounds are always one hour now
     r.version = 2;
@@ -156,19 +158,21 @@
     var a = S.active, st = S.activeSince;
     if (a !== 'paused' && !KEEPS_RUNNING[a] && S.lastSeen != null && now - S.lastSeen > RESUME_MS) {
       var cut = Math.max(S.lastSeen, st);
-      return [{ act: a, start: st, end: cut }, { act: 'paused', start: cut, end: Math.max(now, cut) }];
+      return [{ act: a, start: st, end: cut, note: S.liveNote || '' }, { act: 'paused', start: cut, end: Math.max(now, cut) }];
     }
-    return [{ act: a, start: st, end: Math.max(now, st) }];
+    return [{ act: a, start: st, end: Math.max(now, st), note: S.liveNote || '' }];
   }
 
   function closeSeg(now) {
     var st = S.activeSince;
     if (st != null && now > st) {
-      var seg = { act: S.active, start: st, end: now };
-      if (NOTE_ACTS.indexOf(S.active) >= 0) seg.id = uid();
+      var seg = { act: S.active, start: st, end: now, id: uid() };
+      if (S.liveNote) seg.note = S.liveNote;           // a note added while it was running
+      S.liveNote = '';
       S.segments.push(seg);
       return seg;
     }
+    S.liveNote = '';
     return null;
   }
   function pauseCountdown(at) {
@@ -237,16 +241,28 @@
   function switchTo(act, now) {
     now = now || Date.now();
     if (ACTS.indexOf(act) < 0 || S.active === act) return null;
-    var closed = closeSeg(now);
-    if (S.active === 'work') pauseCountdown(now);
+    var closed = null, at = now, cdAt = now, lim = S.settings.shortPauseSec;
+    if (S.active === 'paused' && lim > 0 && S.activeSince != null && now - S.activeSince < lim * 1000) {
+      /* A short Paused (you just switched tasks): it leaves no block of its own, its time goes to the new timer. */
+      at = cdAt = S.activeSince;
+      var last = S.segments[S.segments.length - 1];
+      if (last && last.act === act && last.end === at) {       // same timer again: the two runs join into one
+        S.segments.pop();
+        at = last.start;
+        S.liveNote = [last.note, S.liveNote].filter(Boolean).join(' / ').slice(0, 200);
+      }
+    } else {
+      closed = closeSeg(now);
+      if (S.active === 'work') pauseCountdown(now);
+    }
     if (act === 'work') {
       if (S.timer.mode === 'paused') {
-        S.timer.endAt = now + S.timer.remainingMs;
+        S.timer.endAt = cdAt + S.timer.remainingMs;
         delete S.timer.remainingMs;
         S.timer.mode = 'running';
-      } else S.timer = newRound(now);
+      } else S.timer = newRound(cdAt);
     }
-    S.active = act; S.activeSince = now; S.beepFrom = now; S.lastSeen = now;
+    S.active = act; S.activeSince = at; S.beepFrom = at; S.lastSeen = now;
     save();
     return { closed: closed };
   }
@@ -255,6 +271,34 @@
     if (!s) return false;
     s.note = String(note || '').trim().slice(0, 200);
     save(); return true;
+  }
+  /* ----- notes on any timer's run ----- */
+  var cleanNote = function (t) { return String(t || '').trim().slice(0, 200); };
+  /* The run a note button of `act` points at: the running one, else that timer's most recent run. */
+  function noteTarget(act) {
+    if (S.active === act && S.activeSince != null) return { act: act, start: S.activeSince, end: null, live: true, note: S.liveNote || '' };
+    for (var i = S.segments.length - 1, best = null; i >= 0; i--) {
+      var g = S.segments[i];
+      if (g && g.act === act && (!best || g.start > best.start)) best = g;
+    }
+    return best ? { act: act, start: best.start, end: best.end, live: false, note: best.note || '' } : null;
+  }
+  /* Sets (or, with empty text, removes) the note of the run of `act` that started at `start`. */
+  function setNoteAt(act, start, text) {
+    var n = cleanNote(text);
+    if (S.active === act && S.activeSince === start) { S.liveNote = n; save(); return true; }
+    var g = S.segments.find(function (x) { return x.act === act && x.start === start; });
+    if (!g) return false;
+    if (!g.id) g.id = uid();
+    if (n) g.note = n; else delete g.note;
+    save(); return true;
+  }
+  /* Every note, newest first. */
+  function allNotes(now) {
+    var out = S.segments.filter(function (g) { return g && g.note; })
+      .map(function (g) { return { act: g.act, start: g.start, end: g.end, note: g.note, live: false }; });
+    if (S.liveNote && S.activeSince != null) out.push({ act: S.active, start: S.activeSince, end: Math.max(now || Date.now(), S.activeSince), note: S.liveNote, live: true });
+    return out.sort(function (a, b) { return b.start - a.start; });
   }
   /* Keeps "last seen" fresh so a vanished page can be told apart from a running one. */
   function heartbeat(now, force) {
@@ -331,7 +375,7 @@
     var t0 = keyToDate(k).getTime(), t1 = keyToDate(addDays(k, 1)).getTime(), out = [];
     var put = function (g, live) {
       var s = Math.max(g.start, t0), e = Math.min(g.end, t1);
-      if (e - s >= 1000) out.push({ act: g.act, start: s, end: e, note: g.note || '', live: !!live });
+      if (e - s >= 1000) out.push({ act: g.act, start: s, end: e, orig: g.start, note: g.note || '', live: !!live });
     };
     S.segments.forEach(function (g) { put(g, false); });
     liveParts(now).forEach(function (g) { put(g, true); });
@@ -615,7 +659,7 @@
     dayKey: dayKey, addDays: addDays, keyToDate: keyToDate, fmtDur: fmtDur,
     boot: boot, get: function () { return S; }, reload: reload, save: save,
     storageOK: function () { return !memoryOnly; },
-    switchTo: switchTo, setNote: setNote, heartbeat: heartbeat, tick: tick,
+    switchTo: switchTo, setNote: setNote, setNoteAt: setNoteAt, noteTarget: noteTarget, allNotes: allNotes, heartbeat: heartbeat, tick: tick,
     outreachToday: outreachToday, outreachAdd: outreachAdd, outreachUndo: outreachUndo, setGoal: setGoal,
     todayTotals: todayTotals, todayPoints: todayPoints, analyze: analyze,
     exportAll: exportAll, importText: importText,
