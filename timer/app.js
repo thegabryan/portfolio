@@ -63,7 +63,7 @@
       lastSeen: null,            // heartbeat of the last open page
       segments: [],              // finished stretches: { act, start, end, [id, note] }
       sessions: [],              // finished work rounds (= points)
-      outreach: { clicks: [], goal: 3 },   // click times of the outreach counter
+      outreach: { clicks: [], goal: 3, adj: {} },   // click times of the outreach counter + hand corrections per day
       days: {}                   // 'YYYY-MM-DD' -> { firstOpen }
     };
   }
@@ -76,9 +76,10 @@
     if (!(r.settings.beepMinutes > 0)) r.settings.beepMinutes = 10;
     if (!(r.settings.shortPauseSec >= 0 && r.settings.shortPauseSec <= 600)) r.settings.shortPauseSec = 20;
     ['segments', 'sessions'].forEach(function (k) { if (!Array.isArray(r[k])) r[k] = defaults()[k]; });
-    if (!r.outreach || typeof r.outreach !== 'object') r.outreach = { clicks: [], goal: 3 };
+    if (!r.outreach || typeof r.outreach !== 'object') r.outreach = { clicks: [], goal: 3, adj: {} };
     if (!Array.isArray(r.outreach.clicks)) r.outreach.clicks = [];
     if (!(r.outreach.goal >= 1)) r.outreach.goal = 3;
+    if (!r.outreach.adj || typeof r.outreach.adj !== 'object' || Array.isArray(r.outreach.adj)) r.outreach.adj = {};   // hand-typed corrections per day
     if (typeof r.liveNote !== 'string') r.liveNote = '';
     if (!r.days || typeof r.days !== 'object') r.days = {};
     if (!r.timer || !r.timer.mode) r.timer = { mode: 'idle' };
@@ -321,25 +322,39 @@
   }
 
   /* ---------- outreach counter ---------- */
-  function outreachToday(now) {
-    var tk = dayKey(now || Date.now()), c = S.outreach.clicks, n = 0;
+  function clicksOn(k) {
+    var c = S.outreach.clicks, n = 0;
     for (var i = c.length - 1; i >= 0; i--) {
       var d = dayKey(c[i]);
-      if (d === tk) n++; else if (d < tk) break;
+      if (d === k) n++; else if (d < k) break;
     }
     return n;
   }
+  /* A day's count = real clicks + the hand correction for that day (never below 0). */
+  function outreachOn(k) { return Math.max(0, clicksOn(k) + (S.outreach.adj[k] || 0)); }
+  function outreachToday(now) { return outreachOn(dayKey(now || Date.now())); }
   function outreachAdd(now) {
     now = now || Date.now();
     S.outreach.clicks.push(now); save();
     return outreachToday(now);
   }
-  /* Removes the latest click, but only if it was made today. */
+  /* Removes the latest click if it was made today, else lowers a hand-added amount for today. */
   function outreachUndo(now) {
     now = now || Date.now();
-    var c = S.outreach.clicks;
-    if (!c.length || dayKey(c[c.length - 1]) !== dayKey(now)) return false;
-    c.pop(); save(); return true;
+    var k = dayKey(now), c = S.outreach.clicks;
+    if (outreachOn(k) === 0) return false;
+    if (c.length && dayKey(c[c.length - 1]) === k) c.pop();
+    else if ((S.outreach.adj[k] || 0) > 0) { S.outreach.adj[k]--; if (!S.outreach.adj[k]) delete S.outreach.adj[k]; }
+    else return false;
+    save(); return true;
+  }
+  /* Sets a day's total by hand. Real click times stay; the difference is stored as a correction. */
+  function setOutreachDay(k, n, now) {
+    n = Math.round(+n);
+    if (!(n >= 0) || n > 9999 || !/^\d{4}-\d{2}-\d{2}$/.test(k) || k > dayKey(now || Date.now())) return false;
+    var d = n - clicksOn(k);
+    if (d) S.outreach.adj[k] = d; else delete S.outreach.adj[k];
+    save(); return true;
   }
   function setGoal(n) {
     n = Math.round(+n);
@@ -394,7 +409,8 @@
     S.sessions.forEach(function (s) { get(s.day).points++; });
     var ocHour = [];
     for (var hh = 0; hh < 24; hh++) ocHour.push(0);
-    S.outreach.clicks.forEach(function (ms) { get(dayKey(ms)).outreach++; ocHour[new Date(ms).getHours()]++; });
+    S.outreach.clicks.forEach(function (ms) { get(dayKey(ms)).outreach++; ocHour[new Date(ms).getHours()]++; });   // hour chart: real clicks only
+    Object.keys(S.outreach.adj).forEach(function (k) { var d = get(k); d.outreach = Math.max(0, d.outreach + S.outreach.adj[k]); d.outreachEdited = true; });
     var addSeg = function (g, live) {
       var sec = 0;
       dayParts(g.act, g.start, g.end, function (k, s) { get(k).t[g.act] += s; sec += s; });
@@ -428,7 +444,8 @@
       if (d.outreach > 0 && (!ocBest || d.outreach > ocBest.count)) ocBest = { day: d.day, count: d.outreach };
       if (d.outreach >= goal) met++;
     });
-    var ocTotal = S.outreach.clicks.length;
+    var ocTotal = 0;
+    days.forEach(function (d) { ocTotal += d.outreach; });
     var outreach = {
       total: ocTotal, today: per[todayK] ? per[todayK].outreach : 0, week: ocWeek,
       avgPerDay: tracked ? ocTotal / tracked : 0, best: ocBest, goal: goal, goalMetDays: met, trackedDays: tracked, byHour: ocHour
@@ -660,7 +677,7 @@
     boot: boot, get: function () { return S; }, reload: reload, save: save,
     storageOK: function () { return !memoryOnly; },
     switchTo: switchTo, setNote: setNote, setNoteAt: setNoteAt, noteTarget: noteTarget, allNotes: allNotes, heartbeat: heartbeat, tick: tick,
-    outreachToday: outreachToday, outreachAdd: outreachAdd, outreachUndo: outreachUndo, setGoal: setGoal,
+    outreachToday: outreachToday, outreachAdd: outreachAdd, outreachUndo: outreachUndo, setOutreachDay: setOutreachDay, setGoal: setGoal,
     todayTotals: todayTotals, todayPoints: todayPoints, analyze: analyze,
     exportAll: exportAll, importText: importText,
     audio: audio, audioReady: audioReady, beep: beep, alarmStart: alarmStart, alarmStop: alarmStop,

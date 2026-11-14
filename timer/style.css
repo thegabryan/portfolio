@@ -237,3 +237,5 @@ th { color: var(--muted); font-weight: 600; font-size: 12px; position: sticky; t
 .nrow .nx { word-break: break-word; }
 .linkbtn { background: none; border: 0; color: var(--accent); cursor: pointer; padding: 2px 6px; font: inherit; font-size: 13px; }
 @media (max-width: 700px) { .nrow { grid-template-columns: 1fr auto; } .nrow .nt { grid-column: 1 / -1; } }
+
+.edited { color: var(--muted); font-size: 12px; cursor: help; }

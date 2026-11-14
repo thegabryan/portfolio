@@ -138,6 +138,15 @@
   </section>
 </div>
 
+<dialog id="ocDlg">
+  <form method="dialog">
+    <h2 id="ocTitle">Outreaches</h2>
+    <input id="ocInput" type="number" min="0" max="9999" inputmode="numeric" autofocus>
+    <p class="muted" style="margin:8px 0 0">Replaces that day's total. Your real click times stay saved.</p>
+    <div class="drow"><button class="primary" value="save">Save</button></div>
+  </form>
+</dialog>
+
 <dialog id="noteDlg">
   <form method="dialog">
     <h2 id="noteTitle">Note</h2>
@@ -248,7 +257,17 @@
     else return;
     render();
   });
+  $('ocDlg').addEventListener('close', function () {
+    if (this.returnValue !== 'save') return;
+    TSA.setOutreachDay(this.dataset.day, $('ocInput').value); render();
+  });
   document.addEventListener('click', function (e) {
+    var ob = e.target.closest && e.target.closest('[data-oc-edit]');
+    if (ob) {
+      $('ocTitle').textContent = 'Outreaches on ' + fmtDay(ob.dataset.day, true);
+      $('ocInput').value = ob.dataset.n; $('ocDlg').dataset.day = ob.dataset.day; $('ocDlg').returnValue = '';
+      $('ocDlg').showModal(); $('ocInput').select(); return;
+    }
     var b = e.target.closest && e.target.closest('[data-edit]'); if (!b) return;
     var act = b.dataset.act, start = +b.dataset.start, S = TSA.get(), live = S.active === act && S.activeSince === start, note = '', end = null;
     if (live) note = S.liveNote || '';
@@ -405,17 +424,25 @@
     /* sessions of one activity */
     var sel = $('segAct');
     if (!sel.options.length) {
-      sel.innerHTML = ACTS.map(function (a) { return '<option value="' + a + '">' + META[a].icon + ' ' + META[a].label + '</option>'; }).join('');
-      sel.value = 'work';
+      sel.innerHTML = '<option value="all">All timers</option>' + ACTS.map(function (a) { return '<option value="' + a + '">' + META[a].icon + ' ' + META[a].label + '</option>'; }).join('');
+      sel.value = 'all';
     }
-    var act = sel.value, list = A.segs[act], more = list.length > 300, notes = true;
+    var act = sel.value, isAll = act === 'all', list, more;
+    if (isAll) {
+      list = [];
+      ACTS.forEach(function (a) { A.segs[a].forEach(function (g) { list.push({ act: a, start: g.start, end: g.end, sec: g.sec, note: g.note, live: g.live }); }); });
+      list.sort(function (x, y) { return y.start - x.start; });
+    } else list = A.segs[act].map(function (g) { return { act: act, start: g.start, end: g.end, sec: g.sec, note: g.note, live: g.live }; });
+    more = list.length > 300;
     $('segs').innerHTML = list.length
-      ? '<table><thead><tr><th>Date</th><th>Start</th><th>Duration</th><th>Note</th></tr></thead><tbody>' +
+      ? '<table><thead><tr><th>Date</th><th>Start</th>' + (isAll ? '<th>Timer</th>' : '') + '<th>Duration</th><th>Note</th></tr></thead><tbody>' +
         list.slice(0, 300).map(function (g) {
-          return '<tr><td>' + fmtDay(TSA.dayKey(g.start), true) + '</td><td>' + clock(g.start) + '</td><td>' + dur(g.sec) + (g.live ? ' · running' : '') + '</td>' +
-            '<td class="wrapt">' + (g.note ? esc(g.note) + ' ' : '–') + (canEdit(act, g.start, g.live) ? '<button type="button" class="linkbtn" data-edit data-act="' + act + '" data-start="' + g.start + '">' + (g.note ? 'Edit' : 'Add') + '</button>' : '') + '</td></tr>';
+          return '<tr><td>' + fmtDay(TSA.dayKey(g.start), true) + '</td><td>' + clock(g.start) + '</td>' +
+            (isAll ? '<td>' + dot(g.act) + META[g.act].icon + ' ' + META[g.act].label + '</td>' : '') +
+            '<td>' + dur(g.sec) + (g.live ? ' · running' : '') + '</td>' +
+            '<td class="wrapt">' + (g.note ? esc(g.note) + ' ' : '–') + (canEdit(g.act, g.start, g.live) ? '<button type="button" class="linkbtn" data-edit data-act="' + g.act + '" data-start="' + g.start + '">' + (g.note ? 'Edit' : 'Add') + '</button>' : '') + '</td></tr>';
         }).join('') + '</tbody></table>' + (more ? '<p class="muted">Showing the latest 300 of ' + list.length + '.</p>' : '')
-      : '<div class="empty-msg">No ' + META[act].label.toLowerCase() + ' sessions yet.</div>';
+      : '<div class="empty-msg">No ' + (isAll ? '' : META[act].label.toLowerCase() + ' ') + 'sessions yet.</div>';
 
     /* notes */
     var nact = $('noteAct'), nq = $('noteQ').value.trim().toLowerCase();
@@ -432,7 +459,7 @@
     $('table').innerHTML = A.days.length
       ? '<table><thead><tr><th>Date</th><th>Points</th><th>Outreach</th>' + ACTS.map(function (a) { return '<th>' + META[a].label + '</th>'; }).join('') + '<th>First open</th></tr></thead><tbody>' +
         A.days.map(function (d) {
-          return '<tr><td>' + fmtDay(d.day, true) + '</td><td><strong>' + d.points + '</strong></td><td>' + (d.outreach || '–') + '</td>' +
+          return '<tr><td>' + fmtDay(d.day, true) + '</td><td><strong>' + d.points + '</strong></td><td>' + (d.outreach || '–') + (d.outreachEdited ? ' <span class="edited" title="edited by hand">✎</span>' : '') + ' <button type="button" class="linkbtn" data-oc-edit data-day="' + d.day + '" data-n="' + d.outreach + '">Edit</button></td>' +
             ACTS.map(function (a) { return '<td>' + dash(d.t[a]) + '</td>'; }).join('') +
             '<td>' + (d.firstOpen ? clock(d.firstOpen) : '–') + '</td></tr>';
         }).join('') + '</tbody></table>'
