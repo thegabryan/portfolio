@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="url-notes-maker" content="2">
 <title>Url Notes Maker</title>
 <style>
 :root {
@@ -175,6 +176,23 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
   display: inline-block; padding: 8px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-fg);
   text-decoration: none; font-weight: 600; cursor: grab;
 }
+
+/* userscript link + highlights view */
+.link-status { font-size: 13px; color: var(--muted); }
+.link-status[hidden] { display: none; }
+.hl-page { margin-bottom: 22px; }
+.hl-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; margin: 0 2px 8px; }
+.hl-site { font-weight: 700; color: var(--fg); text-decoration: none; }
+.hl-site:hover { color: var(--accent); }
+.hl-path { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.hl-quote {
+  margin: 0 0 8px; padding: 6px 10px; font-size: 16px; line-height: 1.5; color: var(--muted);
+  border-left: 3px solid var(--mark); background: color-mix(in srgb, var(--mark) 18%, transparent);
+  border-radius: 4px; white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.hl-note { font-size: 18px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.hl-note mark, .hl-quote mark { background: var(--mark); color: inherit; border-radius: 3px; padding: 0 1px; }
+a.icon { text-decoration: none; display: inline-block; }
 </style>
 </head>
 <body>
@@ -183,6 +201,7 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
   <header class="top">
     <h1>📝 Url Notes Maker</h1>
     <div class="row">
+      <span class="link-status" id="linkStatus" hidden title="Make Highlights & Notes userscript detected">🔗 Userscript linked</span>
       <button class="btn" id="helpBtn" title="How to use (?)">How to use</button>
       <button class="btn" id="themeBtn" title="Theme: auto"></button>
     </div>
@@ -209,6 +228,7 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
 
   <div class="tabs">
     <button class="tab" id="tabNotes" aria-pressed="true">Notes</button>
+    <button class="tab" id="tabHl" aria-pressed="false">Highlights</button>
     <button class="tab" id="tabTrash" aria-pressed="false">Trash</button>
     <span class="spacer"></span>
     <span class="status" id="status"></span>
@@ -266,6 +286,15 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
       <li><b>Import</b> merges: notes you already have are skipped, nothing is overwritten.</li>
     </ul>
 
+    <h3>6. Link with the Make Highlights &amp; Notes userscript</h3>
+    <p>With the Tampermonkey script (v2.4 or newer) installed in this browser, this page links up automatically — you'll see <b>🔗 Userscript linked</b> at the top.</p>
+    <ul>
+      <li><b>Send to this site:</b> on any page press <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>N</kbd> (or use the script's <i>Send to site</i> button / Tampermonkey menu). The selected quote, your note, the page link and a tag for the site's domain are queued, and arrive here the next time this page is open (instantly if it's open already).</li>
+      <li><b>Highlights tab:</b> a read-only, searchable view of everything you highlighted with the script, grouped by page. <i>Open page</i> jumps to the highlighted text when the browser supports it. Edit highlights on the page itself.</li>
+      <li>The script's <b>All notes</b> panel shows a copy of these notes, refreshed whenever this page is open.</li>
+      <li>The JSON export also includes your highlights (when linked), so the script's own Import can read the same file.</li>
+    </ul>
+
     <h3>Shortcuts</h3>
     <table>
       <tr><td><kbd>/</kbd></td><td>Search</td></tr>
@@ -304,6 +333,11 @@ let trash = [];
 let view = 'notes';
 let query = '';
 let activeTag = null;
+
+// userscript bridge state
+let bridgeConnected = false;
+let highlights = {};   // { pageUrl: [ {text, note, prefix, suffix, createdAt, updatedAt} ] }, read-only, in memory only
+let snapshotTimer;
 
 function normalize(raw) {
   if (typeof raw === 'string') raw = { text: raw };
@@ -347,6 +381,7 @@ function persist() {
   } catch (e) {
     toast('Could not save — browser storage is full or blocked.');
   }
+  scheduleSnapshot();
 }
 
 /* ---------- tags & rich text ---------- */
@@ -615,7 +650,9 @@ function makeCard(n, opts) {
 function renderTabs() {
   $('tabNotes').textContent = `Notes (${notes.length})`;
   $('tabTrash').textContent = `Trash (${trash.length})`;
+  $('tabHl').textContent = bridgeConnected ? `Highlights (${countHighlights()})` : 'Highlights';
   $('tabNotes').setAttribute('aria-pressed', view === 'notes');
+  $('tabHl').setAttribute('aria-pressed', view === 'highlights');
   $('tabTrash').setAttribute('aria-pressed', view === 'trash');
 }
 
@@ -687,7 +724,8 @@ function renderList() {
 function render() {
   renderTabs();
   renderTags();
-  renderList();
+  if (view === 'highlights') renderHighlights();
+  else renderList();
 }
 
 /* ---------- export / import ---------- */
@@ -711,7 +749,9 @@ const localIso = ms => {
 };
 
 function exportJson() {
-  const data = { app: 'url-notes-maker', version: 1, exportedAt: new Date().toISOString(), notes, trash };
+  const data = { app: 'url-notes-maker', version: 2, exportedAt: new Date().toISOString(), notes, trash };
+  // Same shape as the userscript's own export, so its Import can read this file too.
+  if (bridgeConnected) data.pages = highlights;
   download(`notes-${stamp()}.json`, JSON.stringify(data, null, 2), 'application/json');
 }
 function exportTxt() {
@@ -733,7 +773,12 @@ function importData(text) {
   let data;
   try { data = JSON.parse(text); } catch (e) { toast('That file is not valid JSON.'); return; }
   const incomingNotes = Array.isArray(data) ? data : (Array.isArray(data && data.notes) ? data.notes : null);
-  if (!incomingNotes) { toast('No notes found in that file.'); return; }
+  if (!incomingNotes) {
+    toast(data && data.pages
+      ? 'That file only holds highlights. Import it in the userscript’s All notes panel.'
+      : 'No notes found in that file.');
+    return;
+  }
   const incomingTrash = Array.isArray(data && data.trash) ? data.trash : [];
 
   const ids = new Set([...notes, ...trash].map(n => n.id));
@@ -814,6 +859,7 @@ composer.addEventListener('keydown', e => {
 
 $('search').addEventListener('input', e => { query = e.target.value; render(); });
 $('tabNotes').addEventListener('click', () => { view = 'notes'; render(); });
+$('tabHl').addEventListener('click', () => { view = 'highlights'; activeTag = null; render(); });
 $('tabTrash').addEventListener('click', () => { view = 'trash'; activeTag = null; render(); });
 
 const menu = $('backupMenu');
@@ -854,6 +900,183 @@ window.addEventListener('storage', e => {
   render();
 });
 
+/* ---------- userscript bridge ---------- */
+// Talks to the "Make Highlights & Notes" userscript (v2.4+) through window.postMessage.
+// Without the userscript nothing here does anything.
+const CHANNEL = 'url-notes-bridge';
+const DELIVERED_KEY = 'url-notes-delivered';
+
+function toScript(msg) {
+  window.postMessage(Object.assign({ channel: CHANNEL, from: 'page' }, msg), location.origin);
+}
+
+function scheduleSnapshot() {
+  if (!bridgeConnected) return;
+  clearTimeout(snapshotTimer);
+  snapshotTimer = setTimeout(() => {
+    toScript({
+      type: 'snapshot',
+      notes: notes.map(n => ({ id: n.id, text: n.text, created: n.created, pinned: n.pinned }))
+    });
+  }, 400);
+}
+
+function readDelivered() {
+  try {
+    const v = JSON.parse(localStorage.getItem(DELIVERED_KEY) || '[]');
+    return Array.isArray(v) ? v : [];
+  } catch (e) { return []; }
+}
+function rememberDelivered(ids) {
+  try {
+    localStorage.setItem(DELIVERED_KEY, JSON.stringify(readDelivered().concat(ids).slice(-500)));
+  } catch (e) {}
+}
+
+function ingestOutbox(items) {
+  if (!Array.isArray(items) || !items.length) return;
+  const known = new Set([...notes, ...trash].map(n => n.id).concat(readDelivered()));
+  const fresh = [];
+  const ids = [];
+  items.forEach(item => {
+    const id = item && String(item.id || '');
+    if (!id) return;
+    ids.push(id);
+    if (known.has(id)) return;
+    const n = normalize({ id, text: String(item.text || ''), created: Number(item.created) || Date.now() });
+    if (n) { fresh.push(n); known.add(id); }
+  });
+  fresh.sort((a, b) => a.created - b.created).forEach(n => notes.unshift(n));
+  if (fresh.length) {
+    persist();
+    render();
+    toast(`${fresh.length} note${fresh.length === 1 ? '' : 's'} received from the userscript`, null, null, 3500);
+  }
+  rememberDelivered(ids);
+  toScript({ type: 'ack', ids });
+}
+
+window.addEventListener('message', e => {
+  if (e.source !== window || e.origin !== location.origin) return;
+  const d = e.data;
+  if (!d || d.channel !== CHANNEL || d.from !== 'userscript' || d.type !== 'state') return;
+  const first = !bridgeConnected;
+  bridgeConnected = true;
+  $('linkStatus').hidden = false;
+  highlights = (d.highlights && typeof d.highlights === 'object' && !Array.isArray(d.highlights)) ? d.highlights : {};
+  ingestOutbox(d.outbox);
+  if (first) scheduleSnapshot();
+  renderTabs();
+  if (view === 'highlights') renderHighlights();
+});
+
+function initBridge() {
+  let tries = 0;
+  const ping = () => {
+    if (bridgeConnected || tries++ > 6) return;
+    toScript({ type: 'hello' });
+    setTimeout(ping, 600 * tries);
+  };
+  ping();
+}
+
+function highlightItems(list) {
+  return (Array.isArray(list) ? list : []).filter(it =>
+    it && typeof it.text === 'string' && typeof it.note === 'string' && it.text && it.note);
+}
+function countHighlights() {
+  return Object.values(highlights).reduce((sum, list) => sum + highlightItems(list).length, 0);
+}
+
+// Text fragment so the browser scrolls to (and marks) the highlighted text when the page opens.
+function highlightLink(url, text) {
+  const clean = text.replace(/\s+/g, ' ').trim();
+  const enc = s => encodeURIComponent(s).replace(/-/g, '%2D');
+  const frag = clean.length <= 100
+    ? enc(clean)
+    : enc(clean.slice(0, 50).trim()) + ',' + enc(clean.slice(-50).trim());
+  return url + '#:~:text=' + frag;
+}
+
+function tsText(item) {
+  const c = Date.parse(item.createdAt), u = Date.parse(item.updatedAt);
+  const created = Number.isNaN(c) ? 'Date unavailable' : fmt(c);
+  return Number.isNaN(u) ? created : `${created} · edited ${fmt(u)}`;
+}
+
+function renderHighlights() {
+  const box = $('messages');
+  box.textContent = '';
+  const words = getWords();
+
+  if (!bridgeConnected) {
+    $('status').textContent = '';
+    box.appendChild(el('div', 'empty',
+      'Highlights appear here when the Make Highlights & Notes userscript (v2.4 or newer) is running in this browser. ' +
+      'Make sure Tampermonkey is on, then reload this page. Press ? for help.'));
+    return;
+  }
+
+  const pages = [];
+  let total = 0, shown = 0;
+  Object.entries(highlights).forEach(([url, list]) => {
+    let u;
+    try { u = new URL(url); } catch (e) { return; }
+    if (!/^https?:$/.test(u.protocol)) return;
+    const items = highlightItems(list);
+    total += items.length;
+    const matched = items.filter(it => {
+      const hay = (it.text + ' ' + it.note + ' ' + url).toLowerCase();
+      return words.every(w => hay.includes(w));
+    });
+    if (!matched.length) return;
+    shown += matched.length;
+    const latest = Math.max(0, ...matched.map(it => Date.parse(it.updatedAt || it.createdAt) || 0));
+    pages.push({ url, u, matched, latest });
+  });
+  pages.sort((a, b) => b.latest - a.latest);
+  $('status').textContent = words.length ? `Showing ${shown} of ${total}` : '';
+
+  if (!pages.length) {
+    box.appendChild(el('div', 'empty', words.length
+      ? 'No highlights match your search.'
+      : 'No highlights yet. Select text on any page and add a note with the userscript.'));
+    return;
+  }
+
+  box.appendChild(el('p', 'note-hint', 'Read-only view. Edit or delete highlights with the userscript on the page itself.'));
+
+  pages.forEach(({ url, u, matched }) => {
+    const sec = el('section', 'hl-page');
+    const head = el('div', 'hl-head');
+    const site = el('a', 'hl-site', u.host);
+    site.href = url; site.target = '_blank'; site.rel = 'noopener noreferrer';
+    head.append(site, el('span', 'hl-path', (u.pathname || '/') + u.search));
+    sec.appendChild(head);
+
+    matched.forEach(it => {
+      const card = el('article', 'message');
+      card.appendChild(el('div', 'meta', tsText(it)));
+      const q = el('blockquote', 'hl-quote');
+      appendMarked(q, '“' + it.text + '”', words);
+      card.appendChild(q);
+      const note = el('div', 'hl-note');
+      appendMarked(note, it.note, words);
+      card.appendChild(note);
+
+      const actions = el('div', 'actions');
+      const open = el('a', 'icon', 'Open page ↗');
+      open.href = highlightLink(url, it.text);
+      open.target = '_blank'; open.rel = 'noopener noreferrer';
+      open.title = 'Open the page and jump to the highlighted text';
+      actions.append(open, iconBtn('⧉', 'Copy quote and note', () => copyText('“' + it.text + '”\n\n' + it.note + '\n\n' + url)));
+      card.appendChild(actions);
+      sec.appendChild(card);
+    });
+    box.appendChild(sec);
+  });
+}
+
 /* ---------- start ---------- */
 load();
 
@@ -869,6 +1092,7 @@ if (params.has('q') || params.has('text')) {
 }
 persist();   // also migrates notes saved by the old version
 render();
+initBridge();
 
 if (addedFromUrl) toast('Note added from the URL', null, null, 3000);
 let seen = '1';
