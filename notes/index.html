@@ -361,7 +361,7 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
 
     <p><b>Using it</b></p>
     <ul>
-      <li><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd> opens the panel (select text first to add a note to it). The panel's <i>All notes</i> button lists everything you saved, across pages, with search and JSON import/export.</li>
+      <li><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd> opens the panel (select text first to add a note to it). Its <i>Sort by</i> menu lists a page's notes by date added or in the order they appear on the page. The <i>All notes</i> button lists everything you saved, across pages, with search and JSON import/export.</li>
       <li>Highlights need a recent browser (it uses the CSS Custom Highlights feature). It also works on single-page sites like YouTube.</li>
     </ul>
 
@@ -387,7 +387,7 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
 <script type="text/plain" id="userscriptSrc">// ==UserScript==
 // @name         Make Highlights & Notes
 // @namespace    local.make-highlights-notes
-// @version      2.5.1
+// @version      2.6
 // @description  Highlight selected text, attach notes, and browse, search, import, and export notes across pages. Works on single-page apps like YouTube. Can send notes to your Url Notes site.
 // @match        *://*/*
 // @run-at       document-idle
@@ -453,6 +453,7 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
   const outboxKey = 'make-highlights-notes:outbox:v1';
   const snapshotKey = 'make-highlights-notes:site-snapshot:v1';
   const filterKey = 'make-highlights-notes:all-notes-filter:v1';
+  const panelSortKey = 'make-highlights-notes:panel-sort:v1';
 
   const annotations = [];
   let pendingRange = null;
@@ -464,6 +465,18 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
   let allNotesFilter = 'both';
   let allIndex = null;
   let allNotesLimit = ALL_NOTES_PAGE;
+
+  // Main panel: how this page's notes are listed ('oldest' | 'newest' | 'page').
+  // 'oldest' is the original behavior.
+  let panelSort = 'oldest';
+  let renderedOrder = [];
+
+  try {
+    const savedSort = GM_getValue(panelSortKey, 'oldest');
+    if (['oldest', 'newest', 'page'].includes(savedSort)) panelSort = savedSort;
+  } catch {
+    // Keep the default.
+  }
 
   try {
     const savedFilter = GM_getValue(filterKey, 'both');
@@ -705,6 +718,27 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
       color: #666;
       font-size: 12px;
       margin-bottom: 6px;
+    }
+
+    .sort-row {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      margin: 10px 0 0;
+      color: #555;
+      font-size: 12px;
+    }
+
+    .sort-row select {
+      flex: 1;
+      min-width: 0;
+      padding: 5px 6px;
+      color: #222;
+      background: #fff;
+      border: 1px solid #bbb;
+      border-radius: 5px;
+      cursor: pointer;
+      font: 13px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
     .item {
@@ -1052,6 +1086,46 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
   panelSendButton.setAttribute('aria-label', 'Send to Url Notes site');
 
   panel.append(panelAddButton, openAllNotesButton, panelSendButton);
+
+  // Sort this page's notes by date added, or by where the text sits on the page.
+  const sortRow = document.createElement('label');
+  sortRow.className = 'sort-row';
+
+  const sortLabel = document.createElement('span');
+  sortLabel.textContent = 'Sort by';
+
+  const sortSelect = document.createElement('select');
+  sortSelect.title = 'How to list the notes on this page';
+  sortSelect.setAttribute('aria-label', 'Sort notes on this page');
+
+  for (const [value, label] of [
+    ['oldest', 'Date added · oldest first'],
+    ['newest', 'Date added · newest first'],
+    ['page', 'Order in page']
+  ]) {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = label;
+    sortSelect.appendChild(option);
+  }
+
+  sortSelect.value = panelSort;
+  sortSelect.addEventListener('change', () => {
+    panelSort = ['oldest', 'newest', 'page'].includes(sortSelect.value) ? sortSelect.value : 'oldest';
+
+    try {
+      GM_setValue(panelSortKey, panelSort);
+    } catch {
+      // The choice just will not be remembered.
+    }
+
+    // The order in the page needs fresh positions.
+    if (panelSort === 'page') restoreAnnotations();
+    renderAnnotations();
+  });
+
+  sortRow.append(sortLabel, sortSelect);
+  panel.appendChild(sortRow);
 
   const itemsEl = document.createElement('div');
   itemsEl.id = 'items';
@@ -1448,7 +1522,11 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
     restoreTimer = setTimeout(() => {
       restoreTimer = null;
       if (handleNavigation()) return;
-      if (annotations.length) restoreAnnotations();
+
+      if (annotations.length) {
+        restoreAnnotations();
+        refreshPanelOrder();
+      }
     }, 800);
   }
 
@@ -1505,14 +1583,68 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
     return date.toLocaleString();
   }
 
+  // Orders the side panel by when notes were added, or by where their text sits
+  // on the page. The stored order is never changed, only how it is listed.
+  function sortedAnnotations() {
+    const entries = annotations.map((item, position) => ({
+      item,
+      position,
+      time: Date.parse(item.createdAt) || 0
+    }));
+
+    if (panelSort === 'page') {
+      entries.sort((a, b) => {
+        const aRange = a.item.range;
+        const bRange = b.item.range;
+
+        // Text that cannot be found on this page goes last.
+        if (Boolean(aRange) !== Boolean(bRange)) return aRange ? -1 : 1;
+
+        if (aRange && bRange) {
+          try {
+            const order = aRange.compareBoundaryPoints(Range.START_TO_START, bRange);
+            if (order) return order;
+          } catch {
+            // Ranges that cannot be compared keep their added order.
+          }
+        }
+
+        return a.position - b.position;
+      });
+    } else if (panelSort === 'newest') {
+      entries.sort((a, b) => b.time - a.time || b.position - a.position);
+    } else {
+      entries.sort((a, b) => a.time - b.time || a.position - b.position);
+    }
+
+    return entries.map(entry => entry.item);
+  }
+
+  // Pages shift while they load (and constantly on sites like YouTube), so the
+  // order in the page can change after the panel was drawn. Redraw only then.
+  function refreshPanelOrder() {
+    if (panelSort !== 'page' || host.style.display === 'none') return;
+
+    const next = sortedAnnotations();
+    const unchanged =
+      next.length === renderedOrder.length &&
+      next.every((item, position) => item === renderedOrder[position]);
+
+    if (!unchanged) renderAnnotations();
+  }
+
   function renderAnnotations() {
     while (itemsEl.firstChild) {
       itemsEl.removeChild(itemsEl.firstChild);
     }
 
     emptyEl.style.display = annotations.length ? 'none' : 'block';
+    sortRow.style.display = annotations.length > 1 ? 'flex' : 'none';
+    sortSelect.value = panelSort;
 
-    annotations.forEach((item, index) => {
+    renderedOrder = sortedAnnotations();
+
+    renderedOrder.forEach(item => {
       const row = document.createElement('div');
       row.className = 'item';
 
@@ -1606,7 +1738,8 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
       remove.title = 'Delete note';
       remove.setAttribute('aria-label', 'Delete note');
       remove.addEventListener('click', () => {
-        annotations.splice(index, 1);
+        const index = annotations.indexOf(item);
+        if (index !== -1) annotations.splice(index, 1);
         saveAnnotations();
         restoreAnnotations();
         renderAnnotations();
@@ -2269,6 +2402,12 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
     host.style.display = 'block';
     allNotesPanel.style.display = 'none';
 
+    // The page may have changed since the panel was last open.
+    if (panelSort === 'page' && annotations.length) {
+      restoreAnnotations();
+      refreshPanelOrder();
+    }
+
     panel.style.display = 'block';
     pill.style.display = 'none';
 
@@ -2320,8 +2459,9 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
     scheduleRestore();
   });
 
-  renderAnnotations();
+  // Find the text first, so "Order in page" is right from the start.
   restoreAnnotations();
+  renderAnnotations();
 
   // Keep the All notes panel current when stored data changes (including from
   // another tab, e.g. when your Url Notes site syncs).
