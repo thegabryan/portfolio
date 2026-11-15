@@ -850,6 +850,45 @@
     });
   }
 
+
+  /* ---------- daily summary for the Url Notes site ---------- */
+  var fmtClock = function (ms) { var d = new Date(ms); return pad(d.getHours()) + ':' + pad(d.getMinutes()); };
+  var slug = function (t) { return String(t || '').toLowerCase().replace(/\s+/g, '-').replace(/[^\p{L}\p{N}_-]/gu, '').replace(/^-+|-+$/g, ''); };
+  function dailySummary(now) {
+    now = now || Date.now();
+    var k = dayKey(now), d = new Date(now), tot = todayTotals(now), L = [];
+    L.push('📊 Daily summary — ' + ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()] + ' ' + k, '');
+    ACTS.forEach(function (a) {
+      var g = S.settings.goals && S.settings.goals[a], line = META[a].icon + ' ' + META[a].label + ': ' + fmtDur(tot[a]);
+      if (g) line += ' (' + (GOALS[a] === 'max' ? 'max ' : 'goal ') + fmtDur(g) + ')';
+      L.push(line);
+    });
+    L.push('', '⏰ Work rounds (points): ' + todayPoints(now));
+    L.push('🤝 Outreach: ' + outreachToday(now) + ' / ' + S.outreach.goal);
+    var ns = allNotes(now).filter(function (n) { return dayKey(n.start) === k; }).sort(function (a, b) { return a.start - b.start; });
+    if (ns.length) {
+      L.push('', 'Notes:');
+      ns.forEach(function (n) {
+        L.push('• ' + fmtClock(n.start) + '–' + fmtClock(n.end || now) + ' ' + META[n.act].label + (n.project ? ' [' + n.project + ']' : '') + ': ' + n.note.replace(/\n+/g, ' '));
+      });
+    }
+    L.push('', '#summary #' + k);
+    return L.join('\n');
+  }
+  /* Asks the "Make Highlights & Notes" userscript (on this page) to queue the text for Url Notes.
+     cb(true) when the userscript confirmed, cb(false) when nothing answered. */
+  function sendSummary(now, cb) {
+    var text = dailySummary(now), id = 'tm-summary-' + dayKey(now || Date.now()) + '-' + uid(), done = false;
+    var onMsg = function (e) {
+      var m = e.data;
+      if (e.source !== root || !m || m.channel !== 'timer-bridge' || m.from !== 'userscript' || m.type !== 'queued' || m.id !== id) return;
+      done = true; root.removeEventListener('message', onMsg); cb(true, text);
+    };
+    root.addEventListener('message', onMsg);
+    root.postMessage({ channel: 'timer-bridge', from: 'page', type: 'summary', id: id, text: text, created: Date.now() }, root.location.origin);
+    setTimeout(function () { if (!done) { root.removeEventListener('message', onMsg); cb(false, text); } }, 1200);
+  }
+
   /* Lets the browser offer to install the site as an app (installed apps may play sound without a click). */
   if (root.navigator && 'serviceWorker' in root.navigator && root.location && /^https?:$/.test(root.location.protocol)) {
     root.addEventListener('load', function () { root.navigator.serviceWorker.register('sw.js').catch(function () {}); });
@@ -866,6 +905,7 @@
     exportAll: exportAll, importText: importText,
     audio: audio, audioReady: audioReady, beep: beep, nudgeBeep: nudgeBeep, alarmStart: alarmStart, alarmStop: alarmStop,
     setFavicon: setFavicon, engine: engine, initTheme: initTheme, mountDataTools: mountDataTools, mountCsvTools: mountCsvTools, csvExport: csvExport, maybeAutoBackup: maybeAutoBackup, setAutoBackup: setAutoBackup, setGoalSec: setGoalSec, GOALS: GOALS,
+    dailySummary: dailySummary, sendSummary: sendSummary,
     KEY: KEY, CHRONO_KEY: CHRONO_KEY
   };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -115,6 +115,19 @@
   var S = TSA.get();
   TSA.initTheme($('themeBtn'));
   TSA.mountDataTools($('tools'), function () { S = TSA.get(); renderAll(); });
+  (function () {
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'ghost'; b.id = 'sumBtn'; b.textContent = 'Send day summary';
+    b.title = 'Sends today\'s summary as a note to your Url Notes site (needs the userscript); otherwise copies it';
+    $('tools').appendChild(b);
+    b.addEventListener('click', function () {
+      TSA.sendSummary(Date.now(), function (ok, text) {
+        if (ok) { showNotice('Day summary queued for Url Notes ✓ (it arrives when the notes site is open)'); return; }
+        var done = function (m) { showNotice(m); };
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { done('Userscript not found on this page — summary copied to the clipboard instead.'); }, function () { prompt('Userscript not found. Copy the summary:', text); });
+        else prompt('Userscript not found. Copy the summary:', text);
+      });
+    });
+  })();
 
   function hms(sec) { sec = Math.max(0, Math.floor(sec)); return pad(Math.floor(sec / 3600)) + ':' + pad(Math.floor((sec % 3600) / 60)) + ':' + pad(sec % 60); }
   function clock(ms) { return new Date(ms).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); }
