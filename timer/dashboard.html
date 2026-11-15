@@ -16,6 +16,7 @@
     <nav>
       <a href="index.html">Timer</a>
       <a class="active" href="dashboard.html">Dashboard</a>
+      <a href="review.html">Review</a>
     </nav>
   </header>
 
@@ -115,10 +116,31 @@
 
   <section class="card">
     <div class="head">
+      <h2>Outreach log</h2>
+      <input id="olQ" type="search" placeholder="Search names" aria-label="Search outreach names">
+    </div>
+    <div id="ol"></div>
+  </section>
+
+  <section class="card">
+    <div class="head">
       <h2>Sessions (every start and stop)</h2>
       <select id="segAct" aria-label="Activity"></select>
     </div>
     <div id="segs" class="scroll"></div>
+  </section>
+
+  <section class="card" id="projCard">
+    <div class="head">
+      <h2>Time per project</h2>
+      <select id="projRange" aria-label="Range">
+        <option value="7">Last 7 days</option>
+        <option value="30" selected>Last 30 days</option>
+        <option value="all">All time</option>
+      </select>
+    </div>
+    <div id="projects"></div>
+    <p class="muted" style="margin:10px 0 0">Work and Workflow runs. Pick a project in the note box when you stop, or later with Edit on a session.</p>
   </section>
 
   <section class="card">
@@ -150,6 +172,24 @@
   </section>
 </div>
 
+<dialog id="olDlg">
+  <form method="dialog">
+    <h2 id="olTitle">Outreach</h2>
+    <input id="olInput" type="text" maxlength="200" placeholder="Name or link" autocomplete="off" style="width:100%">
+    <p class="hint">Save with empty text to remove the name.</p>
+    <div class="drow"><button class="primary" value="save">Save</button></div>
+  </form>
+</dialog>
+
+<dialog id="prDlg">
+  <form method="dialog">
+    <h2 id="prTitle">Rename project</h2>
+    <input id="prInput" type="text" maxlength="60" autocomplete="off" style="width:100%">
+    <p class="hint">Renames it on every past run. If the new name already exists, the two are merged.</p>
+    <div class="drow"><button class="primary" value="save">Rename</button></div>
+  </form>
+</dialog>
+
 <dialog id="ocDlg">
   <form method="dialog">
     <h2 id="ocTitle">Outreaches</h2>
@@ -164,6 +204,7 @@
     <h2 id="noteTitle">Note</h2>
     <textarea id="noteInput" rows="1" maxlength="1000" placeholder="Write a note" autofocus></textarea>
     <p class="hint">Ctrl+Enter or Shift+Enter for more lines.</p>
+    <div id="projRow" style="margin-top:10px"><input id="projInput" list="projList" maxlength="60" placeholder="Project (optional)" autocomplete="off" style="width:100%"><datalist id="projList"></datalist></div>
     <div class="drow"><button class="ghost" id="noteDel" type="button">Delete note</button><button class="primary" id="noteSave" value="save">Save</button></div>
   </form>
 </dialog>
@@ -191,6 +232,8 @@
   var f1 = function (n) { return (Math.round(n * 10) / 10).toString(); };
   var dash = function (sec) { return sec >= 1 ? dur(sec) : '–'; };
   var zeroT = function () { var o = {}; ACTS.forEach(function (a) { o[a] = 0; }); return o; };
+  function linkify(h) { return h.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'); }
+  function ptag(p) { return p ? '<span class="ptag">' + esc(p) + '</span>' : ''; }
   function dot(a) { return '<i class="dotc" style="--c:var(' + META[a].color + ')"></i>'; }
   function lastDays(todayK, n) {
     var out = [];
@@ -274,10 +317,14 @@
     var w = m.parentNode, k = w.getAttribute('data-k');
     openNotes[k] = !openNotes[k]; w.classList.toggle('open', !!openNotes[k]); m.textContent = openNotes[k] ? 'less' : 'more…';
   });
-  function openNote(act, start, end, live, note) {
+  function openNote(act, start, end, live, note, project) {
     var when = live ? 'running since ' + clock(start) : fmtDay(TSA.dayKey(start), true) + ', ' + clock(start) + '–' + clock(end);
     $('noteTitle').textContent = META[act].icon + ' ' + META[act].label + ' · ' + when;
     setNoteText(note || '');
+    var isProj = TSA.NOTE_ACTS.indexOf(act) >= 0;
+    $('projRow').hidden = !isProj;
+    $('projList').innerHTML = TSA.projectList().map(function (p) { return '<option value="' + esc(p) + '"></option>'; }).join('');
+    $('projInput').value = isProj ? (project || '') : '';
     $('noteDel').hidden = !note;
     $('noteDlg').returnValue = '';
     $('noteDlg').dataset.act = act; $('noteDlg').dataset.start = start;
@@ -287,16 +334,32 @@
   $('noteDel').addEventListener('click', function () { $('noteDlg').close('delete'); });
   $('noteDlg').addEventListener('close', function () {
     var v = this.returnValue;
-    if (v === 'save') TSA.setNoteAt(this.dataset.act, +this.dataset.start, $('noteInput').value);
-    else if (v === 'delete') TSA.setNoteAt(this.dataset.act, +this.dataset.start, '');
+    if (v === 'save') TSA.setNoteAt(this.dataset.act, +this.dataset.start, $('noteInput').value, $('projRow').hidden ? undefined : $('projInput').value);
+    else if (v === 'delete') TSA.setNoteAt(this.dataset.act, +this.dataset.start, '', $('projRow').hidden ? undefined : $('projInput').value);
     else return;
     render();
+  });
+  $('olDlg').addEventListener('close', function () {
+    if (this.returnValue !== 'save') return;
+    TSA.setOutreachName(this.dataset.ms, $('olInput').value); render();
+  });
+  $('prDlg').addEventListener('close', function () {
+    if (this.returnValue !== 'save') return;
+    TSA.renameProject(this.dataset.from, $('prInput').value); render();
   });
   $('ocDlg').addEventListener('close', function () {
     if (this.returnValue !== 'save') return;
     TSA.setOutreachDay(this.dataset.day, $('ocInput').value); render();
   });
   document.addEventListener('click', function (e) {
+    var lb = e.target.closest && e.target.closest('[data-ol]');
+    if (lb) {
+      var ms = +lb.dataset.ol, cur = TSA.outreachLog().filter(function (o) { return o.ms === ms; })[0];
+      $('olTitle').textContent = 'Outreach on ' + fmtDay(TSA.dayKey(ms), true) + ', ' + clock(ms);
+      $('olInput').value = cur ? cur.name : ''; $('olDlg').dataset.ms = ms; $('olDlg').returnValue = ''; $('olDlg').showModal(); $('olInput').select(); return;
+    }
+    var pb = e.target.closest && e.target.closest('[data-pr]');
+    if (pb) { $('prTitle').textContent = 'Rename “' + pb.dataset.pr + '”'; $('prInput').value = pb.dataset.pr; $('prDlg').dataset.from = pb.dataset.pr; $('prDlg').returnValue = ''; $('prDlg').showModal(); $('prInput').select(); return; }
     var ob = e.target.closest && e.target.closest('[data-oc-edit]');
     if (ob) {
       $('ocTitle').textContent = 'Outreaches on ' + fmtDay(ob.dataset.day, true);
@@ -304,10 +367,10 @@
       $('ocDlg').showModal(); $('ocInput').select(); return;
     }
     var b = e.target.closest && e.target.closest('[data-edit]'); if (!b) return;
-    var act = b.dataset.act, start = +b.dataset.start, S = TSA.get(), live = S.active === act && S.activeSince === start, note = '', end = null;
-    if (live) note = S.liveNote || '';
-    else { var g = S.segments.find(function (x) { return x.act === act && x.start === start; }); if (!g) return; note = g.note || ''; end = g.end; }
-    openNote(act, start, end, live, note);
+    var act = b.dataset.act, start = +b.dataset.start, S = TSA.get(), live = S.active === act && S.activeSince === start, note = '', end = null, project = '';
+    if (live) { note = S.liveNote || ''; project = S.liveProject || ''; }
+    else { var g = S.segments.find(function (x) { return x.act === act && x.start === start; }); if (!g) return; note = g.note || ''; project = g.project || ''; end = g.end; }
+    openNote(act, start, end, live, note, project);
   });
 
   function renderPop() {
@@ -332,7 +395,7 @@
     }).join('');
     var list = blocks.map(function (b, i) {
       var sec = Math.round((b.end - b.start) / 1000);
-      return '<li><time>' + clock(b.start) + '</time>' + dot(b.act) + META[b.act].icon + ' ' + META[b.act].label + ' · ' + dur(sec) + (b.live ? ' · running' : '') +
+      return '<li><time>' + clock(b.start) + '</time>' + dot(b.act) + META[b.act].icon + ' ' + META[b.act].label + ' · ' + dur(sec) + (b.live ? ' · running' : '') + (b.project ? ' ' + ptag(b.project) : '') +
         (b.note ? noteHtml(b.note, 'l:' + b.act + ':' + b.orig) : '') + '</li>';
     }).join('');
     $('tl').innerHTML = '<div class="tl" role="img" aria-label="Timeline of the day">' + bar + '</div><div class="tl-ends"><span>' + clock(t0) + '</span><span>' +
@@ -340,7 +403,7 @@
     var tip = $('tlTip');
     var showBlock = function (b) {
       tip.innerHTML = dot(b.act) + META[b.act].icon + ' <strong>' + META[b.act].label + '</strong> · ' + clock(b.start) + '–' + clock(b.end) + ' · ' +
-        dur(Math.round((b.end - b.start) / 1000)) + (b.note ? noteHtml(b.note, 't:' + b.act + ':' + b.orig) : '') +
+        dur(Math.round((b.end - b.start) / 1000)) + (b.project ? ' ' + ptag(b.project) : '') + (b.note ? noteHtml(b.note, 't:' + b.act + ':' + b.orig) : '') +
         (canEdit(b.act, b.orig, b.live) ? ' <button type="button" class="linkbtn" data-edit data-act="' + b.act + '" data-start="' + b.orig + '">' + (b.note ? 'Edit note' : 'Add note') + '</button>' : '');
       fitNotes(tip);
     };
@@ -467,16 +530,17 @@
     var act = sel.value, isAll = act === 'all', list, more;
     if (isAll) {
       list = [];
-      ACTS.forEach(function (a) { A.segs[a].forEach(function (g) { list.push({ act: a, start: g.start, end: g.end, sec: g.sec, note: g.note, live: g.live }); }); });
+      ACTS.forEach(function (a) { A.segs[a].forEach(function (g) { list.push({ act: a, start: g.start, end: g.end, sec: g.sec, note: g.note, project: g.project, live: g.live }); }); });
       list.sort(function (x, y) { return y.start - x.start; });
-    } else list = A.segs[act].map(function (g) { return { act: act, start: g.start, end: g.end, sec: g.sec, note: g.note, live: g.live }; });
+    } else list = A.segs[act].map(function (g) { return { act: act, start: g.start, end: g.end, sec: g.sec, note: g.note, project: g.project, live: g.live }; });
     more = list.length > 300;
     $('segs').innerHTML = list.length
-      ? '<table><thead><tr><th>Date</th><th>Start</th>' + (isAll ? '<th>Timer</th>' : '') + '<th>Duration</th><th>Note</th></tr></thead><tbody>' +
+      ? '<table><thead><tr><th>Date</th><th>Start</th>' + (isAll ? '<th>Timer</th>' : '') + '<th>Duration</th><th>Project</th><th>Note</th></tr></thead><tbody>' +
         list.slice(0, 300).map(function (g) {
           return '<tr><td>' + fmtDay(TSA.dayKey(g.start), true) + '</td><td>' + clock(g.start) + '</td>' +
             (isAll ? '<td>' + dot(g.act) + META[g.act].icon + ' ' + META[g.act].label + '</td>' : '') +
             '<td>' + dur(g.sec) + (g.live ? ' · running' : '') + '</td>' +
+            '<td>' + (ptag(g.project) || '–') + '</td>' +
             '<td class="wrapt">' + (g.note ? noteHtml(g.note, 's:' + g.act + ':' + g.start) : '–') + ' ' + (canEdit(g.act, g.start, g.live) ? '<button type="button" class="linkbtn" data-edit data-act="' + g.act + '" data-start="' + g.start + '">' + (g.note ? 'Edit' : 'Add') + '</button>' : '') + '</td></tr>';
         }).join('') + '</tbody></table>' + (more ? '<p class="muted">Showing the latest 300 of ' + list.length + '.</p>' : '')
       : '<div class="empty-msg">No ' + (isAll ? '' : META[act].label.toLowerCase() + ' ') + 'sessions yet.</div>';
@@ -494,6 +558,24 @@
     var lb = TSA.get().lastBackup;
     $('bkInfo').textContent = lb ? 'Last automatic backup: ' + fmtDay(TSA.dayKey(lb), true) + ', ' + clock(lb) + '. If your browser asks where to save it or blocks it, keep using "Export all data" too.' : 'No automatic backup yet. If your browser asks where to save files or blocks automatic downloads, keep using "Export all data".';
 
+    /* outreach log */
+    var olq = $('olQ').value.trim().toLowerCase();
+    var olist = TSA.outreachLog().filter(function (o) { return !olq || o.name.toLowerCase().indexOf(olq) >= 0; });
+    $('ol').innerHTML = olist.length ? olist.slice(0, 300).map(function (o) {
+      return '<div class="nrow"><span class="nt">' + fmtDay(TSA.dayKey(o.ms), true) + ' · ' + clock(o.ms) + '</span><span>🤝 Outreach</span><span class="nx">' + (o.name ? linkify(esc(o.name)) : '<span class="muted">–</span>') +
+        '</span><button type="button" class="linkbtn" data-ol="' + o.ms + '">' + (o.name ? 'Edit' : 'Add name') + '</button></div>';
+    }).join('') + (olist.length > 300 ? '<p class="muted">Showing the newest 300 of ' + olist.length + '.</p>' : '')
+      : '<div class="empty-msg">' + (olq ? 'No names match.' : 'No outreaches counted yet.') + '</div>';
+
+    /* projects */
+    var pr = $('projRange').value, since = pr === 'all' ? null : TSA.addDays(A.todayK, -(+pr - 1));
+    var plist = TSA.projectTime(since), pmax = plist.length ? plist[0].sec : 1;
+    $('projects').innerHTML = plist.length ? plist.map(function (o) {
+      var name = o.project || '(no project)';
+      return '<div class="prow"><div class="pn">' + esc(name) + (o.project ? ' <button type="button" class="linkbtn" data-pr="' + esc(o.project) + '">Rename</button>' : '') + '</div>' +
+        '<div class="pbar" title="Work ' + dur(o.work) + ' · Workflow ' + dur(o.workflow) + '"><i style="width:' + Math.max(1, o.sec / pmax * 100).toFixed(1) + '%"></i></div><div class="pt">' + dur(o.sec) + '</div></div>';
+    }).join('') : '<div class="empty-msg">No Work or Workflow time in this range.</div>';
+
     /* notes */
     var nact = $('noteAct'), nq = $('noteQ').value.trim().toLowerCase();
     if (!nact.options.length) nact.innerHTML = '<option value="">All timers</option>' + ACTS.map(function (a) { return '<option value="' + a + '">' + META[a].icon + ' ' + META[a].label + '</option>'; }).join('');
@@ -501,7 +583,7 @@
     $('notes').innerHTML = all.length ? all.slice(0, 300).map(function (n) {
       var sec = Math.round((n.end - n.start) / 1000);
       return '<div class="nrow"><span class="nt">' + fmtDay(TSA.dayKey(n.start), true) + ' · ' + clock(n.start) + '</span><span>' + dot(n.act) + META[n.act].icon + ' ' + META[n.act].label + ' · ' + dur(sec) + (n.live ? ' · running' : '') +
-        '</span><span class="nx">' + noteHtml(n.note, 'n:' + n.act + ':' + n.start) + '</span><button type="button" class="linkbtn" data-edit data-act="' + n.act + '" data-start="' + n.start + '">Edit</button></div>';
+        (n.project ? ' ' + ptag(n.project) : '') + '</span><span class="nx">' + noteHtml(n.note, 'n:' + n.act + ':' + n.start) + '</span><button type="button" class="linkbtn" data-edit data-act="' + n.act + '" data-start="' + n.start + '">Edit</button></div>';
     }).join('') + (all.length > 300 ? '<p class="muted">Showing the newest 300 of ' + all.length + '.</p>' : '')
       : '<div class="empty-msg">' + (nq || nact.value ? 'No notes match.' : 'No notes yet. Use the 📝 Note button on a timer card.') + '</div>';
 
@@ -518,8 +600,9 @@
       : '<div class="empty-msg">No days yet.</div>';
   }
 
-  ['range', 'stackRange', 'shareRange', 'ocRange', 'segAct', 'noteAct'].forEach(function (id) { $(id).addEventListener('change', render); });
+  ['range', 'stackRange', 'shareRange', 'ocRange', 'segAct', 'noteAct', 'projRange'].forEach(function (id) { $(id).addEventListener('change', render); });
   $('noteQ').addEventListener('input', render);
+  $('olQ').addEventListener('input', render);
   $('tlPrev').addEventListener('click', function () { tlDay = TSA.addDays(tlDay || TSA.dayKey(Date.now()), -1); tlSel = null; renderTimeline(); });
   $('tlNext').addEventListener('click', function () { tlDay = TSA.addDays(tlDay, 1); tlSel = null; renderTimeline(); });
   $('prevM').addEventListener('click', function () { monthOffset--; render(); });

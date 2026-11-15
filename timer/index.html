@@ -17,6 +17,7 @@
     <nav>
       <a class="active" href="index.html">Timer</a>
       <a href="dashboard.html">Dashboard</a>
+      <a href="review.html">Review</a>
     </nav>
   </header>
 
@@ -36,6 +37,7 @@
         </select>
       </label>
       <label class="sel" title="If Paused has run less than this when you start a timer, that Paused time moves to the new timer. 0 = off.">Short pause <input id="shortPause" type="number" min="0" max="600" inputmode="numeric" style="width:64px"> s</label>
+      <label class="sel" title="If Paused runs this long with the page open, a bar and a short beep ask what you're doing. 0 = off.">Idle nudge <input id="idleNudge" type="number" min="0" max="600" inputmode="numeric" style="width:64px"> min</label>
       <span class="bells">🔔
         <label><input type="checkbox" data-bell="paused"> Paused</label>
         <label><input type="checkbox" data-bell="workflow"> Workflow</label>
@@ -69,9 +71,20 @@
     <p id="noteInfo" class="muted" style="margin:0 0 12px"></p>
     <textarea id="noteInput" rows="1" maxlength="1000" placeholder="Write a note" autofocus></textarea>
     <p class="hint">Ctrl+Enter or Shift+Enter for more lines.</p>
+    <div id="projRow" style="margin-top:10px"><input id="projInput" list="projList" maxlength="60" placeholder="Project (optional)" autocomplete="off" style="width:100%"><datalist id="projList"></datalist></div>
     <div class="drow"><button class="primary" id="noteSave" value="save">Save</button></div>
   </form>
 </dialog>
+
+<div id="nudge" class="nudge" hidden role="status">
+  <span id="nudgeTxt"></span>
+  <span id="nudgeBtns"></span>
+  <button type="button" class="ghost" id="nudgeNo">Still paused</button>
+</div>
+
+<form id="whoBox" class="who" hidden autocomplete="off">
+  <input id="whoInput" type="text" maxlength="200" placeholder="Who? name or link (Enter saves)" aria-label="Who was this outreach to">
+</form>
 
 <dialog id="gDlg">
   <form method="dialog">
@@ -169,6 +182,7 @@
     document.title = META[S.active].icon + ' ' + hms(shown) + ' · ' + META[S.active].label;
     TSA.setFavicon(S.active);
     renderOutreach(now);
+    checkNudge(now);
   }
 
   /* ---------- settings bar ---------- */
@@ -178,6 +192,7 @@
     $('vol').value = v; $('volVal').textContent = v + '%';
     $('beepMin').value = String(S.settings.beepMinutes);
     $('shortPause').value = S.settings.shortPauseSec;
+    $('idleNudge').value = S.settings.idleNudgeMin;
     document.querySelectorAll('[data-bell]').forEach(function (c) { c.checked = S.settings.beep[c.dataset.bell] !== false; });
     renderLive();
     $('todayLbl').textContent = TSA.keyToDate(TSA.dayKey(Date.now())).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
@@ -185,6 +200,10 @@
   $('auto').addEventListener('change', function () { S.settings.autoRestart = $('auto').checked; TSA.save(); });
   $('vol').addEventListener('input', function () { S.settings.volume = $('vol').value / 100; $('volVal').textContent = $('vol').value + '%'; TSA.save(); });
   $('vol').addEventListener('change', function () { TSA.beep(1000, .22, .4); });
+  $('idleNudge').addEventListener('change', function () {
+    var v = Math.round(+$('idleNudge').value);
+    S.settings.idleNudgeMin = v >= 0 && v <= 600 ? v : 30; $('idleNudge').value = S.settings.idleNudgeMin; TSA.save(); nudgeFor = null;
+  });
   $('shortPause').addEventListener('change', function () {
     var v = Math.round(+$('shortPause').value);
     S.settings.shortPauseSec = v >= 0 && v <= 600 ? v : 20; $('shortPause').value = S.settings.shortPauseSec; TSA.save();
@@ -202,6 +221,10 @@
     $('noteTitle').textContent = META[t.act].icon + ' ' + META[t.act].label + ' · ' + when;
     $('noteInfo').textContent = auto ? 'Session saved. Add a note if you like (Esc skips it).' : 'Save with empty text to remove the note. Esc cancels.';
     setNoteText(t.note || '');
+    var isProj = TSA.NOTE_ACTS.indexOf(t.act) >= 0;
+    $('projRow').hidden = !isProj;
+    $('projList').innerHTML = TSA.projectList().map(function (p) { return '<option value="' + p.replace(/"/g, '&quot;') + '"></option>'; }).join('');
+    $('projInput').value = isProj ? ((t.live || auto) ? (t.project || S.lastProject || '') : (t.project || '')) : '';
     $('noteDlg').returnValue = '';
     $('noteDlg').dataset.act = t.act; $('noteDlg').dataset.start = t.start;
     $('noteDlg').showModal();
@@ -223,7 +246,7 @@
     else if (e.key === 'n' || e.key === 'N') { var nb = refs[S.active].nbtn; if (!nb.disabled) { e.preventDefault(); nb.click(); } }
   });
   $('noteDlg').addEventListener('close', function () {
-    if (this.returnValue === 'save') { TSA.setNoteAt(this.dataset.act, +this.dataset.start, $('noteInput').value); S = TSA.get(); renderAll(); }
+    if (this.returnValue === 'save') { TSA.setNoteAt(this.dataset.act, +this.dataset.start, $('noteInput').value, $('projRow').hidden ? undefined : $('projInput').value); S = TSA.get(); renderAll(); }
   });
 
   cardsEl.addEventListener('click', function (e) {
@@ -253,8 +276,23 @@
     $('ocCount').classList.toggle('met', n >= g);
     $('ocMinus').disabled = n === 0;
   }
-  $('ocPlus').addEventListener('click', function () { TSA.outreachAdd(); renderOutreach(Date.now()); });
-  $('ocMinus').addEventListener('click', function () { TSA.outreachUndo(); renderOutreach(Date.now()); });
+  var whoMs = 0, whoTimer = null;
+  function hideWho() { $('whoBox').hidden = true; clearTimeout(whoTimer); if (document.activeElement === $('whoInput')) $('whoInput').blur(); }
+  function armWho() { clearTimeout(whoTimer); whoTimer = setTimeout(hideWho, 8000); }
+  $('whoInput').addEventListener('input', armWho);
+  $('whoBox').addEventListener('submit', function (e) {
+    e.preventDefault();
+    if ($('whoInput').value.trim() && whoMs) TSA.setOutreachName(whoMs, $('whoInput').value);
+    hideWho();
+  });
+  $('whoInput').addEventListener('keydown', function (e) { if (e.key === 'Escape') hideWho(); });
+  $('ocPlus').addEventListener('click', function () {
+    var now = Date.now(); TSA.outreachAdd(now); renderOutreach(now);
+    whoMs = now; $('whoInput').value = ''; $('whoBox').hidden = false;
+    var r = $('oc').getBoundingClientRect(); $('whoBox').style.left = Math.max(8, Math.min(r.left, innerWidth - 328)) + 'px'; $('whoBox').style.bottom = (innerHeight - r.top + 8) + 'px';
+    $('whoInput').focus(); armWho();
+  });
+  $('ocMinus').addEventListener('click', function () { hideWho(); TSA.outreachUndo(); renderOutreach(Date.now()); });
   $('ocGoal').addEventListener('click', function () { $('goalInput').value = S.outreach.goal; $('goalDlg').returnValue = ''; $('goalDlg').showModal(); });
   $('goalDlg').addEventListener('close', function () {
     if (this.returnValue === 'save') { TSA.setGoal($('goalInput').value); S = TSA.get(); renderOutreach(Date.now()); }
@@ -285,6 +323,28 @@
   window.addEventListener('storage', function (e) { if (e.key === TSA.CHRONO_KEY) { loadChrono(); renderChrono(); } });
   loadChrono(); renderChrono();
   setInterval(renderChrono, 100);
+
+  /* ---------- idle nudge: Paused for a long time while the page is open ---------- */
+  var openAt = Date.now(), nudgeFor = null, nudgeNext = 0;
+  $('nudgeBtns').innerHTML = ACTS.filter(function (a) { return a !== 'paused'; }).map(function (a) {
+    return '<button type="button" class="ghost" data-nact="' + a + '">' + META[a].icon + ' ' + META[a].label + '</button>';
+  }).join('');
+  $('nudge').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-nact]');
+    if (b) { refs[b.dataset.nact].btn.click(); $('nudge').hidden = true; }
+  });
+  $('nudgeNo').addEventListener('click', function () { $('nudge').hidden = true; });
+  function checkNudge(now) {
+    var lim = S.settings.idleNudgeMin * 60000;
+    if (S.active !== 'paused' || !lim) { $('nudge').hidden = true; nudgeFor = null; return; }
+    if (nudgeFor !== S.activeSince) { nudgeFor = S.activeSince; nudgeNext = Math.max(S.activeSince, openAt) + lim; }
+    if (now >= nudgeNext) {
+      nudgeNext = now + lim;
+      $('nudgeTxt').textContent = '⏸️ Paused for ' + TSA.fmtDur(Math.floor((now - S.activeSince) / 1000)) + '. What are you doing?';
+      $('nudge').hidden = false;
+      TSA.nudgeBeep();
+    }
+  }
 
   /* ---------- run ---------- */
   TSA.engine(function (kind) {

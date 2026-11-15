@@ -54,7 +54,7 @@
     return {
       version: 2,
       settings: {
-        autoRestart: false, theme: 'auto', volume: 0.5, beepMinutes: 10, shortPauseSec: 20, goals: {}, autoBackup: true,
+        autoRestart: false, theme: 'auto', volume: 0.5, beepMinutes: 10, shortPauseSec: 20, goals: {}, autoBackup: true, idleNudgeMin: 30,
         beep: { paused: true, workflow: true, workout: true, eating: true }
       },
       timer: { mode: 'idle' },   // the work countdown: idle | running | paused
@@ -63,9 +63,10 @@
       beepFrom: null,            // reference time for the reminder beeps
       lastSeen: null,            // heartbeat of the last open page
       lastBackup: null,          // when the daily backup download last ran
+      liveProject: '', lastProject: '',   // project tag of the running Work/Workflow run; the last one used
       segments: [],              // finished stretches: { act, start, end, [id, note] }
       sessions: [],              // finished work rounds (= points)
-      outreach: { clicks: [], goal: 3, adj: {} },   // click times of the outreach counter + hand corrections per day
+      outreach: { clicks: [], goal: 3, adj: {}, names: {} },   // click times of the outreach counter + hand corrections per day
       days: {}                   // 'YYYY-MM-DD' -> { firstOpen }
     };
   }
@@ -81,13 +82,17 @@
     if (g0 && typeof g0 === 'object') Object.keys(GOALS).forEach(function (a) { if (g0[a] >= 1 && g0[a] <= 86399) g1[a] = Math.round(g0[a]); });
     r.settings.goals = g1;
     if (typeof r.settings.autoBackup !== 'boolean') r.settings.autoBackup = true;
+    if (!(r.settings.idleNudgeMin >= 0 && r.settings.idleNudgeMin <= 600)) r.settings.idleNudgeMin = 30;
     if (!(r.lastBackup > 0)) r.lastBackup = null;
     ['segments', 'sessions'].forEach(function (k) { if (!Array.isArray(r[k])) r[k] = defaults()[k]; });
-    if (!r.outreach || typeof r.outreach !== 'object') r.outreach = { clicks: [], goal: 3, adj: {} };
+    if (!r.outreach || typeof r.outreach !== 'object') r.outreach = { clicks: [], goal: 3, adj: {}, names: {} };
     if (!Array.isArray(r.outreach.clicks)) r.outreach.clicks = [];
     if (!(r.outreach.goal >= 1)) r.outreach.goal = 3;
     if (!r.outreach.adj || typeof r.outreach.adj !== 'object' || Array.isArray(r.outreach.adj)) r.outreach.adj = {};   // hand-typed corrections per day
     if (typeof r.liveNote !== 'string') r.liveNote = '';
+    if (typeof r.liveProject !== 'string') r.liveProject = '';
+    if (typeof r.lastProject !== 'string') r.lastProject = '';
+    if (!r.outreach.names || typeof r.outreach.names !== 'object' || Array.isArray(r.outreach.names)) r.outreach.names = {};   // who each outreach was to, by click time
     if (!r.days || typeof r.days !== 'object') r.days = {};
     if (!r.timer || !r.timer.mode) r.timer = { mode: 'idle' };
     r.segments.forEach(function (g) { if (g && g.act === 'family') { g.act = 'paused'; delete g.id; delete g.note; } });   // the removed Family timer counts as Paused
@@ -166,9 +171,9 @@
     var a = S.active, st = S.activeSince;
     if (a !== 'paused' && !KEEPS_RUNNING[a] && S.lastSeen != null && now - S.lastSeen > RESUME_MS) {
       var cut = Math.max(S.lastSeen, st);
-      return [{ act: a, start: st, end: cut, note: S.liveNote || '' }, { act: 'paused', start: cut, end: Math.max(now, cut) }];
+      return [{ act: a, start: st, end: cut, note: S.liveNote || '', project: S.liveProject || '' }, { act: 'paused', start: cut, end: Math.max(now, cut) }];
     }
-    return [{ act: a, start: st, end: Math.max(now, st), note: S.liveNote || '' }];
+    return [{ act: a, start: st, end: Math.max(now, st), note: S.liveNote || '', project: S.liveProject || '' }];
   }
 
   function closeSeg(now) {
@@ -176,11 +181,12 @@
     if (st != null && now > st) {
       var seg = { act: S.active, start: st, end: now, id: uid() };
       if (S.liveNote) seg.note = S.liveNote;           // a note added while it was running
-      S.liveNote = '';
+      if (S.liveProject && NOTE_ACTS.indexOf(S.active) >= 0) seg.project = S.liveProject;
+      S.liveNote = ''; S.liveProject = '';
       S.segments.push(seg);
       return seg;
     }
-    S.liveNote = '';
+    S.liveNote = ''; S.liveProject = '';
     return null;
   }
   function pauseCountdown(at) {
@@ -258,6 +264,7 @@
         S.segments.pop();
         at = last.start;
         S.liveNote = [last.note, S.liveNote].filter(Boolean).join(' / ').slice(0, 1000);
+        S.liveProject = S.liveProject || last.project || '';
       }
     } else {
       closed = closeSeg(now);
@@ -301,28 +308,78 @@
   var cleanNote = function (t) { return String(t || '').replace(/\r\n?/g, '\n').trim().slice(0, NOTE_MAX); };
   /* The run a note button of `act` points at: the running one, else that timer's most recent run. */
   function noteTarget(act) {
-    if (S.active === act && S.activeSince != null) return { act: act, start: S.activeSince, end: null, live: true, note: S.liveNote || '' };
+    if (S.active === act && S.activeSince != null) return { act: act, start: S.activeSince, end: null, live: true, note: S.liveNote || '', project: S.liveProject || '' };
     for (var i = S.segments.length - 1, best = null; i >= 0; i--) {
       var g = S.segments[i];
       if (g && g.act === act && (!best || g.start > best.start)) best = g;
     }
-    return best ? { act: act, start: best.start, end: best.end, live: false, note: best.note || '' } : null;
+    return best ? { act: act, start: best.start, end: best.end, live: false, note: best.note || '', project: best.project || '' } : null;
   }
   /* Sets (or, with empty text, removes) the note of the run of `act` that started at `start`. */
-  function setNoteAt(act, start, text) {
-    var n = cleanNote(text);
-    if (S.active === act && S.activeSince === start) { S.liveNote = n; save(); return true; }
+  var cleanProject = function (t) { return String(t || '').replace(/\s+/g, ' ').trim().slice(0, 60); };
+  /* `project` is optional (undefined = leave it alone); only Work and Workflow runs take one. */
+  function setNoteAt(act, start, text, project) {
+    var n = cleanNote(text), p = project === undefined ? undefined : cleanProject(project);
+    if (NOTE_ACTS.indexOf(act) < 0) p = undefined;
+    if (p) S.lastProject = p;
+    if (S.active === act && S.activeSince === start) { S.liveNote = n; if (p !== undefined) S.liveProject = p; save(); return true; }
     var g = S.segments.find(function (x) { return x.act === act && x.start === start; });
     if (!g) return false;
     if (!g.id) g.id = uid();
     if (n) g.note = n; else delete g.note;
+    if (p !== undefined) { if (p) g.project = p; else delete g.project; }
     save(); return true;
+  }
+  /* Recent projects, most recently used first. */
+  function projectList() {
+    var seen = {}, out = [], add = function (p) { if (p && !seen[p]) { seen[p] = 1; out.push(p); } };
+    add(S.liveProject);
+    for (var i = S.segments.length - 1; i >= 0 && out.length < 40; i--) add(S.segments[i].project);
+    return out;
+  }
+  /* Renames (or merges into an existing one) a project on every run. Returns how many runs changed. */
+  function renameProject(from, to) {
+    to = cleanProject(to); if (!from || !to || from === to) return 0;
+    var n = 0;
+    S.segments.forEach(function (g) { if (g.project === from) { g.project = to; n++; } });
+    if (S.liveProject === from) { S.liveProject = to; n++; }
+    if (S.lastProject === from) S.lastProject = to;
+    save(); return n;
+  }
+  /* Work + Workflow seconds per project since day key `sinceKey` (null = all time). */
+  function projectTime(sinceKey, now) {
+    var by = {}, add = function (g) {
+      if (NOTE_ACTS.indexOf(g.act) < 0) return;
+      var p = g.project || '';
+      dayParts(g.act, g.start, g.end, function (k, sec) {
+        if (sinceKey && k < sinceKey) return;
+        var o = by[p] || (by[p] = { project: p, sec: 0, work: 0, workflow: 0 });
+        o.sec += sec; o[g.act] += sec;
+      });
+    };
+    S.segments.forEach(add); liveParts(now || Date.now()).forEach(add);
+    return Object.keys(by).map(function (k) { return by[k]; }).sort(function (a, b) { return b.sec - a.sec; });
+  }
+  /* Seconds of `act` per hour of day (24 numbers) between two times. */
+  function actByHour(act, from, to, now) {
+    var out = [], h;
+    for (h = 0; h < 24; h++) out.push(0);
+    var add = function (g) {
+      if (g.act !== act) return;
+      var s = Math.max(g.start, from), e = Math.min(g.end, to);
+      while (s < e) {
+        var d = new Date(s), nx = new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours() + 1).getTime(), t = Math.min(e, nx);
+        out[d.getHours()] += (t - s) / 1000; s = t;
+      }
+    };
+    S.segments.forEach(add); liveParts(now || Date.now()).forEach(add);
+    return out;
   }
   /* Every note, newest first. */
   function allNotes(now) {
     var out = S.segments.filter(function (g) { return g && g.note; })
-      .map(function (g) { return { act: g.act, start: g.start, end: g.end, note: g.note, live: false }; });
-    if (S.liveNote && S.activeSince != null) out.push({ act: S.active, start: S.activeSince, end: Math.max(now || Date.now(), S.activeSince), note: S.liveNote, live: true });
+      .map(function (g) { return { act: g.act, start: g.start, end: g.end, note: g.note, project: g.project || '', live: false }; });
+    if (S.liveNote && S.activeSince != null) out.push({ act: S.active, start: S.activeSince, end: Math.max(now || Date.now(), S.activeSince), note: S.liveNote, project: S.liveProject || '', live: true });
     return out.sort(function (a, b) { return b.start - a.start; });
   }
   /* Keeps "last seen" fresh so a vanished page can be told apart from a running one. */
@@ -367,10 +424,23 @@
     now = now || Date.now();
     var k = dayKey(now), c = S.outreach.clicks;
     if (outreachOn(k) === 0) return false;
-    if (c.length && dayKey(c[c.length - 1]) === k) c.pop();
+    if (c.length && dayKey(c[c.length - 1]) === k) delete S.outreach.names[c.pop()];
     else if ((S.outreach.adj[k] || 0) > 0) { S.outreach.adj[k]--; if (!S.outreach.adj[k]) delete S.outreach.adj[k]; }
     else return false;
     save(); return true;
+  }
+  /* Who an outreach was to (empty text removes the name). `ms` is the click's time. */
+  function setOutreachName(ms, text) {
+    ms = +ms;
+    if (S.outreach.clicks.indexOf(ms) < 0) return false;
+    var n = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+    if (n) S.outreach.names[ms] = n; else delete S.outreach.names[ms];
+    save(); return true;
+  }
+  /* Every counted click, newest first, with its name. */
+  function outreachLog() {
+    var nm = S.outreach.names;
+    return S.outreach.clicks.map(function (ms) { return { ms: ms, name: nm[ms] || '' }; }).sort(function (a, b) { return b.ms - a.ms; });
   }
   /* Sets a day's total by hand. Real click times stay; the difference is stored as a correction. */
   function setOutreachDay(k, n, now) {
@@ -414,7 +484,7 @@
     var t0 = keyToDate(k).getTime(), t1 = keyToDate(addDays(k, 1)).getTime(), out = [];
     var put = function (g, live) {
       var s = Math.max(g.start, t0), e = Math.min(g.end, t1);
-      if (e - s >= 1000) out.push({ act: g.act, start: s, end: e, orig: g.start, note: g.note || '', live: !!live });
+      if (e - s >= 1000) out.push({ act: g.act, start: s, end: e, orig: g.start, note: g.note || '', project: g.project || '', live: !!live });
     };
     S.segments.forEach(function (g) { put(g, false); });
     liveParts(now).forEach(function (g) { put(g, true); });
@@ -438,7 +508,7 @@
     var addSeg = function (g, live) {
       var sec = 0;
       dayParts(g.act, g.start, g.end, function (k, s) { get(k).t[g.act] += s; sec += s; });
-      if (sec >= 1) segs[g.act].push({ start: g.start, end: g.end, sec: sec, note: g.note || '', id: g.id, live: !!live });
+      if (sec >= 1) segs[g.act].push({ start: g.start, end: g.end, sec: sec, note: g.note || '', project: g.project || '', id: g.id, live: !!live });
     };
     S.segments.forEach(function (g) { addSeg(g, false); });
     liveParts(now).forEach(function (g) { addSeg(g, true); });
@@ -560,22 +630,24 @@
       var all = [];
       ACTS.forEach(function (a) { A.segs[a].forEach(function (g) { all.push({ act: a, g: g }); }); });
       all.sort(function (x, y) { return x.g.start - y.g.start; });
-      rows = [['day', 'start', 'end', 'timer', 'seconds', 'note']].concat(all.map(function (o) {
-        return [dayKey(o.g.start), dt(o.g.start), dt(o.g.end), META[o.act].label, o.g.sec, o.g.note];
+      rows = [['day', 'start', 'end', 'timer', 'seconds', 'project', 'note']].concat(all.map(function (o) {
+        return [dayKey(o.g.start), dt(o.g.start), dt(o.g.end), META[o.act].label, o.g.sec, o.g.project, o.g.note];
       }));
     } else if (kind === 'days') {
       rows = [['day', 'points', 'outreach', 'first_open'].concat(ACTS.map(function (a) { return META[a].label.toLowerCase() + '_seconds'; }))]
         .concat(A.days.slice().reverse().map(function (d) {
           return [d.day, d.points, d.outreach, d.firstOpen ? dt(d.firstOpen) : ''].concat(ACTS.map(function (a) { return Math.round(d.t[a]); }));
         }));
+    } else if (kind === 'outreachlog') {
+      rows = [['day', 'time', 'name']].concat(outreachLog().reverse().map(function (o) { return [dayKey(o.ms), dt(o.ms), o.name]; }));
     } else if (kind === 'outreach') {
       var goal = S.outreach.goal;
       rows = [['day', 'outreach', 'goal', 'goal_met', 'edited_by_hand']].concat(A.days.slice().reverse().map(function (d) {
         return [d.day, d.outreach, goal, d.outreach >= goal ? 'yes' : 'no', d.outreachEdited ? 'yes' : 'no'];
       }));
     } else {
-      rows = [['day', 'start', 'end', 'timer', 'seconds', 'note']].concat(allNotes(now).reverse().map(function (n) {
-        return [dayKey(n.start), dt(n.start), dt(n.end), META[n.act].label, Math.round((n.end - n.start) / 1000), n.note];
+      rows = [['day', 'start', 'end', 'timer', 'seconds', 'project', 'note']].concat(allNotes(now).reverse().map(function (n) {
+        return [dayKey(n.start), dt(n.start), dt(n.end), META[n.act].label, Math.round((n.end - n.start) / 1000), n.project, n.note];
       }));
     }
     return { name: stamp(new Date(now)) + '_' + kind + '.csv', text: csvText(rows) };
@@ -636,6 +708,11 @@
   function alarmStop() {
     if (alarmTimer) { clearInterval(alarmTimer); alarmTimer = null; }
     if (alarmBox) alarmBox.hidden = true;
+  }
+  /* A short two-tone beep for the idle nudge. */
+  function nudgeBeep() {
+    if (!audioReady()) return;
+    beep(660, 0.14, 0.4); setTimeout(function () { beep(880, 0.18, 0.4); }, 190);
   }
   function reminderBeep() {
     beep(784, .16, .4);
@@ -735,7 +812,7 @@
     });
   }
   function mountCsvTools(el) {
-    el.innerHTML = [['sessions', 'Sessions'], ['days', 'Daily totals'], ['outreach', 'Outreach per day'], ['notes', 'Notes']].map(function (k) {
+    el.innerHTML = [['sessions', 'Sessions'], ['days', 'Daily totals'], ['outreach', 'Outreach per day'], ['outreachlog', 'Outreach log'], ['notes', 'Notes']].map(function (k) {
       return '<button type="button" class="ghost" data-csv="' + k[0] + '">CSV · ' + k[1] + '</button>';
     }).join('');
     el.addEventListener('click', function (e) {
@@ -784,10 +861,10 @@
     boot: boot, get: function () { return S; }, reload: reload, save: save,
     storageOK: function () { return !memoryOnly; },
     switchTo: switchTo, setNote: setNote, setNoteAt: setNoteAt, noteTarget: noteTarget, allNotes: allNotes, heartbeat: heartbeat, tick: tick,
-    outreachToday: outreachToday, outreachAdd: outreachAdd, outreachUndo: outreachUndo, setOutreachDay: setOutreachDay, setGoal: setGoal,
+    outreachToday: outreachToday, outreachAdd: outreachAdd, outreachUndo: outreachUndo, setOutreachDay: setOutreachDay, setOutreachName: setOutreachName, outreachLog: outreachLog, projectList: projectList, renameProject: renameProject, projectTime: projectTime, actByHour: actByHour, setGoal: setGoal,
     todayTotals: todayTotals, todayPoints: todayPoints, analyze: analyze,
     exportAll: exportAll, importText: importText,
-    audio: audio, audioReady: audioReady, beep: beep, alarmStart: alarmStart, alarmStop: alarmStop,
+    audio: audio, audioReady: audioReady, beep: beep, nudgeBeep: nudgeBeep, alarmStart: alarmStart, alarmStop: alarmStop,
     setFavicon: setFavicon, engine: engine, initTheme: initTheme, mountDataTools: mountDataTools, mountCsvTools: mountCsvTools, csvExport: csvExport, maybeAutoBackup: maybeAutoBackup, setAutoBackup: setAutoBackup, setGoalSec: setGoalSec, GOALS: GOALS,
     KEY: KEY, CHRONO_KEY: CHRONO_KEY
   };
