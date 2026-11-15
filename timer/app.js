@@ -250,7 +250,7 @@
       if (last && last.act === act && last.end === at) {       // same timer again: the two runs join into one
         S.segments.pop();
         at = last.start;
-        S.liveNote = [last.note, S.liveNote].filter(Boolean).join(' / ').slice(0, 200);
+        S.liveNote = [last.note, S.liveNote].filter(Boolean).join(' / ').slice(0, 1000);
       }
     } else {
       closed = closeSeg(now);
@@ -270,11 +270,28 @@
   function setNote(id, note) {
     var s = S.segments.find(function (x) { return x.id === id; });
     if (!s) return false;
-    s.note = String(note || '').trim().slice(0, 200);
+    s.note = String(note || '').replace(/\r\n?/g, '\n').trim().slice(0, 1000);
     save(); return true;
   }
+  /* The note box: one line at first; Ctrl+Enter / Shift+Enter turns it into a multi-line box
+     (then Enter = new line, Ctrl+Enter = save). `save` is the form's Save button. */
+  function noteBox(ta, save) {
+    var setMulti = function (on) { ta.classList.toggle('multi', on); ta.rows = on ? 5 : 1; };
+    ta.addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter' || e.isComposing) return;
+      var multi = ta.classList.contains('multi'), mod = e.ctrlKey || e.metaKey;
+      if (!multi) {
+        e.preventDefault();
+        if (mod || e.shiftKey) { setMulti(true); ta.setRangeText('\n', ta.selectionStart, ta.selectionEnd, 'end'); }
+        else save.click();
+      } else if (mod) { e.preventDefault(); save.click(); }
+    });
+    return function (text) { ta.value = text || ''; setMulti(/\n/.test(ta.value)); };
+  }
+
   /* ----- notes on any timer's run ----- */
-  var cleanNote = function (t) { return String(t || '').trim().slice(0, 200); };
+  var NOTE_MAX = 1000;
+  var cleanNote = function (t) { return String(t || '').replace(/\r\n?/g, '\n').trim().slice(0, NOTE_MAX); };
   /* The run a note button of `act` points at: the running one, else that timer's most recent run. */
   function noteTarget(act) {
     if (S.active === act && S.activeSince != null) return { act: act, start: S.activeSince, end: null, live: true, note: S.liveNote || '' };
@@ -672,7 +689,7 @@
   }
 
   root.TSA = {
-    timeline: timeline, ACTS: ACTS, BEEP_ACTS: BEEP_ACTS, NOTE_ACTS: NOTE_ACTS, META: META, WORK_SEC: WORK_SEC, pad: pad,
+    noteBox: noteBox, timeline: timeline, ACTS: ACTS, BEEP_ACTS: BEEP_ACTS, NOTE_ACTS: NOTE_ACTS, META: META, WORK_SEC: WORK_SEC, pad: pad,
     dayKey: dayKey, addDays: addDays, keyToDate: keyToDate, fmtDur: fmtDur,
     boot: boot, get: function () { return S; }, reload: reload, save: save,
     storageOK: function () { return !memoryOnly; },

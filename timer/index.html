@@ -67,8 +67,9 @@
   <form method="dialog">
     <h2 id="noteTitle">Session saved</h2>
     <p id="noteInfo" class="muted" style="margin:0 0 12px"></p>
-    <input id="noteInput" type="text" maxlength="200" placeholder="Write a note" autofocus>
-    <div class="drow"><button class="primary" value="save">Save</button></div>
+    <textarea id="noteInput" rows="1" maxlength="1000" placeholder="Write a note" autofocus></textarea>
+    <p class="hint">Ctrl+Enter or Shift+Enter for more lines.</p>
+    <div class="drow"><button class="primary" id="noteSave" value="save">Save</button></div>
   </form>
 </dialog>
 
@@ -170,12 +171,13 @@
   });
 
   /* ---------- switching timers and notes ---------- */
+  var setNoteText = TSA.noteBox($('noteInput'), $('noteSave'));
   function openNote(t, auto) {
     var when = t.live ? 'running since ' + clock(t.start)
       : TSA.keyToDate(TSA.dayKey(t.start)).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ', ' + clock(t.start) + '–' + clock(t.end);
     $('noteTitle').textContent = META[t.act].icon + ' ' + META[t.act].label + ' · ' + when;
     $('noteInfo').textContent = auto ? 'Session saved. Add a note if you like (Esc skips it).' : 'Save with empty text to remove the note. Esc cancels.';
-    $('noteInput').value = t.note || '';
+    setNoteText(t.note || '');
     $('noteDlg').returnValue = '';
     $('noteDlg').dataset.act = t.act; $('noteDlg').dataset.start = t.start;
     $('noteDlg').showModal();

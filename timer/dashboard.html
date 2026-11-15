@@ -150,8 +150,9 @@
 <dialog id="noteDlg">
   <form method="dialog">
     <h2 id="noteTitle">Note</h2>
-    <input id="noteInput" type="text" maxlength="200" placeholder="Write a note" autofocus>
-    <div class="drow"><button class="ghost" id="noteDel" type="button">Delete note</button><button class="primary" value="save">Save</button></div>
+    <textarea id="noteInput" rows="1" maxlength="1000" placeholder="Write a note" autofocus></textarea>
+    <p class="hint">Ctrl+Enter or Shift+Enter for more lines.</p>
+    <div class="drow"><button class="ghost" id="noteDel" type="button">Delete note</button><button class="primary" id="noteSave" value="save">Save</button></div>
   </form>
 </dialog>
 
@@ -239,10 +240,30 @@
     if (!live) return true;
     var S = TSA.get(); return S.active === act && S.activeSince === start;
   }
+  var setNoteText = TSA.noteBox($('noteInput'), $('noteSave'));
+  /* Long notes: 2 lines + fade + 'more…'. `key` remembers which ones you opened across refreshes. */
+  var openNotes = {};
+  function noteHtml(text, key) {
+    return '<div class="nwrap' + (openNotes[key] ? ' open' : '') + '" data-k="' + esc(key) + '"><div class="nclamp">' + esc(text) + '</div><button type="button" class="nmore">' + (openNotes[key] ? 'less' : 'more…') + '</button></div>';
+  }
+  function fitNotes(root) {
+    Array.prototype.forEach.call(root.querySelectorAll('.nwrap'), function (w) {
+      var c = w.firstChild, was = w.classList.contains('open');
+      w.classList.remove('open');
+      var long = c.scrollHeight > c.clientHeight + 1;
+      w.classList.toggle('more', long || was);
+      w.classList.toggle('open', was && long);
+    });
+  }
+  document.addEventListener('click', function (e) {
+    var m = e.target.closest && e.target.closest('.nmore'); if (!m) return;
+    var w = m.parentNode, k = w.getAttribute('data-k');
+    openNotes[k] = !openNotes[k]; w.classList.toggle('open', !!openNotes[k]); m.textContent = openNotes[k] ? 'less' : 'more…';
+  });
   function openNote(act, start, end, live, note) {
     var when = live ? 'running since ' + clock(start) : fmtDay(TSA.dayKey(start), true) + ', ' + clock(start) + '–' + clock(end);
     $('noteTitle').textContent = META[act].icon + ' ' + META[act].label + ' · ' + when;
-    $('noteInput').value = note || '';
+    setNoteText(note || '');
     $('noteDel').hidden = !note;
     $('noteDlg').returnValue = '';
     $('noteDlg').dataset.act = act; $('noteDlg').dataset.start = start;
@@ -298,21 +319,23 @@
     var list = blocks.map(function (b, i) {
       var sec = Math.round((b.end - b.start) / 1000);
       return '<li><time>' + clock(b.start) + '</time>' + dot(b.act) + META[b.act].icon + ' ' + META[b.act].label + ' · ' + dur(sec) + (b.live ? ' · running' : '') +
-        (b.note ? ' — <em>' + esc(b.note) + '</em>' : '') + '</li>';
+        (b.note ? noteHtml(b.note, 'l:' + b.act + ':' + b.orig) : '') + '</li>';
     }).join('');
     $('tl').innerHTML = '<div class="tl" role="img" aria-label="Timeline of the day">' + bar + '</div><div class="tl-ends"><span>' + clock(t0) + '</span><span>' +
       (tlDay === todayK ? 'now ' : '') + clock(t1) + '</span></div><div class="tl-tip" id="tlTip">Tap a block for details.</div><ul class="tl-list">' + list + '</ul>';
     var tip = $('tlTip');
     var showBlock = function (b) {
       tip.innerHTML = dot(b.act) + META[b.act].icon + ' <strong>' + META[b.act].label + '</strong> · ' + clock(b.start) + '–' + clock(b.end) + ' · ' +
-        dur(Math.round((b.end - b.start) / 1000)) + (b.note ? '<br><em>' + esc(b.note) + '</em>' : '') +
+        dur(Math.round((b.end - b.start) / 1000)) + (b.note ? noteHtml(b.note, 't:' + b.act + ':' + b.orig) : '') +
         (canEdit(b.act, b.orig, b.live) ? ' <button type="button" class="linkbtn" data-edit data-act="' + b.act + '" data-start="' + b.orig + '">' + (b.note ? 'Edit note' : 'Add note') + '</button>' : '');
+      fitNotes(tip);
     };
     var show = function (e) {
       var i = e.target.getAttribute && e.target.getAttribute('data-i'); if (i == null) return;
       tlSel = blocks[+i].start; showBlock(blocks[+i]);   // remembered across refreshes
     };
     if (tlSel != null) blocks.forEach(function (b) { if (b.start === tlSel) showBlock(b); });   // keep the chosen block after a refresh
+    fitNotes($('tl'));
     var barEl = $('tl').firstChild;
     barEl.addEventListener('mouseover', show); barEl.addEventListener('click', show); barEl.addEventListener('focusin', show);
   }
@@ -440,7 +463,7 @@
           return '<tr><td>' + fmtDay(TSA.dayKey(g.start), true) + '</td><td>' + clock(g.start) + '</td>' +
             (isAll ? '<td>' + dot(g.act) + META[g.act].icon + ' ' + META[g.act].label + '</td>' : '') +
             '<td>' + dur(g.sec) + (g.live ? ' · running' : '') + '</td>' +
-            '<td class="wrapt">' + (g.note ? esc(g.note) + ' ' : '–') + (canEdit(g.act, g.start, g.live) ? '<button type="button" class="linkbtn" data-edit data-act="' + g.act + '" data-start="' + g.start + '">' + (g.note ? 'Edit' : 'Add') + '</button>' : '') + '</td></tr>';
+            '<td class="wrapt">' + (g.note ? noteHtml(g.note, 's:' + g.act + ':' + g.start) : '–') + ' ' + (canEdit(g.act, g.start, g.live) ? '<button type="button" class="linkbtn" data-edit data-act="' + g.act + '" data-start="' + g.start + '">' + (g.note ? 'Edit' : 'Add') + '</button>' : '') + '</td></tr>';
         }).join('') + '</tbody></table>' + (more ? '<p class="muted">Showing the latest 300 of ' + list.length + '.</p>' : '')
       : '<div class="empty-msg">No ' + (isAll ? '' : META[act].label.toLowerCase() + ' ') + 'sessions yet.</div>';
 
@@ -451,9 +474,11 @@
     $('notes').innerHTML = all.length ? all.slice(0, 300).map(function (n) {
       var sec = Math.round((n.end - n.start) / 1000);
       return '<div class="nrow"><span class="nt">' + fmtDay(TSA.dayKey(n.start), true) + ' · ' + clock(n.start) + '</span><span>' + dot(n.act) + META[n.act].icon + ' ' + META[n.act].label + ' · ' + dur(sec) + (n.live ? ' · running' : '') +
-        '</span><span class="nx">' + esc(n.note) + '</span><button type="button" class="linkbtn" data-edit data-act="' + n.act + '" data-start="' + n.start + '">Edit</button></div>';
+        '</span><span class="nx">' + noteHtml(n.note, 'n:' + n.act + ':' + n.start) + '</span><button type="button" class="linkbtn" data-edit data-act="' + n.act + '" data-start="' + n.start + '">Edit</button></div>';
     }).join('') + (all.length > 300 ? '<p class="muted">Showing the newest 300 of ' + all.length + '.</p>' : '')
       : '<div class="empty-msg">' + (nq || nact.value ? 'No notes match.' : 'No notes yet. Use the 📝 Note button on a timer card.') + '</div>';
+
+    fitNotes($('segs')); fitNotes($('notes'));
 
     /* every day */
     $('table').innerHTML = A.days.length

@@ -239,3 +239,15 @@ th { color: var(--muted); font-weight: 600; font-size: 12px; position: sticky; t
 @media (max-width: 700px) { .nrow { grid-template-columns: 1fr auto; } .nrow .nt { grid-column: 1 / -1; } }
 
 .edited { color: var(--muted); font-size: 12px; cursor: help; }
+
+/* note box: one line, turns multi-line with Ctrl/Shift+Enter */
+textarea#noteInput { display: block; width: 100%; box-sizing: border-box; border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 8px 10px; font: inherit; line-height: 1.4; color: inherit; resize: none; overflow: hidden; white-space: pre; }
+textarea#noteInput.multi { resize: vertical; overflow: auto; white-space: pre-wrap; }
+.hint { font-size: 12px; color: var(--muted); margin: 6px 0 0; }
+/* long notes on the dashboard: 2 lines, a fade at the end of the last line, 'more...' to open */
+.nwrap { max-width: 100%; }
+.nclamp { position: relative; overflow: hidden; white-space: pre-wrap; word-break: break-word; line-height: 1.4; max-height: 2.8em; }
+.nwrap.open .nclamp { max-height: none; }
+.nwrap.more:not(.open) .nclamp::after { content: ""; position: absolute; right: 0; bottom: 0; width: 3.4em; height: 1.4em; background: linear-gradient(to right, transparent, var(--card)); pointer-events: none; }
+.nmore { display: none; background: none; border: 0; padding: 0; margin-top: 2px; color: var(--accent); cursor: pointer; font: inherit; font-size: 13px; }
+.nwrap.more .nmore { display: inline-block; }
