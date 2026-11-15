@@ -36,6 +36,12 @@
     <div id="acts" class="xscroll"></div>
   </section>
 
+  <section class="card" id="goalsCard" hidden>
+    <h2>Daily goals</h2>
+    <div id="goals" class="grid"></div>
+    <p class="muted" style="margin:10px 0 0">Set or change goals with the "Goal" link on the Work, Workout and Paused cards of the timer page. Counted over the last 30 tracked days.</p>
+  </section>
+
   <section class="card">
     <div class="head">
       <h2>Score per day</h2>
@@ -135,6 +141,12 @@
     <h2>Your data</h2>
     <p class="muted" style="margin-top:0">Export saves everything from this site in one file named with today's date and time. Import restores it. The extra chronometer on the timer page is not part of it.</p>
     <div class="tools" id="tools"></div>
+    <h3 style="margin:18px 0 6px;font-size:15px">Spreadsheet files (CSV)</h3>
+    <p class="muted" style="margin:0 0 10px">Comma separated, durations in seconds, ready for Google Sheets or Excel.</p>
+    <div class="tools" id="csvTools"></div>
+    <h3 style="margin:18px 0 6px;font-size:15px">Daily backup</h3>
+    <label class="switch"><input id="autoBk" type="checkbox"><span>Download a backup file by itself the first time the timer page opens each day</span></label>
+    <p class="muted" id="bkInfo" style="margin:8px 0 0"></p>
   </section>
 </div>
 
@@ -166,6 +178,8 @@
   TSA.boot(Date.now(), {});
   TSA.initTheme($('themeBtn'));
   TSA.mountDataTools($('tools'), render);
+  TSA.mountCsvTools($('csvTools'));
+  $('autoBk').addEventListener('change', function () { TSA.setAutoBackup($('autoBk').checked); render(); });
   var monthOffset = 0;
 
   function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
@@ -466,6 +480,19 @@
             '<td class="wrapt">' + (g.note ? noteHtml(g.note, 's:' + g.act + ':' + g.start) : '–') + ' ' + (canEdit(g.act, g.start, g.live) ? '<button type="button" class="linkbtn" data-edit data-act="' + g.act + '" data-start="' + g.start + '">' + (g.note ? 'Edit' : 'Add') + '</button>' : '') + '</td></tr>';
         }).join('') + '</tbody></table>' + (more ? '<p class="muted">Showing the latest 300 of ' + list.length + '.</p>' : '')
       : '<div class="empty-msg">No ' + (isAll ? '' : META[act].label.toLowerCase() + ' ') + 'sessions yet.</div>';
+
+    /* goals */
+    var GA = Object.keys(A.goals);
+    $('goalsCard').hidden = !GA.length;
+    $('goals').innerHTML = TSA.ACTS.filter(function (a) { return A.goals[a]; }).map(function (a) {
+      var g = A.goals[a], max = g.kind === 'max', ok = max ? g.todaySec <= g.target : g.todaySec >= g.target;
+      return '<div class="stat"><div class="k">' + META[a].icon + ' ' + META[a].label + (max ? ' · max' : ' · goal') + ' ' + dur(g.target) + '</div><div class="v">' + dur(g.todaySec) + '</div>' +
+        '<div class="s">' + (max ? (ok ? 'under the limit today' : 'over the limit today') : (ok ? 'goal reached today ✓' : dur(g.target - g.todaySec) + ' to go')) + '</div>' +
+        '<div class="s">' + g.metDays + ' of ' + g.trackedDays + ' days ' + (max ? 'under' : 'met') + ' · streak ' + g.streak + '</div></div>';
+    }).join('');
+    $('autoBk').checked = TSA.get().settings.autoBackup;
+    var lb = TSA.get().lastBackup;
+    $('bkInfo').textContent = lb ? 'Last automatic backup: ' + fmtDay(TSA.dayKey(lb), true) + ', ' + clock(lb) + '. If your browser asks where to save it or blocks it, keep using "Export all data" too.' : 'No automatic backup yet. If your browser asks where to save files or blocks automatic downloads, keep using "Export all data".';
 
     /* notes */
     var nact = $('noteAct'), nq = $('noteQ').value.trim().toLowerCase();

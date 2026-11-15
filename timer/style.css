@@ -251,3 +251,11 @@ textarea#noteInput.multi { resize: vertical; overflow: auto; white-space: pre-wr
 .nwrap.more:not(.open) .nclamp::after { content: ""; position: absolute; right: 0; bottom: 0; width: 3.4em; height: 1.4em; background: linear-gradient(to right, transparent, var(--card)); pointer-events: none; }
 .nmore { display: none; background: none; border: 0; padding: 0; margin-top: 2px; color: var(--accent); cursor: pointer; font: inherit; font-size: 13px; }
 .nwrap.more .nmore { display: inline-block; }
+
+/* daily goal bar on the timer cards */
+.goalbar { width: 80%; max-width: 160px; height: 5px; border-radius: 3px; background: var(--line); overflow: hidden; margin: 6px auto 0; }
+.goalbar i { display: block; height: 100%; width: 0; background: var(--c); border-radius: 3px; transition: width .4s; }
+.goalbar.ok i { background: var(--on); }
+.goalbar.over i { background: var(--danger); }
+.goaltxt { font-size: 12px; color: var(--muted); text-align: center; margin-top: 3px; }
+.goaltxt .linkbtn { font-size: 12px; padding: 0 2px; }

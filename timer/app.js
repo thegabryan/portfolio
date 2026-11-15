@@ -8,6 +8,7 @@
   var KEY = 'tsa2_data', OLD_KEY = 'tsa1_data', CHRONO_KEY = 'tsa2_chrono', LEADER_KEY = 'tsa2_leader';
   var RESUME_MS = 30000;    // a page that comes back within 30 s keeps the running timer
   var WORK_SEC = 3600;      // every work round is one hour
+  var GOALS = { work: 'min', workout: 'min', paused: 'max' };   // daily goals: reach it (min) or stay under it (max)
   var ACTS = ['work', 'paused', 'workflow', 'workout', 'eating', 'shower', 'sleep'];
   var BEEP_ACTS = ['paused', 'workflow', 'workout', 'eating'];
   var NOTE_ACTS = ['work', 'workflow'];          // sessions that can carry a note
@@ -53,7 +54,7 @@
     return {
       version: 2,
       settings: {
-        autoRestart: false, theme: 'auto', volume: 0.5, beepMinutes: 10, shortPauseSec: 20,
+        autoRestart: false, theme: 'auto', volume: 0.5, beepMinutes: 10, shortPauseSec: 20, goals: {}, autoBackup: true,
         beep: { paused: true, workflow: true, workout: true, eating: true }
       },
       timer: { mode: 'idle' },   // the work countdown: idle | running | paused
@@ -61,6 +62,7 @@
       activeSince: null,         // when it started
       beepFrom: null,            // reference time for the reminder beeps
       lastSeen: null,            // heartbeat of the last open page
+      lastBackup: null,          // when the daily backup download last ran
       segments: [],              // finished stretches: { act, start, end, [id, note] }
       sessions: [],              // finished work rounds (= points)
       outreach: { clicks: [], goal: 3, adj: {} },   // click times of the outreach counter + hand corrections per day
@@ -75,6 +77,11 @@
     r.settings.beep = Object.assign({ paused: true, workflow: true, workout: true, eating: true }, (o.settings && o.settings.beep) || {});
     if (!(r.settings.beepMinutes > 0)) r.settings.beepMinutes = 10;
     if (!(r.settings.shortPauseSec >= 0 && r.settings.shortPauseSec <= 600)) r.settings.shortPauseSec = 20;
+    var g0 = r.settings.goals, g1 = {};
+    if (g0 && typeof g0 === 'object') Object.keys(GOALS).forEach(function (a) { if (g0[a] >= 1 && g0[a] <= 86399) g1[a] = Math.round(g0[a]); });
+    r.settings.goals = g1;
+    if (typeof r.settings.autoBackup !== 'boolean') r.settings.autoBackup = true;
+    if (!(r.lastBackup > 0)) r.lastBackup = null;
     ['segments', 'sessions'].forEach(function (k) { if (!Array.isArray(r[k])) r[k] = defaults()[k]; });
     if (!r.outreach || typeof r.outreach !== 'object') r.outreach = { clicks: [], goal: 3, adj: {} };
     if (!Array.isArray(r.outreach.clicks)) r.outreach.clicks = [];
@@ -468,6 +475,19 @@
       avgPerDay: tracked ? ocTotal / tracked : 0, best: ocBest, goal: goal, goalMetDays: met, trackedDays: tracked, byHour: ocHour
     };
 
+    var goals = {};
+    Object.keys(GOALS).forEach(function (a) {
+      var tgt = S.settings.goals[a]; if (!tgt) return;
+      var kind = GOALS[a], ok = function (d) { return kind === 'min' ? d.t[a] >= tgt : d.t[a] <= tgt; };
+      var met = 0, tr = 0, streak = 0, i, k, d;
+      for (i = 0; i < 30; i++) { k = addDays(todayK, -i); d = per[k]; if (d && d.firstOpen != null) { tr++; if (ok(d)) met++; } }
+      for (i = 0; i < 3650; i++) {
+        k = addDays(todayK, -i); d = per[k];
+        if (!d || d.firstOpen == null) { if (i === 0) continue; break; }
+        if (ok(d)) streak++; else if (i === 0 && kind === 'min') continue; else break;
+      }
+      goals[a] = { act: a, kind: kind, target: tgt, todaySec: per[todayK] ? per[todayK].t[a] : 0, metDays: met, trackedDays: tr, streak: streak };
+    });
     var best = null;
     days.forEach(function (d) { if (d.points > 0 && (!best || d.points > best.points)) best = d; });
     var has = {};
@@ -487,7 +507,7 @@
     S.sessions.forEach(function (s) { byHour[new Date(s.start).getHours()].points++; });
 
     return {
-      todayK: todayK, weekStart: weekStart, per: per, days: days, totals: tot, perAct: perAct, segs: segs, outreach: outreach,
+      todayK: todayK, weekStart: weekStart, per: per, days: days, totals: tot, perAct: perAct, segs: segs, outreach: outreach, goals: goals,
       points: S.sessions.length, trackedDays: tracked, avgPerDay: tracked ? S.sessions.length / tracked : 0,
       best: best, streak: { current: cur, longest: longestStreak }, byHour: byHour
     };
@@ -509,6 +529,69 @@
     boot(Date.now(), { keep: true });
     return S.sessions.length;
   }
+
+  /* ---------- daily goals ---------- */
+  function setGoalSec(act, sec) {
+    sec = Math.round(+sec);
+    if (!GOALS[act] || !(sec >= 0) || sec > 86399) return false;
+    if (sec) S.settings.goals[act] = sec; else delete S.settings.goals[act];
+    save(); return true;
+  }
+
+  /* ---------- files: download, CSV, daily backup ---------- */
+  function download(name, text, type) {
+    var a = root.document.createElement('a');
+    a.href = root.URL.createObjectURL(new root.Blob([text], { type: type || 'application/json' }));
+    a.download = name;
+    root.document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { root.URL.revokeObjectURL(a.href); }, 1500);
+  }
+  var csvCell = function (v) { v = v == null ? '' : String(v); return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  var csvText = function (rows) { return '\ufeff' + rows.map(function (r) { return r.map(csvCell).join(','); }).join('\r\n') + '\r\n'; };
+  var stamp = function (d) {
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + '_' + pad(d.getHours()) + '-' + pad(d.getMinutes()) + '-' + pad(d.getSeconds());
+  };
+  var dt = function (ms) { var d = new Date(ms); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()); };
+  /* kind: sessions | days | outreach | notes. Comma separated, durations in seconds. */
+  function csvExport(kind, now) {
+    now = now || Date.now();
+    var A = analyze(now), rows;
+    if (kind === 'sessions') {
+      var all = [];
+      ACTS.forEach(function (a) { A.segs[a].forEach(function (g) { all.push({ act: a, g: g }); }); });
+      all.sort(function (x, y) { return x.g.start - y.g.start; });
+      rows = [['day', 'start', 'end', 'timer', 'seconds', 'note']].concat(all.map(function (o) {
+        return [dayKey(o.g.start), dt(o.g.start), dt(o.g.end), META[o.act].label, o.g.sec, o.g.note];
+      }));
+    } else if (kind === 'days') {
+      rows = [['day', 'points', 'outreach', 'first_open'].concat(ACTS.map(function (a) { return META[a].label.toLowerCase() + '_seconds'; }))]
+        .concat(A.days.slice().reverse().map(function (d) {
+          return [d.day, d.points, d.outreach, d.firstOpen ? dt(d.firstOpen) : ''].concat(ACTS.map(function (a) { return Math.round(d.t[a]); }));
+        }));
+    } else if (kind === 'outreach') {
+      var goal = S.outreach.goal;
+      rows = [['day', 'outreach', 'goal', 'goal_met', 'edited_by_hand']].concat(A.days.slice().reverse().map(function (d) {
+        return [d.day, d.outreach, goal, d.outreach >= goal ? 'yes' : 'no', d.outreachEdited ? 'yes' : 'no'];
+      }));
+    } else {
+      rows = [['day', 'start', 'end', 'timer', 'seconds', 'note']].concat(allNotes(now).reverse().map(function (n) {
+        return [dayKey(n.start), dt(n.start), dt(n.end), META[n.act].label, Math.round((n.end - n.start) / 1000), n.note];
+      }));
+    }
+    return { name: stamp(new Date(now)) + '_' + kind + '.csv', text: csvText(rows) };
+  }
+  /* Once a day, on the first open, downloads a backup file by itself (if switched on). */
+  function maybeAutoBackup(now) {
+    now = now || Date.now();
+    reload();
+    if (!S.settings.autoBackup || (S.lastBackup && dayKey(S.lastBackup) === dayKey(now))) return false;
+    if (!S.segments.length && !S.sessions.length) return false;
+    var r = exportAll(now);
+    S.lastBackup = now; save();
+    try { download(r.name, r.json, 'application/json'); } catch (e) { return false; }
+    return true;
+  }
+  function setAutoBackup(on) { S.settings.autoBackup = !!on; save(); }
 
   /* ---------- sound ---------- */
   var ac = null, alarmTimer = null, alarmBox = null, hintEl = null;
@@ -651,6 +734,17 @@
       save(); paint();
     });
   }
+  function mountCsvTools(el) {
+    el.innerHTML = [['sessions', 'Sessions'], ['days', 'Daily totals'], ['outreach', 'Outreach per day'], ['notes', 'Notes']].map(function (k) {
+      return '<button type="button" class="ghost" data-csv="' + k[0] + '">CSV · ' + k[1] + '</button>';
+    }).join('');
+    el.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-csv]'); if (!b) return;
+      heartbeat(Date.now(), true);
+      var r = csvExport(b.dataset.csv);
+      download(r.name, r.text, 'text/csv;charset=utf-8');
+    });
+  }
   function mountDataTools(el, onChange) {
     el.innerHTML =
       '<button type="button" class="ghost" data-a="exp">Export all data</button>' +
@@ -660,11 +754,7 @@
     el.querySelector('[data-a=exp]').addEventListener('click', function () {
       heartbeat(Date.now(), true);
       var r = exportAll();
-      var a = root.document.createElement('a');
-      a.href = root.URL.createObjectURL(new root.Blob([r.json], { type: 'application/json' }));
-      a.download = r.name;
-      root.document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(function () { root.URL.revokeObjectURL(a.href); }, 1500);
+      download(r.name, r.json, 'application/json');
     });
     el.querySelector('[data-a=imp]').addEventListener('click', function () { file.click(); });
     file.addEventListener('change', function () {
@@ -698,7 +788,7 @@
     todayTotals: todayTotals, todayPoints: todayPoints, analyze: analyze,
     exportAll: exportAll, importText: importText,
     audio: audio, audioReady: audioReady, beep: beep, alarmStart: alarmStart, alarmStop: alarmStop,
-    setFavicon: setFavicon, engine: engine, initTheme: initTheme, mountDataTools: mountDataTools,
+    setFavicon: setFavicon, engine: engine, initTheme: initTheme, mountDataTools: mountDataTools, mountCsvTools: mountCsvTools, csvExport: csvExport, maybeAutoBackup: maybeAutoBackup, setAutoBackup: setAutoBackup, setGoalSec: setGoalSec, GOALS: GOALS,
     KEY: KEY, CHRONO_KEY: CHRONO_KEY
   };
 })(typeof window !== 'undefined' ? window : globalThis);

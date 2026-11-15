@@ -73,6 +73,18 @@
   </form>
 </dialog>
 
+<dialog id="gDlg">
+  <form method="dialog">
+    <h2 id="gTitle">Daily goal</h2>
+    <div class="drow" style="justify-content:flex-start;align-items:center;margin-top:0">
+      <input id="gH" type="number" min="0" max="23" inputmode="numeric" style="width:90px" aria-label="Hours"> h
+      <input id="gM" type="number" min="0" max="59" inputmode="numeric" style="width:90px" aria-label="Minutes"> min
+    </div>
+    <p class="hint" id="gInfo"></p>
+    <div class="drow"><button class="primary" value="save">Save</button></div>
+  </form>
+</dialog>
+
 <dialog id="goalDlg">
   <form method="dialog">
     <h2>Daily outreach goal</h2>
@@ -104,13 +116,14 @@
       '<div class="big" data-big>00:00:00</div>' +
       '<div class="state" data-state></div>' +
       '<div class="sub" data-sub></div>' +
+      (TSA.GOALS[a] ? '<div class="goalbar" data-gbar><i></i></div><div class="goaltxt"><span data-gtxt></span> <button type="button" class="linkbtn" data-goal>Goal</button></div>' : '') +
       '<div class="cbtns"><button type="button" class="tbtn" data-toggle>Start</button></div>' +
       '<button type="button" class="nbtn" data-note>📝 Note</button></article>';
   }).join('');
   ACTS.forEach(function (a) {
     var el = cardsEl.querySelector('[data-act=' + a + ']');
     refs[a] = { el: el, big: el.querySelector('[data-big]'), state: el.querySelector('[data-state]'),
-      sub: el.querySelector('[data-sub]'), btn: el.querySelector('[data-toggle]'), nbtn: el.querySelector('[data-note]') };
+      gbar: el.querySelector('[data-gbar]'), gtxt: el.querySelector('[data-gtxt]'), sub: el.querySelector('[data-sub]'), btn: el.querySelector('[data-toggle]'), nbtn: el.querySelector('[data-note]') };
   });
   var SUBS = { paused: 'Today · counts by itself', sleep: 'Today · keeps counting if closed' };
 
@@ -134,6 +147,17 @@
         r.sub.textContent = SUBS[a] || 'Today';
         r.btn.textContent = on ? (a === 'paused' ? 'Running' : 'Stop') : 'Start';
       }
+    });
+    ACTS.forEach(function (a) {                        // daily goal bars (Work, Workout: reach it; Paused: stay under it)
+      if (!TSA.GOALS[a]) return;
+      var r = refs[a], g = S.settings.goals[a], sec = T[a], max = TSA.GOALS[a] === 'max';
+      if (!g) { r.gbar.hidden = true; r.gtxt.textContent = max ? 'No daily limit' : 'No daily goal'; return; }
+      r.gbar.hidden = false;
+      var done = max ? sec <= g : sec >= g;
+      r.gbar.firstChild.style.width = Math.min(100, sec / g * 100) + '%';
+      r.gbar.classList.toggle('ok', !max && done);
+      r.gbar.classList.toggle('over', max && !done);
+      r.gtxt.textContent = TSA.fmtDur(sec) + ' / ' + TSA.fmtDur(g) + (max ? ' max' : '') + (max ? (done ? '' : ' · over') : (done ? ' ✓' : ''));
     });
     ACTS.forEach(function (a) {                        // note button: disabled until the timer has run at least once
       var t = TSA.noteTarget(a), nb = refs[a].nbtn;
@@ -183,12 +207,35 @@
     $('noteDlg').showModal();
     $('noteInput').select();
   }
+  $('gDlg').addEventListener('close', function () {
+    if (this.returnValue !== 'save') return;
+    var sec = Math.max(0, Math.round(+$('gH').value || 0)) * 3600 + Math.max(0, Math.round(+$('gM').value || 0)) * 60;
+    TSA.setGoalSec(this.dataset.act, Math.min(sec, 86399)); S = TSA.get(); renderAll();
+  });
+  /* keyboard: 1-7 = click that card, N = note for the running timer (not while typing or in a box) */
+  document.addEventListener('keydown', function (e) {
+    if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.repeat) return;
+    var t = e.target, tag = t && t.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return;
+    if (document.querySelector('dialog[open]')) return;
+    var n = parseInt(e.key, 10);
+    if (n >= 1 && n <= ACTS.length) { e.preventDefault(); refs[ACTS[n - 1]].btn.click(); }
+    else if (e.key === 'n' || e.key === 'N') { var nb = refs[S.active].nbtn; if (!nb.disabled) { e.preventDefault(); nb.click(); } }
+  });
   $('noteDlg').addEventListener('close', function () {
     if (this.returnValue === 'save') { TSA.setNoteAt(this.dataset.act, +this.dataset.start, $('noteInput').value); S = TSA.get(); renderAll(); }
   });
 
   cardsEl.addEventListener('click', function (e) {
     TSA.audio();
+    var gl = e.target.closest('[data-goal]');
+    if (gl) {
+      var ga = gl.closest('.acard').dataset.act, cur = S.settings.goals[ga] || 0, mx = TSA.GOALS[ga] === 'max';
+      $('gTitle').textContent = META[ga].icon + ' ' + META[ga].label + (mx ? ' · daily maximum' : ' · daily goal');
+      $('gInfo').textContent = (mx ? 'The most Paused time you want in a day. ' : 'The time you want to reach each day. ') + '0 h 0 min removes it.';
+      $('gH').value = Math.floor(cur / 3600); $('gM').value = Math.floor(cur % 3600 / 60);
+      $('gDlg').dataset.act = ga; $('gDlg').returnValue = ''; $('gDlg').showModal(); $('gH').select(); return;
+    }
     var nb = e.target.closest('[data-note]');
     if (nb) { var t = TSA.noteTarget(nb.closest('.acard').dataset.act); if (t) openNote(t, false); return; }
     var b = e.target.closest('[data-toggle]'); if (!b) return;
@@ -245,6 +292,7 @@
     if (kind === 'tick') renderLive(); else renderAll();
   });
   renderAll();
+  setTimeout(function () { TSA.maybeAutoBackup(); S = TSA.get(); }, 2500);   // once a day, on the first open
   if (!TSA.storageOK()) showNotice('Your browser is blocking storage, so nothing will be saved. Try a normal (non-private) window.');
   else if (boot.closedAct) showNotice('The page was closed, so ' + META[boot.closedAct.act].label + ' stopped at ' + clock(boot.closedAct.at) + '. The time since then counted as Paused.');
 })();
