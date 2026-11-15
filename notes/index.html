@@ -386,8 +386,8 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
 <!-- Full source of the companion userscript. Shown and copied from the help dialog. -->
 <script type="text/plain" id="userscriptSrc">// ==UserScript==
 // @name         Make Highlights & Notes
-// @namespace    local.gemini.annotations
-// @version      2.5
+// @namespace    local.make-highlights-notes
+// @version      2.5.1
 // @description  Highlight selected text, attach notes, and browse, search, import, and export notes across pages. Works on single-page apps like YouTube. Can send notes to your Url Notes site.
 // @match        *://*/*
 // @run-at       document-idle
@@ -401,8 +401,8 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
 (() => {
   'use strict';
 
-  if (window.__geminiHighlightsNotesInstalled) return;
-  window.__geminiHighlightsNotesInstalled = true;
+  if (window.__makeHighlightsNotesInstalled) return;
+  window.__makeHighlightsNotesInstalled = true;
 
   if (!window.CSS?.highlights || !window.Highlight) {
     console.error('Highlights & Notes: this browser does not support CSS Custom Highlights.');
@@ -608,11 +608,11 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
   loadAnnotationsForPage();
 
   const highlight = new Highlight();
-  CSS.highlights.set('gemini-user-notes', highlight);
+  CSS.highlights.set('make-highlights-notes', highlight);
 
   const highlightStyle = document.createElement('style');
   highlightStyle.textContent = `
-    ::highlight(gemini-user-notes) {
+    ::highlight(make-highlights-notes) {
       background-color: #ffe66d;
       color: #111;
     }
