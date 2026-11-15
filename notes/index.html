@@ -210,6 +210,17 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
   border-radius: 4px; white-space: pre-wrap; overflow-wrap: anywhere;
 }
 .hl-note { font-size: 18px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* script section inside the help dialog */
+.help-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+#codeDetails { margin: 8px 0 12px; }
+#codeDetails summary { cursor: pointer; color: var(--accent); font-size: 14px; }
+.code-view {
+  margin: 8px 0 0; padding: 12px; max-height: 320px; overflow: auto;
+  background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+  font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre; tab-size: 2;
+}
+.dlg-body ol { margin: 4px 0; padding-left: 22px; }
 </style>
 </head>
 <body>
@@ -329,8 +340,32 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
       <li><b>Auto-backup</b> (Chrome / Edge): pick a file once and the site rewrites it whenever your notes change. After restarting the browser, click <i>💾 Resume backup</i> once to allow it again. If this browser ever has no notes but the file does, it offers to restore instead of overwriting the file.</li>
     </ul>
 
-    <h3>7. Link with the Make Highlights &amp; Notes userscript</h3>
-    <p>With the Tampermonkey script (v2.5 or newer) installed in this browser, this page links up automatically — you'll see <b>🔗 Userscript linked</b> at the top.</p>
+    <h3 id="scriptHelp">7. Companion script for Tampermonkey: Make Highlights &amp; Notes</h3>
+    <p>An optional, free userscript that works on <b>every website</b>: select text, attach a note, and the text stays highlighted whenever you come back to that page. It also connects to this site, so highlights and quick notes from any page end up here. Everything stays in your browser; nothing is uploaded.</p>
+
+    <p><b>How to install</b></p>
+    <ol>
+      <li>Install the <b>Tampermonkey</b> extension from your browser's extension store (Chrome, Edge, Firefox and Safari are supported). Newer versions of Chrome and Edge may ask you to switch on <i>Allow user scripts</i> (or <i>Developer mode</i>) in the extension's details page.</li>
+      <li>Click <b>Copy script</b> below. The copy is already set to this site's address.</li>
+      <li>Click the Tampermonkey icon, choose <b>Create a new script…</b>, select everything in the editor, paste, and press <kbd>Ctrl</kbd>+<kbd>S</kbd>.</li>
+      <li>Reload this page. When it works you'll see <b>🔗 Userscript linked</b> at the top.</li>
+    </ol>
+    <p class="help-actions">
+      <button class="btn primary" id="copyScript">Copy script</button>
+      <button class="btn" id="downloadScript">Download .user.js</button>
+    </p>
+    <details id="codeDetails">
+      <summary>Show the code (worth a read before you install anything)</summary>
+      <pre class="code-view" id="codeView" tabindex="0"></pre>
+    </details>
+
+    <p><b>Using it</b></p>
+    <ul>
+      <li><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd> opens the panel (select text first to add a note to it). The panel's <i>All notes</i> button lists everything you saved, across pages, with search and JSON import/export.</li>
+      <li>Highlights need a recent browser (it uses the CSS Custom Highlights feature). It also works on single-page sites like YouTube.</li>
+    </ul>
+
+    <p><b>What it adds to this site</b> (the script v2.5 or newer):</p>
     <ul>
       <li><b>Send to this site:</b> on any page press <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>N</kbd> (or use the script's <i>Send to site</i> button / Tampermonkey menu). The selected quote, your note, the page link and a tag for the site's domain are queued, and arrive here the next time this page is open (instantly if it's open already). On YouTube the link opens the video at the moment you sent it.</li>
       <li><b>Highlights tab:</b> a read-only, searchable view of everything you highlighted with the script, grouped by page. <i>Open page</i> jumps to the highlighted text when the browser supports it. Edit highlights on the page itself.</li>
@@ -347,6 +382,1968 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
     </table>
   </div>
 </dialog>
+
+<!-- Full source of the companion userscript. Shown and copied from the help dialog. -->
+<script type="text/plain" id="userscriptSrc">// ==UserScript==
+// @name         Make Highlights & Notes
+// @namespace    local.gemini.annotations
+// @version      2.5
+// @description  Highlight selected text, attach notes, and browse, search, import, and export notes across pages. Works on single-page apps like YouTube. Can send notes to your Url Notes site.
+// @match        *://*/*
+// @run-at       document-idle
+// @noframes
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @grant        GM_addValueChangeListener
+// @grant        GM_registerMenuCommand
+// ==/UserScript==
+
+(() => {
+  'use strict';
+
+  if (window.__geminiHighlightsNotesInstalled) return;
+  window.__geminiHighlightsNotesInstalled = true;
+
+  if (!window.CSS?.highlights || !window.Highlight) {
+    console.error('Highlights & Notes: this browser does not support CSS Custom Highlights.');
+    return;
+  }
+
+  if (typeof GM_getValue !== 'function' || typeof GM_setValue !== 'function') {
+    console.error('Highlights & Notes: Tampermonkey storage is unavailable. Check the @grant settings.');
+    return;
+  }
+
+  // Your Url Notes site. The bridge only runs on these origins + path, so no
+  // other website can read your notes. Edit here if the site ever moves.
+  const SITE = {
+    origins: ['https://gabryan.com', 'https://www.gabryan.com'],
+    path: '/notes'
+  };
+  const DEFAULT_SITE_URL = 'https://gabryan.com/notes/';
+  const MAX_QUOTE_LENGTH = 2000;
+  const ALL_NOTES_PAGE = 40;   // rows drawn at once in the All notes panel (keeps it light)
+
+  const isNotesSite =
+    SITE.origins.includes(location.origin) &&
+    (location.pathname === SITE.path || location.pathname.startsWith(`${SITE.path}/`));
+
+  // Each page gets its own key. On YouTube watch pages the video id is part of
+  // the key, because every video shares the same /watch path.
+  function computePageKey() {
+    let key = `${location.origin}${location.pathname}`;
+
+    try {
+      const url = new URL(location.href);
+      const isYouTube = /(^|\.)youtube\.com$/.test(url.hostname);
+      const videoId = url.searchParams.get('v');
+
+      if (isYouTube && url.pathname === '/watch' && videoId) {
+        key += `?v=${videoId}`;
+      }
+    } catch {
+      // Fall back to origin + pathname.
+    }
+
+    return key;
+  }
+
+  let pageUrl = computePageKey();
+  const storeKey = 'make-highlights-notes:shared-store:v1';
+  const outboxKey = 'make-highlights-notes:outbox:v1';
+  const snapshotKey = 'make-highlights-notes:site-snapshot:v1';
+  const filterKey = 'make-highlights-notes:all-notes-filter:v1';
+
+  const annotations = [];
+  let pendingRange = null;
+  let restoreTimer = null;
+  let interfaceActive = false;
+
+  // All notes panel: which notes to show ('both' | 'highlights' | 'site'),
+  // a cached search index, and how many rows are drawn.
+  let allNotesFilter = 'both';
+  let allIndex = null;
+  let allNotesLimit = ALL_NOTES_PAGE;
+
+  try {
+    const savedFilter = GM_getValue(filterKey, 'both');
+    if (['both', 'highlights', 'site'].includes(savedFilter)) allNotesFilter = savedFilter;
+  } catch {
+    // Keep the default.
+  }
+
+  function invalidateAllIndex() {
+    allIndex = null;
+  }
+
+  function readStore() {
+    try {
+      const store = GM_getValue(storeKey, {});
+      return store && typeof store === 'object' && !Array.isArray(store)
+        ? store
+        : {};
+    } catch (error) {
+      console.warn('Highlights & Notes: could not read shared notes.', error);
+      return {};
+    }
+  }
+
+  function writeStore(store) {
+    try {
+      GM_setValue(storeKey, store);
+    } catch (error) {
+      console.warn('Highlights & Notes: could not save shared notes.', error);
+    }
+    invalidateAllIndex();
+  }
+
+  function readList(key) {
+    try {
+      const value = GM_getValue(key, []);
+      return Array.isArray(value) ? value : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function writeValue(key, value) {
+    try {
+      GM_setValue(key, value);
+    } catch (error) {
+      console.warn('Highlights & Notes: could not save data.', error);
+    }
+    invalidateAllIndex();
+  }
+
+  function readSnapshot() {
+    try {
+      const snapshot = GM_getValue(snapshotKey, null);
+      return snapshot && typeof snapshot === 'object' && Array.isArray(snapshot.notes)
+        ? snapshot
+        : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function normalizeAnnotations(saved) {
+    if (!Array.isArray(saved)) return [];
+
+    return saved.map(item => ({
+      text: String(item?.text || ''),
+      note: String(item?.note || ''),
+      prefix: String(item?.prefix || ''),
+      suffix: String(item?.suffix || ''),
+      createdAt: typeof item?.createdAt === 'string' ? item.createdAt : '',
+      updatedAt: typeof item?.updatedAt === 'string' ? item.updatedAt : '',
+      range: null
+    })).filter(item => item.text && item.note);
+  }
+
+  function annotationIdentity(item) {
+    return JSON.stringify([
+      item.text,
+      item.note,
+      item.prefix,
+      item.suffix
+    ]);
+  }
+
+  function mergeAnnotations(existing, incoming) {
+    const merged = [];
+    const identities = new Set();
+
+    for (const item of [...existing, ...incoming]) {
+      const identity = annotationIdentity(item);
+      if (identities.has(identity)) continue;
+
+      identities.add(identity);
+      merged.push(item);
+    }
+
+    return merged;
+  }
+
+  function loadAnnotationsForPage() {
+    annotations.length = 0;
+
+    try {
+      const store = readStore();
+
+      if (Array.isArray(store[pageUrl])) {
+        annotations.push(...normalizeAnnotations(store[pageUrl]));
+        return;
+      }
+
+      let legacySaved = [];
+
+      try {
+        legacySaved = JSON.parse(
+          localStorage.getItem(`make-highlights-notes:${pageUrl}`) || '[]'
+        );
+      } catch {
+        // Ignore invalid or unavailable legacy localStorage data.
+      }
+
+      const migrated = normalizeAnnotations(legacySaved);
+      if (migrated.length) {
+        annotations.push(...migrated);
+        store[pageUrl] = migrated.map(({
+          text, note, prefix, suffix, createdAt, updatedAt
+        }) => ({
+          text,
+          note,
+          prefix,
+          suffix,
+          createdAt,
+          updatedAt
+        }));
+        writeStore(store);
+      }
+    } catch (error) {
+      console.warn('Highlights & Notes: could not load saved annotations.', error);
+    }
+  }
+
+  loadAnnotationsForPage();
+
+  const highlight = new Highlight();
+  CSS.highlights.set('gemini-user-notes', highlight);
+
+  const highlightStyle = document.createElement('style');
+  highlightStyle.textContent = `
+    ::highlight(gemini-user-notes) {
+      background-color: #ffe66d;
+      color: #111;
+    }
+  `;
+  (document.head || document.documentElement).appendChild(highlightStyle);
+
+  const host = document.createElement('div');
+  host.style.cssText = `
+    position: fixed;
+    inset: 0;
+    z-index: 2147483647;
+    pointer-events: none;
+    display: none;
+  `;
+  (document.body || document.documentElement).appendChild(host);
+
+  // YouTube listens for single-key shortcuts (k, f, m, j, l...) on the document.
+  // Events from inside a shadow root are retargeted to the host, so YouTube
+  // cannot tell we are typing in an input. Stop keys from leaving our UI.
+  for (const type of ['keydown', 'keyup', 'keypress']) {
+    host.addEventListener(type, event => event.stopPropagation());
+  }
+
+  const shadow = host.attachShadow({ mode: 'open' });
+
+  const uiStyle = document.createElement('style');
+  uiStyle.textContent = `
+    * { box-sizing: border-box; }
+
+    #panel,
+    #all-notes {
+      position: fixed;
+      top: 12px;
+      width: 340px;
+      max-height: 65vh;
+      overflow: auto;
+      padding: 12px;
+      color: #222;
+      background: #fff;
+      border: 1px solid #bbb;
+      border-radius: 10px;
+      box-shadow: 0 3px 16px rgba(0,0,0,.2);
+      font: 14px/1.4 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      pointer-events: auto;
+    }
+
+    #panel {
+      right: 12px;
+      display: block;
+    }
+
+    #all-notes {
+      left: 12px;
+      display: none;
+      width: min(400px, calc(100vw - 24px));
+    }
+
+    #panel-header,
+    #all-notes-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    #panel h3,
+    #all-notes h3 {
+      flex: 1;
+      margin: 0;
+      font-size: 16px;
+    }
+
+    #pill {
+      display: none;
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      align-items: center;
+      gap: 8px;
+      padding: 12px;
+      background: #fff;
+      border: 1px solid #bbb;
+      border-radius: 10px;
+      box-shadow: 0 3px 16px rgba(0,0,0,.2);
+      pointer-events: auto;
+      font: 13px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    #hint {
+      color: #666;
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+
+    .item {
+      margin-top: 9px;
+      padding: 10px;
+      background: #f0f7ff;
+      border: 1px solid #d5e7f7;
+      border-left: 3px solid #6ba5d7;
+      border-radius: 8px;
+    }
+
+    .quote {
+      color: #3d5265;
+      font-size: 12px;
+      margin-bottom: 8px;
+      padding: 6px 8px;
+      background: #e5f0fa;
+      border-radius: 5px;
+    }
+
+    .note {
+      color: #222;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      margin-bottom: 4px;
+    }
+
+    .timestamp {
+      display: block;
+      margin: 5px 0;
+      color: #666;
+      font-size: 11px;
+    }
+
+    .clamped {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      overflow: hidden;
+    }
+
+    .more-button {
+      display: none;
+      margin: 2px 0 5px;
+      padding: 2px 0;
+      color: #28699e;
+      background: transparent;
+      border: 0;
+      cursor: pointer;
+      font: 12px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button {
+      border: 0;
+      border-radius: 5px;
+      padding: 6px 9px;
+      cursor: pointer;
+      font: 13px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    #add,
+    #add-pill {
+      background: #ffe66d;
+      color: #222;
+    }
+
+    #add {
+      margin-right: 8px;
+    }
+
+    #add.flash-red,
+    #add-pill.flash-red {
+      background: #ff5a5a;
+      color: #fff;
+      animation: note-flash 0.35s ease;
+    }
+
+    @keyframes note-flash {
+      0%   { background: #ff5a5a; transform: scale(1); }
+      50%  { background: #ff7b7b; transform: scale(1.04); }
+      100% { background: #ffe66d; transform: scale(1); }
+    }
+
+    .small {
+      margin: 6px 5px 0 0;
+      background: #e3edf6;
+      color: #263b4d;
+    }
+
+    #empty,
+    #all-notes-empty {
+      color: #666;
+      font-size: 13px;
+    }
+
+    .icon-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 30px;
+      min-height: 30px;
+      padding: 4px 8px;
+      color: #333;
+      background: #eee;
+      touch-action: none;
+      user-select: none;
+    }
+
+    .grab-handle {
+      cursor: grab;
+      font-size: 17px;
+      line-height: 1;
+      letter-spacing: -2px;
+    }
+
+    .grab-handle:active {
+      cursor: grabbing;
+    }
+
+    .toggle-button {
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .all-notes-entry {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-top: 8px;
+      padding: 9px;
+      color: #263b4d;
+      background: #f0f7ff;
+      border: 1px solid #d5e7f7;
+      border-radius: 7px;
+      text-decoration: none;
+      overflow-wrap: anywhere;
+    }
+
+    .all-notes-entry:hover {
+      background: #e5f0fa;
+    }
+
+    .site-favicon {
+      flex: 0 0 20px;
+      width: 20px;
+      height: 20px;
+      object-fit: contain;
+    }
+
+    .site-details {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .site-path {
+      display: block;
+      margin-top: 2px;
+      color: #526579;
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+
+    .all-notes-count {
+      display: block;
+      margin-top: 3px;
+      color: #666;
+      font-size: 12px;
+    }
+
+    .site-heading {
+      margin: 12px 0 2px;
+      color: #263b4d;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    .site-pending {
+      margin-top: 8px;
+      padding: 8px 10px;
+      color: #7a5200;
+      background: #fff6dc;
+      border: 1px solid #f0dca0;
+      border-radius: 7px;
+      font-size: 12px;
+    }
+
+    #all-notes-filter {
+      display: flex;
+      gap: 6px;
+      margin: 4px 0 8px;
+    }
+
+    .filter-button {
+      flex: 1;
+      margin: 0;
+      padding: 6px 4px;
+      color: #263b4d;
+      background: #e3edf6;
+      border: 1px solid transparent;
+    }
+
+    .filter-button.active {
+      color: #222;
+      background: #ffe66d;
+      border-color: #d9c24a;
+      font-weight: 600;
+    }
+
+    .site-icon {
+      flex: 0 0 20px;
+      width: 20px;
+      font-size: 16px;
+      line-height: 20px;
+      text-align: center;
+    }
+
+    .show-more {
+      margin: 10px 0 0;
+    }
+
+    .site-note-text {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 3;
+      line-clamp: 3;
+      overflow: hidden;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    #all-notes-search {
+      display: block;
+      width: 100%;
+      margin: 6px 0 10px;
+      padding: 8px;
+      border: 1px solid #bbb;
+      border-radius: 6px;
+      font: inherit;
+    }
+
+    #all-notes-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 6px 0 10px;
+    }
+
+    #all-notes-actions .small {
+      margin: 0;
+    }
+  `;
+  shadow.appendChild(uiStyle);
+
+  // Small confirmation message that works even when the main interface is closed.
+  const toastHost = document.createElement('div');
+  toastHost.style.cssText = `
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    transform: translateX(-50%);
+    z-index: 2147483647;
+    pointer-events: none;
+  `;
+  const toastShadow = toastHost.attachShadow({ mode: 'open' });
+  const toastStyle = document.createElement('style');
+  toastStyle.textContent = `
+    .toast {
+      padding: 9px 14px;
+      color: #fff;
+      background: #222;
+      border-radius: 8px;
+      box-shadow: 0 3px 16px rgba(0,0,0,.3);
+      font: 13px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      opacity: 0;
+      transition: opacity .2s;
+    }
+    .toast.show { opacity: 1; }
+  `;
+  const toastEl = document.createElement('div');
+  toastEl.className = 'toast';
+  toastShadow.append(toastStyle, toastEl);
+  (document.body || document.documentElement).appendChild(toastHost);
+
+  let toastTimer = null;
+
+  function showToast(message) {
+    toastEl.textContent = message;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2600);
+  }
+
+  const panel = document.createElement('aside');
+  panel.id = 'panel';
+
+  const panelHeader = document.createElement('div');
+  panelHeader.id = 'panel-header';
+
+  const panelGrab = document.createElement('button');
+  panelGrab.className = 'icon-button grab-handle';
+  panelGrab.type = 'button';
+  panelGrab.textContent = '⠿';
+  panelGrab.title = 'Drag panel';
+  panelGrab.setAttribute('aria-label', 'Drag panel');
+
+  const hideButton = document.createElement('button');
+  hideButton.className = 'icon-button toggle-button';
+  hideButton.type = 'button';
+  hideButton.textContent = '−';
+  hideButton.title = 'Minimize panel';
+  hideButton.setAttribute('aria-label', 'Minimize panel');
+
+  const heading = document.createElement('h3');
+  heading.textContent = 'Highlights & notes';
+
+  panelHeader.append(panelGrab, hideButton, heading);
+  panel.appendChild(panelHeader);
+
+  const hint = document.createElement('div');
+  hint.id = 'hint';
+  hint.textContent = 'Select text on the page to annotate it (Alt+Shift+H). Alt+Shift+N sends a note to your notes site.';
+  panel.appendChild(hint);
+
+  const panelAddButton = document.createElement('button');
+  panelAddButton.id = 'add';
+  panelAddButton.type = 'button';
+  panelAddButton.textContent = 'Add note';
+  panelAddButton.title = 'Add a note to the current selection';
+  panelAddButton.setAttribute('aria-label', 'Add a note to the current selection');
+
+  const openAllNotesButton = document.createElement('button');
+  openAllNotesButton.className = 'small';
+  openAllNotesButton.type = 'button';
+  openAllNotesButton.textContent = 'All notes';
+  openAllNotesButton.title = 'See pages with saved notes';
+
+  const panelSendButton = document.createElement('button');
+  panelSendButton.className = 'small';
+  panelSendButton.type = 'button';
+  panelSendButton.textContent = 'Send to site';
+  panelSendButton.title = 'Send the selection and a note to your Url Notes site (Alt+Shift+N)';
+  panelSendButton.setAttribute('aria-label', 'Send to Url Notes site');
+
+  panel.append(panelAddButton, openAllNotesButton, panelSendButton);
+
+  const itemsEl = document.createElement('div');
+  itemsEl.id = 'items';
+  panel.appendChild(itemsEl);
+
+  const emptyEl = document.createElement('div');
+  emptyEl.id = 'empty';
+  emptyEl.textContent = 'No annotations yet.';
+  panel.appendChild(emptyEl);
+
+  const pill = document.createElement('div');
+  pill.id = 'pill';
+
+  const pillGrab = document.createElement('button');
+  pillGrab.className = 'icon-button grab-handle';
+  pillGrab.type = 'button';
+  pillGrab.textContent = '⠿';
+  pillGrab.title = 'Drag minimized panel';
+  pillGrab.setAttribute('aria-label', 'Drag minimized panel');
+
+  const showButton = document.createElement('button');
+  showButton.className = 'icon-button toggle-button';
+  showButton.type = 'button';
+  showButton.textContent = '▣';
+  showButton.title = 'Show highlights and notes';
+  showButton.setAttribute('aria-label', 'Show highlights and notes');
+
+  const pillAddButton = document.createElement('button');
+  pillAddButton.id = 'add-pill';
+  pillAddButton.type = 'button';
+  pillAddButton.textContent = 'Add note';
+  pillAddButton.title = 'Add a note to the current selection';
+  pillAddButton.setAttribute('aria-label', 'Add a note to the current selection');
+
+  const pillAllNotesButton = document.createElement('button');
+  pillAllNotesButton.className = 'icon-button';
+  pillAllNotesButton.type = 'button';
+  pillAllNotesButton.textContent = 'All';
+  pillAllNotesButton.title = 'See pages with saved notes';
+  pillAllNotesButton.setAttribute('aria-label', 'See pages with saved notes');
+
+  const pillSendButton = document.createElement('button');
+  pillSendButton.className = 'icon-button';
+  pillSendButton.type = 'button';
+  pillSendButton.textContent = 'Send';
+  pillSendButton.title = 'Send the selection and a note to your Url Notes site (Alt+Shift+N)';
+  pillSendButton.setAttribute('aria-label', 'Send to Url Notes site');
+
+  pill.append(pillGrab, showButton, pillAddButton, pillAllNotesButton, pillSendButton);
+
+  const allNotesPanel = document.createElement('aside');
+  allNotesPanel.id = 'all-notes';
+
+  const allNotesHeader = document.createElement('div');
+  allNotesHeader.id = 'all-notes-header';
+
+  const allNotesHeading = document.createElement('h3');
+  allNotesHeading.textContent = 'All notes';
+
+  const closeAllNotesButton = document.createElement('button');
+  closeAllNotesButton.className = 'icon-button';
+  closeAllNotesButton.type = 'button';
+  closeAllNotesButton.textContent = '×';
+  closeAllNotesButton.title = 'Close all notes';
+  closeAllNotesButton.setAttribute('aria-label', 'Close all notes');
+
+  allNotesHeader.append(allNotesHeading, closeAllNotesButton);
+
+  const searchInput = document.createElement('input');
+  searchInput.id = 'all-notes-search';
+  searchInput.type = 'search';
+  searchInput.placeholder = 'Search pages, highlighted text, or notes…';
+  searchInput.setAttribute('aria-label', 'Search all notes');
+
+  // Show only your highlights, only the notes from your Url Notes site, or both.
+  const allNotesFilterBar = document.createElement('div');
+  allNotesFilterBar.id = 'all-notes-filter';
+
+  const filterButtons = {};
+  for (const [name, label] of [['both', 'Both'], ['highlights', 'Highlights'], ['site', 'Site notes']]) {
+    const button = document.createElement('button');
+    button.className = 'filter-button';
+    button.type = 'button';
+    button.textContent = label;
+    button.addEventListener('click', () => {
+      allNotesFilter = name;
+      allNotesLimit = ALL_NOTES_PAGE;
+      try {
+        GM_setValue(filterKey, name);
+      } catch {
+        // The choice just will not be remembered.
+      }
+      renderAllNotes();
+    });
+    filterButtons[name] = button;
+    allNotesFilterBar.appendChild(button);
+  }
+
+  const allNotesActions = document.createElement('div');
+  allNotesActions.id = 'all-notes-actions';
+
+  const exportButton = document.createElement('button');
+  exportButton.className = 'small';
+  exportButton.type = 'button';
+  exportButton.textContent = 'Export JSON';
+
+  const importButton = document.createElement('button');
+  importButton.className = 'small';
+  importButton.type = 'button';
+  importButton.textContent = 'Import JSON';
+
+  const importInput = document.createElement('input');
+  importInput.type = 'file';
+  importInput.accept = 'application/json,.json';
+  importInput.style.display = 'none';
+
+  allNotesActions.append(exportButton, importButton);
+
+  const allNotesList = document.createElement('div');
+  allNotesList.id = 'all-notes-list';
+
+  const allNotesEmpty = document.createElement('div');
+  allNotesEmpty.id = 'all-notes-empty';
+  allNotesEmpty.textContent = 'No saved notes on any pages yet.';
+
+  allNotesPanel.append(
+    allNotesHeader,
+    searchInput,
+    allNotesFilterBar,
+    allNotesActions,
+    importInput,
+    allNotesList,
+    allNotesEmpty
+  );
+
+  shadow.append(panel, pill, allNotesPanel);
+
+  function placeAt(element, left, top) {
+    const rect = element.getBoundingClientRect();
+    const maxLeft = Math.max(0, window.innerWidth - rect.width);
+    const maxTop = Math.max(0, window.innerHeight - rect.height);
+
+    element.style.left = `${Math.max(0, Math.min(left, maxLeft))}px`;
+    element.style.top = `${Math.max(0, Math.min(top, maxTop))}px`;
+    element.style.right = 'auto';
+  }
+
+  function makeDraggable(handle, element) {
+    handle.addEventListener('pointerdown', event => {
+      if (event.button !== 0) return;
+
+      event.preventDefault();
+
+      const rect = element.getBoundingClientRect();
+      const startX = event.clientX;
+      const startY = event.clientY;
+      const startLeft = rect.left;
+      const startTop = rect.top;
+
+      placeAt(element, startLeft, startTop);
+
+      try {
+        handle.setPointerCapture(event.pointerId);
+      } catch {
+        // Pointer capture may not be available in every browser.
+      }
+
+      function onMove(moveEvent) {
+        placeAt(
+          element,
+          startLeft + moveEvent.clientX - startX,
+          startTop + moveEvent.clientY - startY
+        );
+      }
+
+      function onEnd() {
+        handle.removeEventListener('pointermove', onMove);
+        handle.removeEventListener('pointerup', onEnd);
+        handle.removeEventListener('pointercancel', onEnd);
+      }
+
+      handle.addEventListener('pointermove', onMove);
+      handle.addEventListener('pointerup', onEnd);
+      handle.addEventListener('pointercancel', onEnd);
+    });
+  }
+
+  makeDraggable(panelGrab, panel);
+  makeDraggable(pillGrab, pill);
+
+  function hidePanel() {
+    const rect = panel.getBoundingClientRect();
+    placeAt(pill, rect.left, rect.top);
+    panel.style.display = 'none';
+    pill.style.display = 'flex';
+  }
+
+  function showPanel() {
+    const rect = pill.getBoundingClientRect();
+    placeAt(panel, rect.left, rect.top);
+    pill.style.display = 'none';
+    panel.style.display = 'block';
+  }
+
+  hideButton.addEventListener('click', hidePanel);
+  showButton.addEventListener('click', showPanel);
+
+  function serializeAnnotations(list) {
+    return list.map(({
+      text, note, prefix, suffix, createdAt, updatedAt
+    }) => ({
+      text,
+      note,
+      prefix,
+      suffix,
+      createdAt,
+      updatedAt
+    }));
+  }
+
+  function saveAnnotations() {
+    const store = readStore();
+    store[pageUrl] = serializeAnnotations(annotations);
+    writeStore(store);
+  }
+
+  // Cache element visibility during one index build so hidden duplicates of
+  // the same text (common on YouTube) are not matched.
+  function buildTextIndex() {
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    const visibility = new Map();
+    let text = '';
+    let node;
+
+    function isVisible(element) {
+      if (!element) return false;
+      if (visibility.has(element)) return visibility.get(element);
+
+      let visible = true;
+      try {
+        if (typeof element.checkVisibility === 'function') {
+          visible = element.checkVisibility();
+        }
+      } catch {
+        visible = true;
+      }
+
+      visibility.set(element, visible);
+      return visible;
+    }
+
+    while ((node = walker.nextNode())) {
+      if (host.contains(node)) continue;
+
+      const parent = node.parentElement;
+      if (parent && /^(SCRIPT|STYLE|NOSCRIPT|TEXTAREA|INPUT)$/i.test(parent.tagName)) {
+        continue;
+      }
+
+      if (!isVisible(parent)) continue;
+
+      const value = node.nodeValue || '';
+      if (!value) continue;
+
+      nodes.push({
+        node,
+        start: text.length,
+        end: text.length + value.length
+      });
+      text += value;
+    }
+
+    return { text, nodes };
+  }
+
+  function findNodePosition(nodes, offset, isEnd = false) {
+    for (const entry of nodes) {
+      if (offset < entry.end || (isEnd && offset === entry.end)) {
+        return {
+          node: entry.node,
+          offset: Math.max(0, Math.min(offset - entry.start, entry.node.nodeValue.length))
+        };
+      }
+    }
+
+    const last = nodes[nodes.length - 1];
+    if (!last) return null;
+
+    return {
+      node: last.node,
+      offset: last.node.nodeValue.length
+    };
+  }
+
+  function getRangeOffsets(index, range) {
+    let start = 0;
+    let end = 0;
+    let foundStart = false;
+    let foundEnd = false;
+
+    for (const entry of index.nodes) {
+      if (!foundStart && entry.node === range.startContainer) {
+        start = entry.start + range.startOffset;
+        foundStart = true;
+      }
+      if (!foundEnd && entry.node === range.endContainer) {
+        end = entry.start + range.endOffset;
+        foundEnd = true;
+      }
+      if (foundStart && foundEnd) break;
+    }
+
+    return foundStart && foundEnd ? { start, end } : null;
+  }
+
+  function createRangeFromOffsets(nodes, start, end) {
+    const startPoint = findNodePosition(nodes, start);
+    const endPoint = findNodePosition(nodes, end, true);
+    if (!startPoint || !endPoint) return null;
+
+    try {
+      const range = document.createRange();
+      range.setStart(startPoint.node, startPoint.offset);
+      range.setEnd(endPoint.node, endPoint.offset);
+      return range;
+    } catch {
+      return null;
+    }
+  }
+
+  // Re-finds every annotation in the page and repaints the highlights.
+  // It does not rebuild the side panel, so it is safe to run often.
+  function restoreAnnotations() {
+    if (!document.body) return;
+
+    highlight.clear();
+    if (!annotations.length) return;
+
+    const index = buildTextIndex();
+
+    for (const item of annotations) {
+      item.range = null;
+
+      let matchAt = -1;
+      let bestScore = -1;
+      let searchFrom = 0;
+
+      while (searchFrom < index.text.length) {
+        const candidateAt = index.text.indexOf(item.text, searchFrom);
+        if (candidateAt === -1) break;
+
+        const before = index.text.slice(
+          Math.max(0, candidateAt - item.prefix.length),
+          candidateAt
+        );
+        const after = index.text.slice(
+          candidateAt + item.text.length,
+          candidateAt + item.text.length + item.suffix.length
+        );
+
+        let score = 0;
+        if (item.prefix && before.endsWith(item.prefix)) score += item.prefix.length;
+        if (item.suffix && after.startsWith(item.suffix)) score += item.suffix.length;
+
+        if (score > bestScore) {
+          bestScore = score;
+          matchAt = candidateAt;
+        }
+
+        searchFrom = candidateAt + 1;
+      }
+
+      if (matchAt !== -1) {
+        const range = createRangeFromOffsets(
+          index.nodes,
+          matchAt,
+          matchAt + item.text.length
+        );
+
+        if (range && range.toString().trim() === item.text) {
+          item.range = range;
+          highlight.add(range);
+        }
+      }
+    }
+  }
+
+  // YouTube changes the page constantly (player time, recommendations, lazy
+  // comments), so a debounce would never fire. Use a throttle instead.
+  function scheduleRestore() {
+    if (restoreTimer) return;
+
+    restoreTimer = setTimeout(() => {
+      restoreTimer = null;
+      if (handleNavigation()) return;
+      if (annotations.length) restoreAnnotations();
+    }, 800);
+  }
+
+  // YouTube is a single-page app: the URL changes without a page load.
+  function handleNavigation() {
+    const key = computePageKey();
+    if (key === pageUrl) return false;
+
+    pageUrl = key;
+    pendingRange = null;
+    loadAnnotationsForPage();
+    restoreAnnotations();
+    renderAnnotations();
+
+    if (allNotesPanel.style.display !== 'none') renderAllNotes();
+    return true;
+  }
+
+  function addExpandableText(parent, text, className) {
+    const textEl = document.createElement('div');
+    textEl.className = `${className} clamped`;
+    textEl.textContent = text;
+
+    const moreButton = document.createElement('button');
+    moreButton.className = 'more-button';
+    moreButton.type = 'button';
+    moreButton.textContent = '… More';
+
+    moreButton.addEventListener('click', () => {
+      const isExpanded = textEl.classList.toggle('expanded');
+      textEl.classList.toggle('clamped', !isExpanded);
+      moreButton.textContent = isExpanded ? 'Less' : '… More';
+    });
+
+    parent.append(textEl, moreButton);
+
+    requestAnimationFrame(() => {
+      const needsMore = text.length > 140 || textEl.scrollHeight > textEl.clientHeight + 1;
+
+      if (needsMore) {
+        moreButton.style.display = 'inline-block';
+      } else {
+        textEl.classList.remove('clamped');
+      }
+    });
+  }
+
+  function formatTimestamp(value) {
+    if (!value) return 'Date unavailable';
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Date unavailable';
+
+    return date.toLocaleString();
+  }
+
+  function renderAnnotations() {
+    while (itemsEl.firstChild) {
+      itemsEl.removeChild(itemsEl.firstChild);
+    }
+
+    emptyEl.style.display = annotations.length ? 'none' : 'block';
+
+    annotations.forEach((item, index) => {
+      const row = document.createElement('div');
+      row.className = 'item';
+
+      addExpandableText(row, `“${item.text}”`, 'quote');
+      addExpandableText(row, item.note, 'note');
+
+      const timestamp = document.createElement('span');
+      timestamp.className = 'timestamp';
+
+      if (item.updatedAt) {
+        timestamp.textContent =
+          `Created: ${formatTimestamp(item.createdAt)} · Edited: ${formatTimestamp(item.updatedAt)}`;
+      } else {
+        timestamp.textContent = `Created: ${formatTimestamp(item.createdAt)}`;
+      }
+
+      row.appendChild(timestamp);
+
+      const edit = document.createElement('button');
+      edit.className = 'small';
+      edit.textContent = 'Edit note';
+      edit.addEventListener('click', () => {
+        const updated = prompt('Edit your note:', item.note);
+        if (updated !== null && updated.trim()) {
+          item.note = updated.trim();
+          item.updatedAt = new Date().toISOString();
+          saveAnnotations();
+          renderAnnotations();
+          if (allNotesPanel.style.display !== 'none') renderAllNotes();
+        }
+      });
+
+      const copy = document.createElement('button');
+      copy.className = 'small';
+      copy.textContent = '📋';
+      copy.title = 'Copy note';
+      copy.setAttribute('aria-label', 'Copy note');
+      copy.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(item.note);
+        } catch {
+          const temporary = document.createElement('textarea');
+          temporary.value = item.note;
+          temporary.style.position = 'fixed';
+          temporary.style.opacity = '0';
+          document.body.appendChild(temporary);
+          temporary.select();
+
+          try {
+            document.execCommand('copy');
+          } finally {
+            temporary.remove();
+          }
+        }
+
+        copy.textContent = '✅';
+        setTimeout(() => {
+          copy.textContent = '📋';
+        }, 1200);
+      });
+
+      const selectText = document.createElement('button');
+      selectText.className = 'small';
+      selectText.textContent = 'Select text';
+      selectText.addEventListener('click', () => {
+        if (!item.range) {
+          alert('That text could not be found on this page.');
+          return;
+        }
+
+        try {
+          const selection = window.getSelection();
+          if (selection) {
+            selection.removeAllRanges();
+            selection.addRange(item.range);
+          }
+
+          const rect = item.range.getBoundingClientRect();
+          window.scrollTo({
+            top: window.scrollY + rect.top - 120,
+            behavior: 'smooth'
+          });
+        } catch {
+          alert('That text is no longer available on the page.');
+        }
+      });
+
+      const remove = document.createElement('button');
+      remove.className = 'small';
+      remove.textContent = '🗑️';
+      remove.title = 'Delete note';
+      remove.setAttribute('aria-label', 'Delete note');
+      remove.addEventListener('click', () => {
+        annotations.splice(index, 1);
+        saveAnnotations();
+        restoreAnnotations();
+        renderAnnotations();
+        if (allNotesPanel.style.display !== 'none') renderAllNotes();
+      });
+
+      row.append(edit, copy, selectText, remove);
+      itemsEl.appendChild(row);
+    });
+  }
+
+  function normalizeSearchText(value) {
+    return String(value || '')
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .toLocaleLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, ' ')
+      .trim();
+  }
+
+  // Index of everything the All notes panel can show. It is built once and
+  // reused while you type, so searching stays fast; any change to the stored
+  // data throws it away (see invalidateAllIndex).
+  function buildAllIndex() {
+    if (allIndex) return allIndex;
+
+    const tokensOf = text => new Set(normalizeSearchText(text).split(/\s+/).filter(Boolean));
+
+    const pages = [];
+    for (const [url, saved] of Object.entries(readStore())) {
+      if (!Array.isArray(saved) || saved.length === 0) continue;
+
+      let parsedUrl;
+      try {
+        parsedUrl = new URL(url);
+      } catch {
+        continue;
+      }
+      if (!/^https?:$/.test(parsedUrl.protocol)) continue;
+
+      const items = normalizeAnnotations(saved).map(item => ({
+        item,
+        tokens: tokensOf(`${item.text} ${item.note}`)
+      }));
+      if (!items.length) continue;
+
+      const time = items.reduce((latest, { item }) => {
+        const stamp = Date.parse(item.updatedAt || item.createdAt) || 0;
+        return stamp > latest ? stamp : latest;
+      }, 0);
+
+      pages.push({ kind: 'page', url, parsedUrl, items, time });
+    }
+
+    const snapshot = readSnapshot();
+    const siteNotes = snapshot
+      ? snapshot.notes.map(note => ({
+          kind: 'site',
+          note,
+          tokens: tokensOf(note.text),
+          time: note.created || 0
+        }))
+      : [];
+
+    allIndex = { pages, siteNotes, snapshot };
+    return allIndex;
+  }
+
+  function timeLabel(time) {
+    return time > 0 ? formatTimestamp(new Date(time).toISOString()) : '';
+  }
+
+  function makePageLink(entry) {
+    const { url, parsedUrl, items, matching, time } = entry;
+
+    const link = document.createElement('a');
+    link.className = 'all-notes-entry';
+    link.href = url;
+
+    const favicon = document.createElement('img');
+    favicon.className = 'site-favicon';
+    favicon.alt = '';
+    favicon.loading = 'lazy';
+    favicon.src =
+      `https://www.google.com/s2/favicons?domain=${encodeURIComponent(parsedUrl.hostname)}&sz=32`;
+
+    const details = document.createElement('span');
+    details.className = 'site-details';
+
+    const domain = document.createElement('span');
+    domain.textContent = parsedUrl.host;
+    details.appendChild(domain);
+
+    const path = document.createElement('span');
+    path.className = 'site-path';
+    path.textContent = `${parsedUrl.pathname || '/'}${parsedUrl.search}`;
+    details.appendChild(path);
+
+    const count = document.createElement('span');
+    count.className = 'all-notes-count';
+
+    const noun = n => (n === 1 ? 'note' : 'notes');
+    const amount = matching.length !== items.length
+      ? `${matching.length} matching ${noun(matching.length)} · ${items.length} total`
+      : `${items.length} ${noun(items.length)}`;
+    count.textContent = `🖍️ ${amount}${time ? ` · ${timeLabel(time)}` : ''}`;
+
+    details.appendChild(count);
+    link.append(favicon, details);
+
+    if (url === pageUrl) {
+      link.addEventListener('click', event => {
+        event.preventDefault();
+        window.focus();
+        allNotesPanel.style.display = 'none';
+      });
+    } else {
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+    }
+
+    return link;
+  }
+
+  function makeSiteNoteLink(entry, snapshot) {
+    const { note } = entry;
+
+    const link = document.createElement('a');
+    link.className = 'all-notes-entry';
+    link.href = snapshot?.siteUrl || DEFAULT_SITE_URL;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+
+    const icon = document.createElement('span');
+    icon.className = 'site-icon';
+    icon.textContent = '📝';
+
+    const details = document.createElement('span');
+    details.className = 'site-details';
+
+    const text = document.createElement('span');
+    text.className = 'site-note-text';
+    text.textContent = note.text;
+
+    const when = document.createElement('span');
+    when.className = 'all-notes-count';
+    when.textContent = `${note.pinned ? '📌 ' : ''}Site note${note.created ? ` · ${timeLabel(note.created)}` : ''}`;
+
+    details.append(text, when);
+    link.append(icon, details);
+    return link;
+  }
+
+  function renderAllNotes() {
+    while (allNotesList.firstChild) {
+      allNotesList.removeChild(allNotesList.firstChild);
+    }
+
+    const index = buildAllIndex();
+
+    const searchTerms = normalizeSearchText(searchInput.value)
+      .split(/\s+/)
+      .filter(Boolean);
+    const matches = tokens => searchTerms.every(term => tokens.has(term));
+
+    const highlightTotal = index.pages.reduce((sum, page) => sum + page.items.length, 0);
+    filterButtons.both.textContent = 'Both';
+    filterButtons.highlights.textContent = `Highlights (${highlightTotal})`;
+    filterButtons.site.textContent = `Site notes (${index.siteNotes.length})`;
+
+    for (const [name, button] of Object.entries(filterButtons)) {
+      const active = name === allNotesFilter;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', String(active));
+    }
+
+    const entries = [];
+
+    if (allNotesFilter !== 'site') {
+      for (const page of index.pages) {
+        const matching = searchTerms.length
+          ? page.items.filter(({ tokens }) => matches(tokens))
+          : page.items;
+        if (matching.length) entries.push({ ...page, matching });
+      }
+    }
+
+    if (allNotesFilter !== 'highlights') {
+      for (const entry of index.siteNotes) {
+        if (!searchTerms.length || matches(entry.tokens)) entries.push(entry);
+      }
+    }
+
+    // Newest first. In the site-only view, pinned notes stay on top.
+    entries.sort((a, b) => {
+      if (allNotesFilter === 'site' && a.note.pinned !== b.note.pinned) {
+        return a.note.pinned ? -1 : 1;
+      }
+      return b.time - a.time;
+    });
+
+    if (allNotesFilter !== 'highlights') {
+      const pending = readList(outboxKey).length;
+      if (pending) {
+        const banner = document.createElement('div');
+        banner.className = 'site-pending';
+        banner.textContent =
+          `${pending} ${pending === 1 ? 'note is' : 'notes are'} waiting to be delivered. Open your Url Notes site to sync.`;
+        allNotesList.appendChild(banner);
+      }
+
+      const syncInfo = document.createElement('div');
+      syncInfo.className = 'all-notes-count';
+      syncInfo.textContent = index.snapshot
+        ? `Site notes last synced ${timeLabel(index.snapshot.syncedAt)}`
+        : 'Your Url Notes site has not synced yet. Open it once to see its notes here.';
+      allNotesList.appendChild(syncInfo);
+    }
+
+    allNotesEmpty.style.display = entries.length ? 'none' : 'block';
+    if (searchTerms.length) {
+      allNotesEmpty.textContent = 'No matching notes found.';
+    } else if (allNotesFilter === 'site') {
+      allNotesEmpty.textContent = index.snapshot
+        ? 'No notes on your Url Notes site yet.'
+        : 'No site notes synced yet.';
+    } else if (allNotesFilter === 'highlights') {
+      allNotesEmpty.textContent = 'No saved notes on any pages yet.';
+    } else {
+      allNotesEmpty.textContent = 'No saved notes yet.';
+    }
+
+    for (const entry of entries.slice(0, allNotesLimit)) {
+      allNotesList.appendChild(
+        entry.kind === 'page' ? makePageLink(entry) : makeSiteNoteLink(entry, index.snapshot)
+      );
+    }
+
+    if (entries.length > allNotesLimit) {
+      const more = document.createElement('button');
+      more.className = 'small show-more';
+      more.type = 'button';
+      more.textContent = `Show ${Math.min(ALL_NOTES_PAGE, entries.length - allNotesLimit)} more (${entries.length - allNotesLimit} hidden)`;
+      more.addEventListener('click', () => {
+        allNotesLimit += ALL_NOTES_PAGE;
+        renderAllNotes();
+      });
+      allNotesList.appendChild(more);
+    }
+  }
+
+  function openAllNotes() {
+    allNotesLimit = ALL_NOTES_PAGE;
+    renderAllNotes();
+    allNotesPanel.style.display = 'block';
+  }
+
+  openAllNotesButton.addEventListener('click', openAllNotes);
+  pillAllNotesButton.addEventListener('click', openAllNotes);
+
+  // Wait a moment after typing stops, so a long list is not redrawn on every key.
+  let searchTimer = null;
+  searchInput.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      allNotesLimit = ALL_NOTES_PAGE;
+      renderAllNotes();
+    }, 150);
+  });
+
+  closeAllNotesButton.addEventListener('click', () => {
+    allNotesPanel.style.display = 'none';
+  });
+
+  function exportNotes() {
+    const data = {
+      format: 'make-highlights-notes',
+      version: 2,
+      exportedAt: new Date().toISOString(),
+      pages: readStore()
+    };
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+      type: 'application/json'
+    });
+
+    const downloadUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = 'make-highlights-notes.json';
+    link.click();
+
+    setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+  }
+
+  exportButton.addEventListener('click', exportNotes);
+
+  importButton.addEventListener('click', () => {
+    importInput.click();
+  });
+
+  // Also reads the JSON exported by the Url Notes site: it carries the same
+  // "pages" object when the site is linked to this script.
+  importInput.addEventListener('change', async () => {
+    const file = importInput.files?.[0];
+    importInput.value = '';
+    if (!file) return;
+
+    try {
+      const imported = JSON.parse(await file.text());
+      const importedPages = imported?.pages || imported?.annotations;
+
+      if (!importedPages || typeof importedPages !== 'object' || Array.isArray(importedPages)) {
+        throw new Error('The file does not contain a pages object.');
+      }
+
+      const store = readStore();
+      let importedCount = 0;
+
+      for (const [url, saved] of Object.entries(importedPages)) {
+        let parsedUrl;
+        try {
+          parsedUrl = new URL(url);
+        } catch {
+          continue;
+        }
+
+        if (!/^https?:$/.test(parsedUrl.protocol)) continue;
+
+        const incoming = normalizeAnnotations(saved);
+        if (!incoming.length) continue;
+
+        const existing = normalizeAnnotations(store[url]);
+        const merged = mergeAnnotations(existing, incoming);
+
+        importedCount += merged.length - existing.length;
+        store[url] = serializeAnnotations(merged);
+      }
+
+      const currentPageNotes = normalizeAnnotations(store[pageUrl]);
+      const updatedCurrentPage = mergeAnnotations(annotations, currentPageNotes);
+      annotations.splice(0, annotations.length, ...updatedCurrentPage);
+
+      store[pageUrl] = serializeAnnotations(annotations);
+
+      writeStore(store);
+      restoreAnnotations();
+      renderAnnotations();
+      renderAllNotes();
+
+      alert(`Import complete. Added ${importedCount} new ${importedCount === 1 ? 'note' : 'notes'}.`);
+    } catch (error) {
+      console.error('Highlights & Notes: could not import notes.', error);
+      alert('Could not import that JSON file. Make sure it is an export from Make Highlights & Notes.');
+    }
+  });
+
+  function updateSelectionRange() {
+    const selection = window.getSelection();
+
+    if (!selection || selection.rangeCount === 0 || !selection.toString().trim()) {
+      pendingRange = null;
+      return;
+    }
+
+    const range = selection.getRangeAt(0).cloneRange();
+    const rect = range.getBoundingClientRect();
+
+    if (!rect.width && !rect.height) {
+      pendingRange = null;
+      return;
+    }
+
+    pendingRange = range;
+  }
+
+  function flashButtonRed(button) {
+    button.classList.remove('flash-red');
+    void button.offsetWidth;
+    button.classList.add('flash-red');
+    setTimeout(() => button.classList.remove('flash-red'), 350);
+  }
+
+  function addNoteToCurrentSelection(button, rangeOverride = null) {
+    if (rangeOverride) {
+      pendingRange = rangeOverride;
+    } else {
+      updateSelectionRange();
+    }
+
+    if (!pendingRange) {
+      flashButtonRed(button);
+      return;
+    }
+
+    const range = pendingRange.cloneRange();
+    const text = range.toString().trim();
+
+    if (!text) {
+      pendingRange = null;
+      flashButtonRed(button);
+      return;
+    }
+
+    const index = buildTextIndex();
+    const offsets = getRangeOffsets(index, range);
+
+    const note = prompt(
+      `Add a note for “${text.slice(0, 120)}${text.length > 120 ? '…' : ''}”`
+    );
+
+    if (note !== null && note.trim()) {
+      const start = offsets ? offsets.start : -1;
+      const end = offsets ? offsets.end : -1;
+
+      annotations.push({
+        text,
+        note: note.trim(),
+        prefix: start >= 0 ? index.text.slice(Math.max(0, start - 60), start) : '',
+        suffix: end >= 0 ? index.text.slice(end, end + 60) : '',
+        createdAt: new Date().toISOString(),
+        updatedAt: '',
+        range
+      });
+
+      saveAnnotations();
+      restoreAnnotations();
+      renderAnnotations();
+
+      if (allNotesPanel.style.display !== 'none') {
+        renderAllNotes();
+      }
+    }
+
+    pendingRange = null;
+  }
+
+  for (const button of [panelAddButton, pillAddButton, panelSendButton, pillSendButton]) {
+    button.addEventListener('mousedown', event => event.preventDefault());
+  }
+
+  panelAddButton.addEventListener('click', () => {
+    addNoteToCurrentSelection(panelAddButton);
+  });
+
+  pillAddButton.addEventListener('click', () => {
+    addNoteToCurrentSelection(pillAddButton);
+  });
+
+  // ---------------------------------------------------------------------
+  // Send a note to the Url Notes site
+  // ---------------------------------------------------------------------
+
+  // "www.youtube.com" -> "youtube", "docs.github.com" -> "github",
+  // "news.bbc.co.uk" -> "bbc", "localhost" -> "localhost".
+  function domainTag(hostname) {
+    const labels = String(hostname || '')
+      .toLowerCase()
+      .replace(/^www\./, '')
+      .split('.')
+      .filter(Boolean);
+
+    if (!labels.length) return 'web';
+
+    if (labels.length === 1 || /^\d+$/.test(labels[labels.length - 1])) {
+      return labels.join('-').replace(/[^a-z0-9-]/g, '-');
+    }
+
+    let dropped = 1;
+    if (
+      labels.length >= 3 &&
+      labels[labels.length - 1].length <= 3 &&
+      labels[labels.length - 2].length <= 3
+    ) {
+      dropped = 2;
+    }
+
+    const label = labels[Math.max(0, labels.length - dropped - 1)];
+    return label.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'web';
+  }
+
+  function formatClock(totalSeconds) {
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    const pad = value => String(value).padStart(2, '0');
+
+    return hours
+      ? `${hours}:${pad(minutes)}:${pad(seconds)}`
+      : `${minutes}:${pad(seconds)}`;
+  }
+
+  // The link to save with a note. On a YouTube video it opens at the moment you
+  // sent the note (the same &t= link YouTube's own "Share at" produces).
+  function linkForNote() {
+    try {
+      const url = new URL(location.href);
+      const isYouTube = /(^|\.)youtube\.com$/.test(url.hostname);
+
+      if (isYouTube && url.pathname === '/watch' && url.searchParams.get('v')) {
+        const video = document.querySelector('video.html5-main-video') || document.querySelector('video');
+        const seconds = video && Number.isFinite(video.currentTime)
+          ? Math.floor(video.currentTime)
+          : 0;
+
+        if (seconds > 0) {
+          url.searchParams.set('t', `${seconds}s`);
+          url.hash = '';
+          return { url: url.toString(), stamp: formatClock(seconds) };
+        }
+      }
+    } catch {
+      // Fall back to the plain page link.
+    }
+
+    return { url: location.href.split('#')[0], stamp: '' };
+  }
+
+  // Quote, your note, page title + link (with the video time on YouTube), and
+  // a tag for the site's domain.
+  function composeSiteNote(quote, note) {
+    const parts = [];
+    if (quote) parts.push(`“${quote}”`);
+    if (note) parts.push(note);
+
+    const title = (document.title || '').trim();
+    const { url, stamp } = linkForNote();
+    parts.push([title, stamp ? `▶ ${stamp}` : '', url].filter(Boolean).join('\n'));
+    parts.push(`#${domainTag(location.hostname)}`);
+
+    return parts.join('\n\n');
+  }
+
+  function queueForSite(text) {
+    const outbox = readList(outboxKey);
+
+    outbox.push({
+      id: `gm-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+      text,
+      created: Date.now()
+    });
+
+    writeValue(outboxKey, outbox);
+  }
+
+  function sendToSite(button) {
+    const selected = String(window.getSelection() || '').trim();
+    const quote = selected.length > MAX_QUOTE_LENGTH
+      ? `${selected.slice(0, MAX_QUOTE_LENGTH)}…`
+      : selected;
+
+    const question = quote
+      ? `Note to send to your Url Notes site for “${quote.slice(0, 120)}${quote.length > 120 ? '…' : ''}” (optional):`
+      : 'Note to send to your Url Notes site about this page:';
+
+    const note = prompt(question);
+    if (note === null) return;
+
+    if (!quote && !note.trim()) {
+      if (button) flashButtonRed(button);
+      showToast('Nothing to send. Select text or write a note.');
+      return;
+    }
+
+    queueForSite(composeSiteNote(quote, note.trim()));
+    showToast('Queued for your Url Notes site ✓');
+
+    if (allNotesPanel.style.display !== 'none') renderAllNotes();
+  }
+
+  panelSendButton.addEventListener('click', () => sendToSite(panelAddButton));
+  pillSendButton.addEventListener('click', () => sendToSite(pillAddButton));
+
+  // ---------------------------------------------------------------------
+  // Bridge: only runs on your Url Notes site (see SITE at the top)
+  // ---------------------------------------------------------------------
+
+  function startBridge() {
+    const CHANNEL = 'url-notes-bridge';
+
+    const post = message => {
+      window.postMessage({ channel: CHANNEL, from: 'userscript', ...message }, location.origin);
+    };
+
+    const sendState = () => {
+      post({ type: 'state', outbox: readList(outboxKey), highlights: readStore() });
+    };
+
+    window.addEventListener('message', event => {
+      if (event.origin !== location.origin) return;
+
+      const data = event.data;
+      if (!data || data.channel !== CHANNEL || data.from !== 'page') return;
+
+      if (data.type === 'hello') {
+        sendState();
+      } else if (data.type === 'ack' && Array.isArray(data.ids)) {
+        const done = new Set(data.ids.map(String));
+        writeValue(
+          outboxKey,
+          readList(outboxKey).filter(item => !done.has(String(item?.id)))
+        );
+      } else if (data.type === 'snapshot' && Array.isArray(data.notes)) {
+        writeValue(snapshotKey, {
+          syncedAt: Date.now(),
+          siteUrl: `${location.origin}${location.pathname}`,
+          notes: data.notes.slice(0, 5000).map(note => ({
+            id: String(note?.id || ''),
+            text: String(note?.text || ''),
+            created: Number(note?.created) || 0,
+            pinned: !!note?.pinned
+          })).filter(note => note.text)
+        });
+      }
+    });
+
+    // Notes sent from other tabs, or highlights changed elsewhere, reach the
+    // open site right away.
+    if (typeof GM_addValueChangeListener === 'function') {
+      GM_addValueChangeListener(outboxKey, () => sendState());
+      GM_addValueChangeListener(storeKey, () => sendState());
+    }
+
+    sendState();
+  }
+
+  function openInterface(passedRange) {
+    handleNavigation();
+
+    let selectedRange = null;
+
+    if (passedRange && typeof passedRange.toString === 'function') {
+      try {
+        if (passedRange.toString().trim()) {
+          selectedRange = passedRange.cloneRange();
+        }
+      } catch {
+        selectedRange = null;
+      }
+    }
+
+    if (!selectedRange) {
+      updateSelectionRange();
+      selectedRange = pendingRange;
+    }
+
+    // Toggle: if the interface is already open and nothing is selected,
+    // this click closes it. With text selected it adds a note instead.
+    const isOpen = host.style.display !== 'none';
+
+    if (isOpen && !selectedRange) {
+      host.style.display = 'none';
+      allNotesPanel.style.display = 'none';
+      interfaceActive = false;
+      pendingRange = null;
+      return;
+    }
+
+    interfaceActive = true;
+    host.style.display = 'block';
+    allNotesPanel.style.display = 'none';
+
+    panel.style.display = 'block';
+    pill.style.display = 'none';
+
+    if (selectedRange) {
+      addNoteToCurrentSelection(panelAddButton, selectedRange);
+    }
+  }
+
+  // Original trigger, still supported.
+  document.addEventListener('make-highlights-notes-toggle', event => {
+    openInterface(event.detail?.range);
+  });
+
+  // Extra ways to open the interface, independent of any other script.
+  document.addEventListener('keydown', event => {
+    if (event.altKey && event.shiftKey && event.code === 'KeyH') {
+      event.preventDefault();
+      event.stopPropagation();
+      openInterface();
+    } else if (event.altKey && event.shiftKey && event.code === 'KeyN') {
+      event.preventDefault();
+      event.stopPropagation();
+      sendToSite();
+    }
+  }, true);
+
+  if (typeof GM_registerMenuCommand === 'function') {
+    GM_registerMenuCommand('Open Highlights & Notes', () => openInterface());
+    GM_registerMenuCommand('Send note to Url Notes site', () => sendToSite());
+  }
+
+  document.addEventListener('selectionchange', () => {
+    if (interfaceActive) updateSelectionRange();
+  });
+
+  document.addEventListener('pointerup', () => {
+    setTimeout(() => {
+      if (interfaceActive) updateSelectionRange();
+    }, 30);
+  }, true);
+
+  // YouTube navigation events, plus history navigation for other SPAs.
+  document.addEventListener('yt-navigate-finish', () => {
+    handleNavigation();
+    scheduleRestore();
+  });
+  window.addEventListener('popstate', () => {
+    handleNavigation();
+    scheduleRestore();
+  });
+
+  renderAnnotations();
+  restoreAnnotations();
+
+  // Keep the All notes panel current when stored data changes (including from
+  // another tab, e.g. when your Url Notes site syncs).
+  if (typeof GM_addValueChangeListener === 'function') {
+    for (const key of [storeKey, snapshotKey, outboxKey]) {
+      GM_addValueChangeListener(key, () => {
+        invalidateAllIndex();
+        if (allNotesPanel.style.display !== 'none') renderAllNotes();
+      });
+    }
+  }
+
+  if (isNotesSite) startBridge();
+
+  const observer = new MutationObserver(scheduleRestore);
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+    characterData: true
+  });
+})();
+</script>
 
 <script>
 'use strict';
@@ -1272,11 +3269,77 @@ function setupHelp() {
   $('bm').href = encodeURI(code);
   $('bm').addEventListener('click', e => { e.preventDefault(); toast('Drag this button to your bookmarks bar.'); });
 }
-function openHelp() {
+function openHelp(sectionId) {
   try { localStorage.setItem(SEEN_KEY, '1'); } catch (e) {}
   if (!help.open) help.showModal();
+  if (typeof sectionId === 'string') {
+    const target = $(sectionId);
+    if (target && target.scrollIntoView) target.scrollIntoView({ block: 'start' });
+  }
 }
-$('helpBtn').addEventListener('click', openHelp);
+$('helpBtn').addEventListener('click', () => openHelp());
+
+/* ---------- companion userscript (shown in the help dialog) ---------- */
+// The embedded copy points at gabryan.com/notes. When someone copies or downloads it,
+// the SITE block is rewritten to the address of the page they're on, so the link works
+// wherever this file is hosted.
+function userscriptSource() {
+  const node = $('userscriptSrc');
+  let src = node ? node.textContent : '';
+  if (!/^https?:$/.test(location.protocol)) return src;
+  try {
+    const host = location.hostname;
+    const origins = [location.origin];
+    if (/\./.test(host) && !/^[\d.]+$/.test(host) && location.protocol === 'https:') {
+      origins.push(host.startsWith('www.') ? 'https://' + host.slice(4) : 'https://www.' + host);
+    }
+    const dir = location.pathname.replace(/\/[^\/]*$/, '');
+    const siteBlock = /const SITE = \{[\s\S]*?\n  \};/;
+    const siteUrl = /const DEFAULT_SITE_URL = '[^']*';/;
+    if (siteBlock.test(src) && siteUrl.test(src)) {
+      const q = v => "'" + String(v).replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
+      src = src
+        .replace(siteBlock, () => 'const SITE = {\n    origins: [' + origins.map(q).join(', ') +
+          '],\n    path: ' + q(dir) + '\n  };')
+        .replace(siteUrl, () => 'const DEFAULT_SITE_URL = ' + q(BASE) + ';');
+    }
+  } catch (e) {}
+  return src;
+}
+
+function flashLabel(btn, text) {
+  const old = btn.dataset.label || btn.textContent;
+  btn.dataset.label = old;
+  btn.textContent = text;
+  clearTimeout(btn._t);
+  btn._t = setTimeout(() => { btn.textContent = old; }, 1800);
+}
+
+$('copyScript').addEventListener('click', e => {
+  const text = userscriptSource();
+  const btn = e.currentTarget;
+  const fallback = () => {
+    const ta = el('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed'; ta.style.opacity = '0';
+    $('help').appendChild(ta);
+    ta.select();
+    let done = false;
+    try { done = document.execCommand('copy'); } catch (err) {}
+    ta.remove();
+    flashLabel(btn, done ? 'Copied ✓' : 'Copy failed: open "Show the code" and copy it by hand');
+  };
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(() => flashLabel(btn, 'Copied ✓'), fallback);
+  } else fallback();
+});
+$('downloadScript').addEventListener('click', () => {
+  download('make-highlights-notes.user.js', userscriptSource(), 'text/javascript');
+});
+$('codeDetails').addEventListener('toggle', e => {
+  const view = $('codeView');
+  if (e.target.open && !view.textContent) view.textContent = userscriptSource();   // filled only when opened
+});
 $('helpClose').addEventListener('click', () => help.close());
 help.addEventListener('click', e => { if (e.target === help) help.close(); });
 setupHelp();
@@ -1352,18 +3415,16 @@ window.addEventListener('message', e => {
 });
 
 function initBridge() {
-  let tries = 0;
-  const ping = () => {
+  // The userscript also announces itself as soon as it loads, so a few seconds of
+  // waiting is enough; a late arrival is still accepted and updates the page.
+  [0, 500, 1500, 3000].forEach(ms => setTimeout(() => {
+    if (!bridgeConnected) toScript({ type: 'hello' });
+  }, ms));
+  setTimeout(() => {
     if (bridgeConnected) return;
-    if (tries++ > 6) {
-      bridgeWaiting = false;
-      if (view === 'highlights') render();
-      return;
-    }
-    toScript({ type: 'hello' });
-    setTimeout(ping, 600 * tries);
-  };
-  ping();
+    bridgeWaiting = false;
+    if (view === 'highlights') render();
+  }, 4000);
 }
 
 function highlightItems(list) {
@@ -1454,10 +3515,18 @@ function renderHighlights() {
 
   if (!bridgeConnected) {
     $('status').textContent = '';
-    box.appendChild(el('div', 'empty', bridgeWaiting
+    const msg = el('div', 'empty', bridgeWaiting
       ? 'Connecting to the userscript…'
       : 'Highlights appear here when the Make Highlights & Notes userscript (v2.5 or newer) is running in this browser. ' +
-        'Make sure Tampermonkey is on, then reload this page. Press ? for help.'));
+        'If you already installed it, make sure Tampermonkey is on and reload this page.');
+    if (!bridgeWaiting) {
+      msg.appendChild(el('br'));
+      const b = el('button', 'btn primary', 'Get the Tampermonkey script');
+      b.style.marginTop = '12px';
+      b.addEventListener('click', () => openHelp('scriptHelp'));
+      msg.appendChild(b);
+    }
+    box.appendChild(msg);
     return;
   }
 
