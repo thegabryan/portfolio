@@ -335,6 +335,7 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
     <h3>6. Backup &amp; import</h3>
     <ul>
       <li><b>JSON</b> keeps everything (pins, order, dates, trash). Use it for backups and moving between browsers or devices.</li>
+      <li><b>Daily backup offer:</b> the first time you open this page on a new day, if notes or highlights changed since your last backup, a bar offers <i>Download backup</i> (<code>url-notes-DATE_TIME.json</code>, saved in your browser's download folder). It never downloads by itself.</li>
       <li><b>TXT</b> and <b>CSV</b> are export-only, for reading or opening in a spreadsheet.</li>
       <li><b>Import</b> merges: notes you already have are skipped, nothing is overwritten.</li>
       <li><b>Auto-backup</b> (Chrome / Edge): pick a file once and the site rewrites it whenever your notes change. After restarting the browser, click <i>💾 Resume backup</i> once to allow it again. If this browser ever has no notes but the file does, it offers to restore instead of overwriting the file.</li>
@@ -3193,8 +3194,51 @@ function buildExport() {
   if (bridgeConnected) data.pages = highlights;
   return data;
 }
+const stampTime = () => {
+  const d = new Date(), p = x => String(x).padStart(2, '0');
+  return `${stamp()}_${p(d.getHours())}-${p(d.getMinutes())}`;
+};
 function exportJson() {
-  download(`notes-${stamp()}.json`, JSON.stringify(buildExport(), null, 2), 'application/json');
+  const data = buildExport();
+  download(`url-notes-${stampTime()}.json`, JSON.stringify(data, null, 2), 'application/json');
+  markBackedUp(data);
+}
+
+/* ---------- daily backup offer ---------- */
+// The first time the page is opened on a new day, if notes (or highlights) changed since the last
+// backup file, a bar offers to download one. Browsers can't pick a folder, so the file goes to the
+// normal download folder; the name (url-notes-DATE_TIME.json) tells it apart from other backups.
+const DAILY_KEY = 'url-notes-daily-backup';
+function readDaily() {
+  try { const v = JSON.parse(localStorage.getItem(DAILY_KEY) || '{}'); return v && typeof v === 'object' ? v : {}; }
+  catch (e) { return {}; }
+}
+function writeDaily(patch) {
+  try { localStorage.setItem(DAILY_KEY, JSON.stringify(Object.assign(readDaily(), patch))); } catch (e) {}
+}
+function dataSignature(data) {
+  const str = JSON.stringify([
+    (data.notes || []).map(n => [n.id, n.text, n.created, !!n.pinned]),
+    (data.trash || []).map(n => [n.id, n.text]),
+    data.pages || null
+  ]);
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) h = ((h * 33) ^ str.charCodeAt(i)) >>> 0;
+  return h.toString(36) + ':' + str.length;
+}
+function markBackedUp(data) {
+  writeDaily({ sig: dataSignature(data), backedUpAt: Date.now() });
+}
+function checkDailyBackup() {
+  const today = stamp();
+  const rec = readDaily();
+  if (rec.checkedDay === today) return;              // already looked at today
+  writeDaily({ checkedDay: today });
+  const data = buildExport();
+  if (!data.notes.length && !data.trash.length) return;
+  if (rec.sig === dataSignature(data)) return;       // nothing new since the last backup
+  const fresh = rec.sig ? 'New or changed notes since your last backup.' : 'No backup file made yet.';
+  toast(fresh, 'Download backup', exportJson, 30000);
 }
 function exportTxt() {
   const out = notes.map(n =>
@@ -3802,6 +3846,7 @@ if (params.has('q') || params.has('text')) {
 persist();   // also migrates notes saved by the old version
 render();
 initBridge();
+setTimeout(checkDailyBackup, 4300);   // after the bridge had its 4 s to deliver the highlights
 initBackup();
 
 if (addedFromUrl) toast('Note added from the URL', null, null, 3000);
