@@ -288,21 +288,44 @@
     save(); return true;
   }
   /* The note box: one line at first. Enter saves; Shift+Enter adds a new line (the box then grows to
-     several lines, and Enter still saves). `save` is the form's Save button. */
+     several lines, and Enter still saves). `save` is the form's Save button.
+     Every line you start writing gets the time you started it as a prefix ("16:12 · text", 24 h).
+     Lines that were already in the note when the box opened are left alone. */
+  var STAMP = /^\d{2}:\d{2} · /;
+  var stampNow = function () { var d = new Date(); return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ' · '; };
   function noteBox(ta, save) {
+    var freshLine = 0;                 // first line number still waiting for its time (-1 = none)
     var setMulti = function (on) { ta.classList.toggle('multi', on); ta.rows = on ? 5 : 1; };
+    var lineNo = function (pos) { return ta.value.slice(0, pos).split('\n').length - 1; };
     ta.addEventListener('keydown', function (e) {
       if (e.key !== 'Enter' || e.isComposing) return;
       e.preventDefault();
-      if (e.shiftKey) { setMulti(true); ta.setRangeText('\n', ta.selectionStart, ta.selectionEnd, 'end'); }
-      else save.click();
+      if (e.shiftKey) {
+        setMulti(true);
+        ta.setRangeText('\n', ta.selectionStart, ta.selectionEnd, 'end');
+        freshLine = lineNo(ta.selectionStart);
+      } else save.click();
     });
-    return function (text) { ta.value = text || ''; setMulti(/\n/.test(ta.value)); };
+    ta.addEventListener('input', function (e) {
+      if (freshLine < 0 || e.isComposing) return;
+      var lines = ta.value.split('\n'), caret = ta.selectionStart, changed = false, start = 0;
+      for (var n = 0; n < lines.length; n++) {
+        if (n >= freshLine && lines[n].trim() && !STAMP.test(lines[n])) {
+          var st = stampNow();
+          lines[n] = st + lines[n].replace(/^\s+/, '');
+          if (caret >= start) caret += st.length;
+          changed = true;
+        }
+        start += lines[n].length + 1;
+      }
+      if (changed) { ta.value = lines.join('\n'); ta.setSelectionRange(caret, caret); freshLine = -1; }
+    });
+    return function (text) { ta.value = text || ''; setMulti(/\n/.test(ta.value)); freshLine = ta.value ? -1 : 0; };
   }
 
   /* ----- notes on any timer's run ----- */
   var NOTE_MAX = 1000;
-  var cleanNote = function (t) { return String(t || '').replace(/\r\n?/g, '\n').trim().slice(0, NOTE_MAX); };
+  var cleanNote = function (t) { return String(t || '').replace(/\r\n?/g, '\n').split('\n').filter(function (l) { return !/^\d{2}:\d{2} ·\s*$/.test(l); }).join('\n').trim().slice(0, NOTE_MAX); };
   /* The run a note button of `act` points at: the running one, else that timer's most recent run. */
   function noteTarget(act) {
     if (S.active === act && S.activeSince != null) return { act: act, start: S.activeSince, end: null, live: true, note: S.liveNote || '', project: S.liveProject || '' };

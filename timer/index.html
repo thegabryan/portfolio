@@ -70,7 +70,7 @@
     <h2 id="noteTitle">Session saved</h2>
     <p id="noteInfo" class="muted" style="margin:0 0 12px"></p>
     <textarea id="noteInput" rows="1" maxlength="1000" placeholder="Write a note" autofocus></textarea>
-    <p class="hint">Enter saves · Shift+Enter for a new line.</p>
+    <p class="hint">Enter saves · Shift+Enter for a new line · each line gets its time.</p>
     <div id="projRow" style="margin-top:10px"><input id="projInput" list="projList" maxlength="60" placeholder="Project (optional)" autocomplete="off" style="width:100%"><datalist id="projList"></datalist></div>
     <div class="drow"><button class="primary" id="noteSave" value="save">Save</button></div>
   </form>
@@ -243,7 +243,7 @@
     $('noteDlg').returnValue = '';
     $('noteDlg').dataset.act = t.act; $('noteDlg').dataset.start = t.start;
     $('noteDlg').showModal();
-    $('noteInput').select();
+    $('noteInput').focus(); $('noteInput').setSelectionRange($('noteInput').value.length, $('noteInput').value.length);   // caret at the end, so typing adds to the note
   }
   $('gDlg').addEventListener('close', function () {
     if (this.returnValue !== 'save') return;
