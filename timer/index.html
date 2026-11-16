@@ -108,6 +108,7 @@
 
 <script src="app.js"></script>
 <script src="help.js"></script>
+<script src="alarms.js"></script>
 <script>
 (function () {
   var $ = function (id) { return document.getElementById(id); };
@@ -115,6 +116,7 @@
   var boot = TSA.boot(Date.now(), {});
   var S = TSA.get();
   TSA.initTheme($('themeBtn'));
+  TSAAlarms.init();
   TSAHelp.init('timer');
   TSA.mountDataTools($('tools'), function () { S = TSA.get(); renderAll(); });
   (function () {
@@ -239,7 +241,7 @@
     var isProj = TSA.NOTE_ACTS.indexOf(t.act) >= 0;
     $('projRow').hidden = !isProj;
     $('projList').innerHTML = TSA.projectList().map(function (p) { return '<option value="' + p.replace(/"/g, '&quot;') + '"></option>'; }).join('');
-    $('projInput').value = isProj ? ((t.live || auto) ? (t.project || S.lastProject || '') : (t.project || '')) : '';
+    $('projInput').value = isProj ? (t.project || '') : '';
     $('noteDlg').returnValue = '';
     $('noteDlg').dataset.act = t.act; $('noteDlg').dataset.start = t.start;
     $('noteDlg').showModal();
@@ -250,12 +252,20 @@
     var sec = Math.max(0, Math.round(+$('gH').value || 0)) * 3600 + Math.max(0, Math.round(+$('gM').value || 0)) * 60;
     TSA.setGoalSec(this.dataset.act, Math.min(sec, 86399)); S = TSA.get(); renderAll();
   });
-  /* keyboard: 1-7 = click that card, N = note for the running timer (not while typing or in a box) */
+  /* keyboard: 1-7 = click that card, N or Enter = note for the running timer (not while typing or in a box) */
   document.addEventListener('keydown', function (e) {
     if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.repeat) return;
     var t = e.target, tag = t && t.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return;
     if (document.querySelector('dialog[open]')) return;
+    /* Enter = note of the running timer (never "press the button that has focus"); nothing when no timer runs */
+    if (e.key === 'Enter') {
+      if (tag === 'A') return;
+      e.preventDefault();
+      var rb = S.active && refs[S.active] && refs[S.active].nbtn;
+      if (rb && !rb.disabled) rb.click();
+      return;
+    }
     var n = parseInt(e.key, 10);
     if (n >= 1 && n <= ACTS.length) { e.preventDefault(); refs[ACTS[n - 1]].btn.click(); }
     else if (e.key === 'n' || e.key === 'N') { var nb = refs[S.active].nbtn; if (!nb.disabled) { e.preventDefault(); nb.click(); } }

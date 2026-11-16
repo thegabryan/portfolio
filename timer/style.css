@@ -296,3 +296,15 @@ dialog.helpdlg[open] { display: flex; }
 .helpdlg .hbody code, .helpdlg .hbody kbd { background: var(--cell); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; font-size: 12.5px; }
 .helpdlg .hbody table { border-collapse: collapse; margin-bottom: 8px; }
 .helpdlg .hbody td { padding: 4px 14px 4px 0; }
+
+/* ----- Alarms popup ----- */
+dialog.alarmdlg { width: min(560px, 96vw); }
+.alarmdlg .alform { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 0 14px; }
+dialog.alarmdlg .alform select { width: auto; flex: none; }
+dialog.alarmdlg .alform b { flex: none; }
+.alarmdlg .alform select, .alarmdlg .alform input[type=text] { padding: 7px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: inherit; font: inherit; }
+dialog.alarmdlg .alform input[type=text] { width: auto; flex: 1; min-width: 120px; }
+dialog.alarmdlg .alform button { flex: none; }
+.alarmdlg .alrow { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); }
+.alarmdlg .alrow b { font-size: 20px; font-variant-numeric: tabular-nums; }
+.alarmdlg .almeta { flex: 1; font-size: 13px; color: var(--muted); }

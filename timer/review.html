@@ -57,12 +57,14 @@
 
 <script src="app.js"></script>
 <script src="help.js"></script>
+<script src="alarms.js"></script>
 <script>
 (function () {
   var $ = function (id) { return document.getElementById(id); };
   var ACTS = TSA.ACTS, META = TSA.META, dur = TSA.fmtDur, pad = TSA.pad;
   TSA.boot(Date.now(), {});
   TSA.initTheme($('themeBtn'));
+  TSAAlarms.init();
   TSAHelp.init('review');
   var kind = 'week', off = 0;     // off: 0 = this period, -1 = the one before, ...
 

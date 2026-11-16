@@ -14,7 +14,7 @@
   var NOTE_ACTS = ['work', 'workflow'];          // sessions that can carry a note
   var KEEPS_RUNNING = { sleep: true };           // counts by the clock even if the page is closed
   var META = {
-    work:     { label: 'Work',     icon: '⏰',             color: '--c-work'   },
+    work:     { label: 'Work',     icon: '💼',             color: '--c-work'   },
     paused:   { label: 'Paused',   icon: '⏸️',       color: '--c-paused' },
     workflow: { label: 'Workflow', icon: '🛠️', color: '--c-flow'   },
     workout:  { label: 'Workout',  icon: '🏋️', color: '--c-gym'    },
@@ -616,11 +616,14 @@
   }
 
   /* ---------- backup ---------- */
+  /* Alarms live under their own key (see alarms.js) but travel in the backup file. */
+  var ALARMS_KEY = 'tsa2_alarms';
+  function readAlarmsRaw() { try { var a = JSON.parse(root.localStorage.getItem(ALARMS_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
   function exportAll(now) {
     var d = new Date(now || Date.now());
     var name = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + '_' +
       pad(d.getHours()) + '-' + pad(d.getMinutes()) + '-' + pad(d.getSeconds()) + '.json';
-    return { name: name, json: JSON.stringify({ app: 'timer-score', exportedAt: d.toISOString(), data: S }, null, 2) };
+    return { name: name, json: JSON.stringify({ app: 'timer-score', exportedAt: d.toISOString(), data: S, alarms: readAlarmsRaw() }, null, 2) };
   }
   function importText(text) {
     var o;
@@ -628,6 +631,7 @@
     var d = o && o.app === 'timer-score' ? o.data : null;
     if (!d || !Array.isArray(d.sessions)) throw new Error('This does not look like a backup from this app.');
     S = normalize(migrate(d, Date.now()));
+    if (Array.isArray(o.alarms)) { try { root.localStorage.setItem(ALARMS_KEY, JSON.stringify(o.alarms)); } catch (e) {} }
     boot(Date.now(), { keep: true });
     return S.sessions.length;
   }
@@ -725,7 +729,7 @@
     setTimeout(function () { beep(880, .18, .5); }, 500);
     setTimeout(function () { beep(1175, .4, .5); }, 750);
   }
-  function alarmStart() {
+  function alarmStart(text) {
     alarmStop(); alarmPattern();
     alarmTimer = setInterval(alarmPattern, 1600);
     if (!alarmBox) {
@@ -735,6 +739,7 @@
       alarmBox.querySelector('button').addEventListener('click', alarmStop);
       root.document.body.appendChild(alarmBox);
     }
+    alarmBox.querySelector('span').textContent = text || '⏰ Time’s up — point added!';
     alarmBox.hidden = false;
   }
   function alarmStop() {

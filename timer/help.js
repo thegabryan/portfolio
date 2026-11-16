@@ -6,22 +6,25 @@
   var H = {};
   H.timer =
     '<h3>The seven timers</h3>' +
-    '<p>Work ⏰, Paused ⏸️, Workflow 🛠️, Workout 🏋️, Eating 🍽️, Shower 🚿 and Sleep 🌙. Each one shows today\'s total, counted from zero every day (the day changes at midnight). Press a card\'s button to start it; only one runs at a time, so starting one simply stops the other. Pressing the running timer again stops it and switches to <b>Paused</b>.</p>' +
+    '<p>Work 💼, Paused ⏸️, Workflow 🛠️, Workout 🏋️, Eating 🍽️, Shower 🚿 and Sleep 🌙. Each one shows today\'s total, counted from zero every day (the day changes at midnight). Press a card\'s button to start it; only one runs at a time, so starting one simply stops the other. Pressing the running timer again stops it and switches to <b>Paused</b>.</p>' +
     '<ul>' +
     '<li><b>Work</b> is a 1-hour countdown. When it reaches zero a loud alarm rings until you press <i>Stop alarm</i>, and you get <b>+1 point</b>. With <i>Auto-restart</i> on, it gives a short beep, adds the point and starts the next hour by itself. Stopping a round keeps the time left.</li>' +
     '<li><b>Paused</b> starts by itself when nothing else runs and the page is open (from the first time you open the site each day). Closed time is counted as Paused when you come back.</li>' +
     '<li><b>Sleep</b> keeps counting even with the page closed or the computer asleep, until you stop it.</li>' +
     '<li>If the page is closed or hidden for more than about 30 seconds, the running timer is stopped at the last moment it was seen (Sleep excepted).</li>' +
+    '<li><b>Enter</b> (when you are not typing in a box) opens the note of the running timer; the number keys 1–7 start the timers.</li>' +
     '<li>The <b>tab icon</b> (favicon) shows an emoji for the running timer.</li>' +
     '<li>Blocks that cross midnight are split between the two days.</li>' +
     '</ul>' +
     '<h3>Notes and projects</h3>' +
     '<ul>' +
     '<li>The small <b>📝 Note</b> button on every card adds a note to the running session, or to that timer\'s most recent session if it is stopped. If a note exists it opens for editing; clearing the text removes it.</li>' +
-    '<li>Work and Workflow also have a <b>Project</b> field (it remembers the last one and suggests earlier ones). Projects show up in the dashboard and in tags sent to Url Notes.</li>' +
+    '<li>Work and Workflow also have a <b>Project</b> field (it starts empty for every new run and suggests earlier projects as you type). Projects show up in the dashboard and in tags sent to Url Notes.</li>' +
     '<li>The note box starts as one line. <b>Enter</b> saves; <b>Shift+Enter</b> adds a new line (the box grows to several lines, and Enter still saves). Every line you start writing gets the time you started it, like <code>16:12 · text</code> (24 h). Lines already in a note keep what they have, and an existing note opens with the cursor at the end so you can add to it. Notes can be up to 1000 characters.</li>' +
     '<li>A note box also opens when you stop Work or switch away from it.</li>' +
     '</ul>' +
+    '<h3>Alarms</h3>' +
+    '<p>The <b>⏰ Alarms</b> button in the top bar (on every page) opens the alarm list. Pick a time on the 24-hour clock, an optional label, and <i>Once</i> or <i>Every day</i>, then press Add. When the time comes a loud repeating alarm rings with a <b>Stop alarm</b> banner. Alarms ring while any page of this site is open; one missed by more than 15 minutes only shows a notice. Alarms are included in Export / Import.</p>' +
     '<h3>Daily goals</h3>' +
     '<p>Click <b>Goal</b> on a card to set a daily goal: Work and Workout are goals to <i>reach</i>, Paused is a <i>maximum</i>. A progress bar shows how you are doing today.</p>' +
     '<h3>Settings bar</h3>' +
@@ -98,6 +101,8 @@
     '<li>If you edit a note after it was sent, an updated copy is queued.</li>' +
     '<li><b>Send day summary</b> (Timer page) queues a <code>#summary</code> note with today\'s totals, goals, points, outreach and notes.</li>' +
     '</ul>' +
+    '<h3>Claude limit-reset alarm</h3>' +
+    '<p>When a claude.ai page says when your usage limit resets (wording like <i>resets at 3:00 PM</i> or <i>resets in 2 hr 10 min</i>), the userscript reads that time and the timer page (when open) adds a <b>Claude limit resets</b> alarm for it. A newer time replaces the old one; you can delete it like any alarm.</p>' +
     '<h3>Highlights</h3>' +
     '<p>Notes you send to Url Notes from other pages while a timer runs get the running timer\'s tag (and project) added, e.g. <code>#work #my-project</code>.</p>' +
     '<h3>Highlighting and notes on web pages</h3>' +
