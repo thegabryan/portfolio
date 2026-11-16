@@ -7,178 +7,69 @@
   <title>Home</title>
   <style>
     * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      color: #172033;
-      background: #f5f7fb;
-      font: 14px/1.35 system-ui, sans-serif;
-    }
+    body { margin: 0; color: #172033; background: #f5f7fb; font: 14px/1.35 system-ui, sans-serif; }
 
-    /* The launch screen intentionally contains only this centered button. */
-    #open-menu {
-      position: fixed;
-      inset: 0;
-      display: grid;
-      place-items: center;
-      width: 100%;
-      height: 100%;
-      padding: 0;
-      border: 0;
-      border-radius: 0;
-      background: #f5f7fb;
-      color: #172033;
-      font: inherit;
-      cursor: pointer;
-    }
-    #open-menu span {
-      padding: 13px 22px;
-      border: 1px solid #d8deea;
-      border-radius: 10px;
-      background: #fff;
-      font-size: 15px;
-      font-weight: 600;
-      box-shadow: 0 2px 8px #1720330d;
-    }
+    #open-menu { position: fixed; inset: 0; display: grid; place-items: center; width: 100%; height: 100%; padding: 0; border: 0; border-radius: 0; background: #f5f7fb; color: #172033; font: inherit; cursor: pointer; }
+    #open-menu span { padding: 13px 22px; border: 1px solid #d8deea; border-radius: 10px; background: #fff; font-size: 15px; font-weight: 600; box-shadow: 0 2px 8px #1720330d; }
     #open-menu:hover span { border-color: #9db2e8; background: #fbfcff; }
-    #open-menu:focus-visible, .close:focus-visible, input:focus-visible, nav button:focus-visible {
-      outline: 2px solid #5277d5;
-      outline-offset: 2px;
-    }
-
+    #open-menu:focus-visible, .close:focus-visible, input:focus-visible, nav button:focus-visible { outline: 2px solid #5277d5; outline-offset: 2px; }
     #menu[hidden], #open-menu[hidden] { display: none; }
-    #menu {
-      position: fixed;
-      inset: 0;
-      overflow: auto;
-      background: #f5f7fb;
-    }
-    .content {
-      width: min(1200px, calc(100% - 28px));
-      margin: 0 auto;
-      padding: 16px 0 20px;
-    }
-    .topbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 12px;
-    }
+    #menu { position: fixed; inset: 0; overflow: auto; background: #f5f7fb; }
+    .content { width: min(1200px, calc(100% - 28px)); margin: 0 auto; padding: 16px 0 20px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
     h1 { margin: 0; font-size: 24px; letter-spacing: -.04em; }
-    .close, nav button {
-      padding: 6px 10px;
-      border: 1px solid #d8deea;
-      border-radius: 999px;
-      background: #fff;
-      color: #43506a;
-      font: inherit;
-      cursor: pointer;
-    }
-    .close:hover, nav button:hover, nav button.active {
-      border-color: #5277d5;
-      background: #eaf0ff;
-      color: #244ba7;
-    }
+    .close, nav button { padding: 6px 10px; border: 1px solid #d8deea; border-radius: 999px; background: #fff; color: #43506a; font: inherit; cursor: pointer; }
+    .close:hover, nav button:hover, nav button.active { border-color: #5277d5; background: #eaf0ff; color: #244ba7; }
     .controls { display: grid; gap: 8px; margin-bottom: 8px; }
-    input {
-      width: 100%;
-      height: 38px;
-      padding: 0 11px;
-      border: 1px solid #d8deea;
-      border-radius: 8px;
-      background: #fff;
-      color: inherit;
-      font: inherit;
-    }
+    input { width: 100%; height: 38px; padding: 0 11px; border: 1px solid #d8deea; border-radius: 8px; background: #fff; color: inherit; font: inherit; }
     nav { display: flex; gap: 6px; overflow-x: auto; padding: 1px 0 3px; }
     nav button { flex: 0 0 auto; padding: 6px 9px; }
     .status { min-height: 18px; margin: 2px 0 7px; color: #69758a; font-size: 12px; }
     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(185px, 1fr)); gap: 7px; }
-    .tool {
-      min-width: 0;
-      padding: 8px 10px;
-      border: 1px solid #e0e5ef;
-      border-radius: 8px;
-      background: #fff;
-      color: inherit;
-      text-decoration: none;
-    }
+    .tool { min-width: 0; padding: 8px 10px; border: 1px solid #e0e5ef; border-radius: 8px; background: #fff; color: inherit; text-decoration: none; }
     .tool:hover { border-color: #9db2e8; background: #fbfcff; }
     .tool strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
     .tool small { display: block; overflow: hidden; color: #68758a; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
     #empty { display: none; padding: 18px 0; color: #68758a; }
-    @media (max-width: 520px) {
-      .content { width: calc(100% - 20px); padding-top: 12px; }
-      h1 { font-size: 21px; }
-      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
-      .tool { padding: 7px; }
-    }
+    @media (max-width: 520px) { .content { width: calc(100% - 20px); padding-top: 12px; } h1 { font-size: 21px; } .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; } .tool { padding: 7px; } }
   </style>
 </head>
 <body>
-  <button id="open-menu" type="button" aria-controls="menu" aria-expanded="false" aria-label="Continue">
-    <span>Continue</span>
-  </button>
+  <button id="open-menu" type="button" aria-controls="menu" aria-expanded="false" aria-label="Continue"><span>Continue</span></button>
 
   <main id="menu" hidden>
     <div class="content">
-      <div class="topbar">
-        <h1>AI Directory</h1>
-        <button class="close" id="close-menu" type="button">Close ×</button>
-      </div>
+      <div class="topbar"><h1>AI Directory</h1><button class="close" id="close-menu" type="button">Close ×</button></div>
       <section aria-label="AI directory">
         <div class="controls">
-          <input id="search" type="search" placeholder="Search AI tools or expertise…" aria-label="Search AI tools">
+          <input id="search" type="search" placeholder="Search tools or expertise…" aria-label="Search AI tools">
           <nav aria-label="Filter by expertise">
             <button class="active" data-filter="all">All</button>
-            <button data-filter="assistants">Assistants</button>
-            <button data-filter="research">Research</button>
-            <button data-filter="coding">Coding</button>
-            <button data-filter="images">Images &amp; design</button>
-            <button data-filter="video">Video</button>
-            <button data-filter="audio">Audio</button>
-            <button data-filter="productivity">Productivity</button>
-            <button data-filter="open">Open &amp; local</button>
+            <button data-filter="assistant">Assistants</button>
+            <button data-filter="search">Search &amp; research</button>
+            <button data-filter="open">Open models</button>
           </nav>
         </div>
         <div class="status" id="status" aria-live="polite"></div>
         <div class="grid" id="tools">
-          <a class="tool" data-category="assistants" href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer"><strong>ChatGPT</strong><small>Assistant · writing, learning, analysis</small></a>
-          <a class="tool" data-category="assistants" href="https://claude.ai/" target="_blank" rel="noopener noreferrer"><strong>Claude</strong><small>Assistant · writing, reasoning, documents</small></a>
-          <a class="tool" data-category="assistants" href="https://gemini.google.com/" target="_blank" rel="noopener noreferrer"><strong>Google Gemini</strong><small>Assistant · multimodal, Google services</small></a>
-          <a class="tool" data-category="assistants" href="https://copilot.microsoft.com/" target="_blank" rel="noopener noreferrer"><strong>Microsoft Copilot</strong><small>Assistant · web, Microsoft services</small></a>
-          <a class="tool" data-category="assistants" href="https://grok.com/" target="_blank" rel="noopener noreferrer"><strong>Grok</strong><small>Assistant · chat, current topics</small></a>
-          <a class="tool" data-category="assistants" href="https://chat.deepseek.com/" target="_blank" rel="noopener noreferrer"><strong>DeepSeek</strong><small>Assistant · reasoning, coding</small></a>
-          <a class="tool" data-category="research" href="https://www.perplexity.ai/" target="_blank" rel="noopener noreferrer"><strong>Perplexity</strong><small>Research · web answers with sources</small></a>
-          <a class="tool" data-category="research" href="https://notebooklm.google.com/" target="_blank" rel="noopener noreferrer"><strong>NotebookLM</strong><small>Research · your documents and notes</small></a>
-          <a class="tool" data-category="research" href="https://elicit.com/" target="_blank" rel="noopener noreferrer"><strong>Elicit</strong><small>Research · papers and literature reviews</small></a>
-          <a class="tool" data-category="research" href="https://consensus.app/" target="_blank" rel="noopener noreferrer"><strong>Consensus</strong><small>Research · scientific papers</small></a>
-          <a class="tool" data-category="coding" href="https://github.com/features/copilot" target="_blank" rel="noopener noreferrer"><strong>GitHub Copilot</strong><small>Coding · editor assistance</small></a>
-          <a class="tool" data-category="coding" href="https://cursor.com/" target="_blank" rel="noopener noreferrer"><strong>Cursor</strong><small>Coding · AI code editor</small></a>
-          <a class="tool" data-category="coding" href="https://windsurf.com/" target="_blank" rel="noopener noreferrer"><strong>Windsurf</strong><small>Coding · AI development environment</small></a>
-          <a class="tool" data-category="coding" href="https://replit.com/" target="_blank" rel="noopener noreferrer"><strong>Replit</strong><small>Coding · build and run apps online</small></a>
-          <a class="tool" data-category="coding" href="https://docs.anthropic.com/en/docs/claude-code/overview" target="_blank" rel="noopener noreferrer"><strong>Claude Code</strong><small>Coding · terminal-based coding assistant</small></a>
-          <a class="tool" data-category="images" href="https://www.midjourney.com/" target="_blank" rel="noopener noreferrer"><strong>Midjourney</strong><small>Images · artistic generation</small></a>
-          <a class="tool" data-category="images" href="https://firefly.adobe.com/" target="_blank" rel="noopener noreferrer"><strong>Adobe Firefly</strong><small>Images · generation and editing</small></a>
-          <a class="tool" data-category="images" href="https://ideogram.ai/" target="_blank" rel="noopener noreferrer"><strong>Ideogram</strong><small>Images · graphics and text in images</small></a>
-          <a class="tool" data-category="images" href="https://leonardo.ai/" target="_blank" rel="noopener noreferrer"><strong>Leonardo AI</strong><small>Images · illustrations and assets</small></a>
-          <a class="tool" data-category="images" href="https://www.canva.com/magic-studio/" target="_blank" rel="noopener noreferrer"><strong>Canva Magic Studio</strong><small>Design · AI-assisted graphics</small></a>
-          <a class="tool" data-category="video" href="https://runwayml.com/" target="_blank" rel="noopener noreferrer"><strong>Runway</strong><small>Video · generation and editing</small></a>
-          <a class="tool" data-category="video" href="https://openai.com/sora/" target="_blank" rel="noopener noreferrer"><strong>Sora</strong><small>Video · text-to-video</small></a>
-          <a class="tool" data-category="video" href="https://deepmind.google/models/veo/" target="_blank" rel="noopener noreferrer"><strong>Google Veo</strong><small>Video · generative video</small></a>
-          <a class="tool" data-category="video" href="https://klingai.com/" target="_blank" rel="noopener noreferrer"><strong>Kling AI</strong><small>Video · text and image to video</small></a>
-          <a class="tool" data-category="video" href="https://pika.art/" target="_blank" rel="noopener noreferrer"><strong>Pika</strong><small>Video · create and transform clips</small></a>
-          <a class="tool" data-category="audio" href="https://elevenlabs.io/" target="_blank" rel="noopener noreferrer"><strong>ElevenLabs</strong><small>Audio · voices, speech, dubbing</small></a>
-          <a class="tool" data-category="audio" href="https://suno.com/" target="_blank" rel="noopener noreferrer"><strong>Suno</strong><small>Music · generate songs</small></a>
-          <a class="tool" data-category="audio" href="https://www.udio.com/" target="_blank" rel="noopener noreferrer"><strong>Udio</strong><small>Music · generate tracks</small></a>
-          <a class="tool" data-category="audio" href="https://otter.ai/" target="_blank" rel="noopener noreferrer"><strong>Otter.ai</strong><small>Audio · transcription and meeting notes</small></a>
-          <a class="tool" data-category="productivity" href="https://www.notion.so/product/ai" target="_blank" rel="noopener noreferrer"><strong>Notion AI</strong><small>Productivity · workspace writing and search</small></a>
-          <a class="tool" data-category="productivity" href="https://gamma.app/" target="_blank" rel="noopener noreferrer"><strong>Gamma</strong><small>Productivity · presentations and documents</small></a>
-          <a class="tool" data-category="open" href="https://ollama.com/" target="_blank" rel="noopener noreferrer"><strong>Ollama</strong><small>Local AI · run models on your computer</small></a>
-          <a class="tool" data-category="open" href="https://huggingface.co/" target="_blank" rel="noopener noreferrer"><strong>Hugging Face</strong><small>Open AI · models, datasets, demos</small></a>
-          <a class="tool" data-category="open" href="https://lmstudio.ai/" target="_blank" rel="noopener noreferrer"><strong>LM Studio</strong><small>Local AI · download and run models</small></a>
+          <a class="tool" data-category="assistant" href="https://gemini.google.com/app" target="_blank" rel="noopener noreferrer"><strong>Google Gemini</strong><small>Assistant · Google ecosystem, multimodal</small></a>
+          <a class="tool" data-category="assistant" href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer"><strong>ChatGPT</strong><small>Assistant · general-purpose, writing, analysis</small></a>
+          <a class="tool" data-category="assistant" href="https://claude.ai/" target="_blank" rel="noopener noreferrer"><strong>Claude</strong><small>Assistant · writing, reasoning, docs</small></a>
+          <a class="tool" data-category="search" href="https://www.perplexity.ai/" target="_blank" rel="noopener noreferrer"><strong>Perplexity</strong><small>Search · web answers with sources</small></a>
+          <a class="tool" data-category="assistant" href="https://github.com/copilot/" target="_blank" rel="noopener noreferrer"><strong>GitHub Copilot</strong><small>Assistant · coding and chat</small></a>
+          <a class="tool" data-category="assistant" href="https://chat.mistral.ai/" target="_blank" rel="noopener noreferrer"><strong>Mistral Le Chat</strong><small>Assistant · chat, writing, research</small></a>
+          <a class="tool" data-category="assistant" href="https://www.meta.ai/" target="_blank" rel="noopener noreferrer"><strong>Meta AI</strong><small>Assistant · chat and creative help</small></a>
+          <a class="tool" data-category="assistant" href="https://grok.com/" target="_blank" rel="noopener noreferrer"><strong>Grok</strong><small>Assistant · chat and current topics</small></a>
+          <a class="tool" data-category="assistant" href="https://manus.im/app" target="_blank" rel="noopener noreferrer"><strong>Manus</strong><small>AI agent · multi-step tasks</small></a>
+          <a class="tool" data-category="search" href="https://exa.ai/" target="_blank" rel="noopener noreferrer"><strong>Exa</strong><small>Search · AI web and research search</small></a>
+          <a class="tool" data-category="assistant" href="https://venice.ai/" target="_blank" rel="noopener noreferrer"><strong>Venice</strong><small>Assistant · private chat and generation</small></a>
+          <a class="tool" data-category="assistant" href="https://venice.ai/chat/agent" target="_blank" rel="noopener noreferrer"><strong>Venice Agent</strong><small>AI agent · assisted multi-step chat</small></a>
+          <a class="tool" data-category="assistant" href="https://chat.deepseek.com/" target="_blank" rel="noopener noreferrer"><strong>DeepSeek</strong><small>Assistant · reasoning, chat, coding</small></a>
+          <a class="tool" data-category="assistant" href="https://www.kimi.com/" target="_blank" rel="noopener noreferrer"><strong>Kimi</strong><small>Assistant · research and long-form chat</small></a>
+          <a class="tool" data-category="assistant" href="https://poe.com/" target="_blank" rel="noopener noreferrer"><strong>Poe</strong><small>Assistant hub · multiple models</small></a>
+          <a class="tool" data-category="open" href="https://huggingface.co/chat/" target="_blank" rel="noopener noreferrer"><strong>HuggingChat</strong><small>Open models · community AI chat</small></a>
         </div>
-        <div id="empty">No matching AI tools.</div>
+        <div id="empty">No matching tools.</div>
       </section>
     </div>
   </main>
