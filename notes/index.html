@@ -3598,7 +3598,7 @@ help.addEventListener('click', e => { if (e.target === help) help.close(); });
 setupHelp();
 
 /* ---------- userscript bridge ---------- */
-// Talks to the "Make Highlights & Notes" userscript (v2.4+) through window.postMessage.
+// Talks to the "Make Highlights & Notes" userscript (v2.4+) and the "Focus Timer Capsule" userscript through window.postMessage.
 // Without the userscript nothing here does anything.
 const CHANNEL = 'url-notes-bridge';
 const DELIVERED_KEY = 'url-notes-delivered';
@@ -3656,7 +3656,10 @@ function ingestOutbox(items) {
 window.addEventListener('message', e => {
   if (e.source !== window || e.origin !== location.origin) return;
   const d = e.data;
-  if (!d || d.channel !== CHANNEL || d.from !== 'userscript' || d.type !== 'state') return;
+  if (!d || d.channel !== CHANNEL || d.from !== 'userscript') return;
+  // 'outbox' = notes only (sent by the Focus Timer Capsule script); it must not touch the highlights.
+  if (d.type === 'outbox') { ingestOutbox(d.items); return; }
+  if (d.type !== 'state') return;
   const first = !bridgeConnected;
   bridgeConnected = true;
   bridgeWaiting = false;
