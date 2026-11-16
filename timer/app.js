@@ -296,6 +296,16 @@
   function noteBox(ta, save) {
     var freshLine = 0;                 // first line number still waiting for its time (-1 = none)
     var setMulti = function (on) { ta.classList.toggle('multi', on); ta.rows = on ? 5 : 1; };
+    /* Keeps what you are writing in view: the box grows with the lines (up to 12), then scrolls to the caret. */
+    var follow = function () {
+      if (!ta.classList.contains('multi')) return;
+      if (!ta.style.height) ta.rows = Math.max(5, Math.min(12, ta.value.split('\n').length + 1));
+      if (ta.selectionStart >= ta.value.length - 1) ta.scrollTop = ta.scrollHeight;
+      else {                                       // caret in the middle: scroll just enough to show its line
+        var lh = parseFloat(getComputedStyle(ta).lineHeight) || 20, y = (ta.value.slice(0, ta.selectionStart).split('\n').length - 1) * lh;
+        if (y < ta.scrollTop) ta.scrollTop = y; else if (y + lh > ta.scrollTop + ta.clientHeight) ta.scrollTop = y + lh - ta.clientHeight + 8;
+      }
+    };
     var lineNo = function (pos) { return ta.value.slice(0, pos).split('\n').length - 1; };
     ta.addEventListener('keydown', function (e) {
       if (e.key !== 'Enter' || e.isComposing) return;
@@ -304,10 +314,11 @@
         setMulti(true);
         ta.setRangeText('\n', ta.selectionStart, ta.selectionEnd, 'end');
         freshLine = lineNo(ta.selectionStart);
+        follow();
       } else save.click();
     });
     ta.addEventListener('input', function (e) {
-      if (freshLine < 0 || e.isComposing) return;
+      if (freshLine < 0 || e.isComposing) { follow(); return; }
       var lines = ta.value.split('\n'), caret = ta.selectionStart, changed = false, start = 0;
       for (var n = 0; n < lines.length; n++) {
         if (n >= freshLine && lines[n].trim() && !STAMP.test(lines[n])) {
@@ -319,6 +330,7 @@
         start += lines[n].length + 1;
       }
       if (changed) { ta.value = lines.join('\n'); ta.setSelectionRange(caret, caret); freshLine = -1; }
+      follow();
     });
     return function (text) { ta.value = text || ''; setMulti(/\n/.test(ta.value)); freshLine = ta.value ? -1 : 0; };
   }
