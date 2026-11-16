@@ -287,18 +287,15 @@
     s.note = String(note || '').replace(/\r\n?/g, '\n').trim().slice(0, 1000);
     save(); return true;
   }
-  /* The note box: one line at first; Ctrl+Enter / Shift+Enter turns it into a multi-line box
-     (then Enter = new line, Ctrl+Enter = save). `save` is the form's Save button. */
+  /* The note box: one line at first. Enter saves; Shift+Enter adds a new line (the box then grows to
+     several lines, and Enter still saves). `save` is the form's Save button. */
   function noteBox(ta, save) {
     var setMulti = function (on) { ta.classList.toggle('multi', on); ta.rows = on ? 5 : 1; };
     ta.addEventListener('keydown', function (e) {
       if (e.key !== 'Enter' || e.isComposing) return;
-      var multi = ta.classList.contains('multi'), mod = e.ctrlKey || e.metaKey;
-      if (!multi) {
-        e.preventDefault();
-        if (mod || e.shiftKey) { setMulti(true); ta.setRangeText('\n', ta.selectionStart, ta.selectionEnd, 'end'); }
-        else save.click();
-      } else if (mod) { e.preventDefault(); save.click(); }
+      e.preventDefault();
+      if (e.shiftKey) { setMulti(true); ta.setRangeText('\n', ta.selectionStart, ta.selectionEnd, 'end'); }
+      else save.click();
     });
     return function (text) { ta.value = text || ''; setMulti(/\n/.test(ta.value)); };
   }
