@@ -377,6 +377,23 @@
     if (kind === 'tick') renderLive(); else renderAll();
   });
   renderAll();
+  /* Switch requests from the userscript's capsule: ?switch=workflow in the address, or a message while open.
+     Pressing the card's button is the same as clicking it (so notes boxes and the short-pause rule behave as usual);
+     a card that is already running is left alone (clicking it would stop it). */
+  function switchTo(act) {
+    if (ACTS.indexOf(act) < 0) return false;
+    if (S.active !== act) refs[act].btn.click();
+    return true;
+  }
+  (function () {
+    var m = /[?&]switch=([a-z]+)/.exec(location.search);
+    if (m) { switchTo(m[1]); try { history.replaceState(null, '', location.pathname + location.hash); } catch (e) {} }
+    window.addEventListener('message', function (e) {
+      var d = e.data;
+      if (e.origin !== location.origin || !d || d.channel !== 'timer-bridge' || d.from !== 'userscript' || d.type !== 'switch') return;
+      if (switchTo(String(d.act))) window.postMessage({ channel: 'timer-bridge', from: 'page', type: 'switch-ok', id: d.id }, location.origin);
+    });
+  })();
   setTimeout(function () { TSA.maybeAutoBackup(); S = TSA.get(); }, 2500);   // once a day, on the first open
   if (!TSA.storageOK()) showNotice('Your browser is blocking storage, so nothing will be saved. Try a normal (non-private) window.');
   else if (boot.closedAct) showNotice('The page was closed, so ' + META[boot.closedAct.act].label + ' stopped at ' + clock(boot.closedAct.at) + '. The time since then counted as Paused.');

@@ -87,26 +87,35 @@
     '<li><b>Streaks</b> – consecutive days meeting your goals, current and best.</li>' +
     '</ul>';
   H.script =
-    '<h3>Setup</h3>' +
-    '<p>This part needs the <b>Make Highlights &amp; Notes</b> userscript (version 2.8 or newer) installed in Tampermonkey. The timer site is expected at <code>gabryan.com/timer</code> and Url Notes at <code>gabryan.com/notes</code>. Keep the timer page open in a tab so the script can see it.</p>' +
+    '<h3>The three userscripts</h3>' +
+    '<p>These pieces live in Tampermonkey and are separate scripts. The timer site is expected at <code>gabryan.com/timer</code> and Url Notes at <code>gabryan.com/notes</code>.</p>' +
+    '<ul>' +
+    '<li><b>Focus Timer Capsule</b> – the capsule, the site list with the switch prompt, and copying timer notes to Url Notes.</li>' +
+    '<li><b>Claude Reset Alarm</b> – reads when your Claude limit resets and sets an alarm.</li>' +
+    '<li><b>Make Highlights &amp; Notes</b> – highlights and notes on any page (version 3.0 also tags notes with the running timer).</li>' +
+    '</ul>' +
     '<h3>Running-timer capsule</h3>' +
     '<ul>' +
-    '<li>On every other web page a small capsule at the bottom shows the running timer: emoji, name, project and elapsed time. It disappears when no timer runs (about 45 seconds after the timer page closes; Sleep stays).</li>' +
-    '<li><b>Click</b> it to open the timer page. <b>Drag</b> it anywhere on the screen; the position is remembered for every site. <b>Double-click</b> it to put it back in the bottom-left corner.</li>' +
+    '<li>On every other web page a small see-through capsule shows the running timer (emoji, name, elapsed time). It shows <i>⏱ timer off</i> when the timer page has been closed for a while.</li>' +
+    '<li><b>Click</b> it to open the timer page. <b>Drag</b> it anywhere; the position is remembered for every site. <b>Double-click</b> puts it back in the bottom-left corner.</li>' +
+    '</ul>' +
+    '<h3>Switch timer when I open a site</h3>' +
+    '<ul>' +
+    '<li>Press the <b>+</b> on the capsule while you are on a site and pick a timer (for example Claude → Workflow). The whole website is linked; the + turns green when a site is linked, and the same menu lets you change or remove it and shows all linked sites.</li>' +
+    '<li>When you open a linked site and a different timer is running, the capsule asks <i>Switch to Workflow now?</i> with <b>Switch</b> and <b>Not now</b>. Switch changes the timer on the timer page; if the timer page is not open, it opens in a new tab and switches. After <i>Not now</i>, that site does not ask again for 30 minutes.</li>' +
     '</ul>' +
     '<h3>Notes to Url Notes</h3>' +
     '<ul>' +
-    '<li>Every note you save on a finished timer session is queued automatically for Url Notes, tagged with the timer, the day and the project, e.g. <code>#workflow #2026-11-15 #my-project</code>, with the time range in the text. They arrive the next time the notes site is open.</li>' +
+    '<li>Every note you save on a finished timer session is queued automatically for Url Notes, tagged with the timer, the day and the project, e.g. <code>#workflow #2026-11-15 #my-project</code>, with the time range in the text. They arrive the next time the notes site is open and appear in its <b>⏱ Timer</b> tab.</li>' +
     '<li>Old notes are not sent at first. In the Tampermonkey menu choose <b>Send ALL past timer notes to Url Notes</b> to send them once.</li>' +
     '<li>If you edit a note after it was sent, an updated copy is queued.</li>' +
     '<li><b>Send day summary</b> (Timer page) queues a <code>#summary</code> note with today\'s totals, goals, points, outreach and notes.</li>' +
+    '<li>Notes you send from other pages with the highlights script while a timer runs get the running timer\'s tag (and project) added, e.g. <code>#work #my-project</code>.</li>' +
     '</ul>' +
     '<h3>Claude limit-reset alarm</h3>' +
-    '<p>When a claude.ai page says when your usage limit resets (wording like <i>resets at 3:00 PM</i> or <i>resets in 2 hr 10 min</i>), the userscript reads that time and the timer page (when open) adds a <b>Claude limit resets</b> alarm for it. A newer time replaces the old one; you can delete it like any alarm.</p>' +
-    '<h3>Highlights</h3>' +
-    '<p>Notes you send to Url Notes from other pages while a timer runs get the running timer\'s tag (and project) added, e.g. <code>#work #my-project</code>.</p>' +
+    '<p>When a claude.ai page says when your usage limit resets (wording like <i>resets at 3:00 PM</i> or <i>resets in 2 hr 10 min</i>), the Claude Reset Alarm script reads that time and the timer page (when open) adds a <b>Claude limit resets</b> alarm for it. A newer time replaces the old one; you can delete it like any alarm.</p>' +
     '<h3>Highlighting and notes on web pages</h3>' +
-    '<p>The same script lets you highlight text and attach notes on any page: <b>Alt+Shift+H</b> opens the panel, <b>Alt+Shift+N</b> sends a note to Url Notes.</p>';
+    '<p>The Make Highlights &amp; Notes script lets you highlight text and attach notes on any page: <b>Alt+Shift+H</b> opens the panel, <b>Alt+Shift+N</b> sends a note to Url Notes.</p>';
   H.keys =
     '<h3>Keyboard shortcuts (Timer page)</h3>' +
     '<table><tbody>' +
