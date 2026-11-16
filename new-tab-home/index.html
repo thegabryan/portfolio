@@ -3,529 +3,169 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#10111b">
-  <title>AI Atlas — Find the right AI</title>
+  <meta name="theme-color" content="#f5f7fb">
+  <title>AI Directory</title>
   <style>
-    :root {
-      color-scheme: dark;
-      --bg: #10111b;
-      --panel: #191b29;
-      --panel-hover: #202338;
-      --text: #f5f5fb;
-      --muted: #a4a8bd;
-      --line: #2b2e43;
-      --accent: #a897ff;
-      --accent-2: #67e8d2;
-    }
-
     * { box-sizing: border-box; }
-
     body {
       margin: 0;
-      min-height: 100vh;
-      color: var(--text);
-      background:
-        radial-gradient(ellipse at 15% 0%, #35275d 0, transparent 36rem),
-        radial-gradient(ellipse at 95% 15%, #143b46 0, transparent 30rem),
-        var(--bg);
-      font: 16px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #172033;
+      background: #f5f7fb;
+      font: 14px/1.35 system-ui, sans-serif;
     }
-
-    a { color: inherit; }
-
-    .wrap {
-      width: min(1160px, calc(100% - 40px));
+    main {
+      width: min(1200px, calc(100% - 28px));
       margin: 0 auto;
+      padding: 18px 0 12px;
     }
-
-    header { padding: 70px 0 34px; }
-
-    .eyebrow {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      color: var(--accent-2);
-      font-size: .78rem;
-      font-weight: 750;
-      letter-spacing: .14em;
-      text-transform: uppercase;
-    }
-
-    h1 {
-      max-width: 760px;
-      margin: 16px 0 12px;
-      font-size: clamp(2.6rem, 7vw, 5rem);
-      line-height: .98;
-      letter-spacing: -.065em;
-    }
-
-    h1 span {
-      color: var(--accent);
-    }
-
-    .intro {
-      max-width: 650px;
-      margin: 0;
-      color: var(--muted);
-      font-size: 1.08rem;
-    }
-
-    .toolbar {
-      display: grid;
-      gap: 18px;
-      margin: 22px 0 14px;
-    }
-
-    .search-wrap { position: relative; }
-
-    .search-wrap span {
-      position: absolute;
-      top: 50%;
-      left: 16px;
-      transform: translateY(-50%);
-      color: var(--muted);
-      pointer-events: none;
-    }
-
-    #search {
+    header { margin-bottom: 12px; }
+    h1 { margin: 0; font-size: clamp(22px, 3vw, 30px); letter-spacing: -.04em; }
+    header p { margin: 3px 0 0; color: #647084; }
+    .controls { display: grid; gap: 8px; margin-bottom: 10px; }
+    input {
       width: 100%;
-      padding: 15px 16px 15px 46px;
-      color: var(--text);
-      background: rgba(25, 27, 41, .9);
-      border: 1px solid var(--line);
-      border-radius: 14px;
+      height: 38px;
+      padding: 0 11px;
+      border: 1px solid #d8deea;
+      border-radius: 8px;
+      background: #fff;
+      color: inherit;
       font: inherit;
-      outline: none;
     }
-
-    #search:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px #a897ff26;
-    }
-
-    .filters {
-      display: flex;
-      gap: 8px;
-      overflow-x: auto;
-      padding: 2px 0 8px;
-      scrollbar-width: thin;
-    }
-
-    .filter {
+    input:focus { outline: 2px solid #9db8ff; outline-offset: 1px; }
+    nav { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+    button {
       flex: 0 0 auto;
-      padding: 9px 13px;
-      color: var(--muted);
-      background: #191b29bf;
-      border: 1px solid var(--line);
+      padding: 6px 10px;
+      border: 1px solid #d8deea;
       border-radius: 999px;
+      background: #fff;
+      color: #43506a;
       font: inherit;
-      font-size: .88rem;
       cursor: pointer;
     }
-
-    .filter:hover, .filter.active {
-      color: var(--text);
-      background: #a897ff24;
-      border-color: #a897ff8c;
-    }
-
-    .results-line {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      margin: 8px 0 18px;
-      color: var(--muted);
-      font-size: .9rem;
-    }
-
+    button.active, button:hover { border-color: #5277d5; background: #eaf0ff; color: #244ba7; }
+    .status { min-height: 18px; margin: 2px 0 7px; color: #69758a; font-size: 12px; }
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
-      gap: 14px;
-      padding-bottom: 48px;
+      grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+      gap: 7px;
     }
-
-    .card {
-      display: flex;
-      flex-direction: column;
-      min-height: 205px;
-      padding: 19px;
-      background: linear-gradient(145deg, #1b1d2c, #171925);
-      border: 1px solid var(--line);
-      border-radius: 18px;
+    .tool {
+      min-width: 0;
+      padding: 8px 10px;
+      border: 1px solid #e0e5ef;
+      border-radius: 8px;
+      background: #fff;
+      color: inherit;
       text-decoration: none;
-      transition: transform .18s ease, border-color .18s ease, background .18s ease;
     }
-
-    .card:hover {
-      transform: translateY(-3px);
-      background: var(--panel-hover);
-      border-color: #77709e;
+    .tool:hover { border-color: #9db2e8; background: #fbfcff; }
+    .tool strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+    .tool small { display: block; overflow: hidden; color: #68758a; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+    #empty { display: none; padding: 18px 0; color: #68758a; }
+    @media (max-height: 700px) {
+      main { padding-top: 10px; }
+      header { margin-bottom: 8px; }
+      .controls { gap: 5px; margin-bottom: 6px; }
+      .tool { padding: 6px 8px; }
+      .grid { gap: 5px; }
     }
-
-    .card-top {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 12px;
-    }
-
-    .icon {
-      display: grid;
-      flex: 0 0 42px;
-      width: 42px;
-      height: 42px;
-      place-items: center;
-      background: #a897ff1b;
-      border: 1px solid #a897ff35;
-      border-radius: 13px;
-      font-size: 1.2rem;
-    }
-
-    .card h2 {
-      margin: 0;
-      font-size: 1.06rem;
-      letter-spacing: -.02em;
-    }
-
-    .category {
-      display: block;
-      margin-top: 2px;
-      color: var(--accent-2);
-      font-size: .74rem;
-      font-weight: 700;
-      letter-spacing: .06em;
-      text-transform: uppercase;
-    }
-
-    .card p {
-      margin: 0 0 18px;
-      color: var(--muted);
-      font-size: .92rem;
-    }
-
-    .visit {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: auto;
-      color: #d7d2ff;
-      font-size: .84rem;
-      font-weight: 650;
-    }
-
-    #empty {
-      display: none;
-      padding: 42px 12px 70px;
-      color: var(--muted);
-      text-align: center;
-    }
-
-    footer {
-      padding: 20px 0 34px;
-      color: var(--muted);
-      border-top: 1px solid var(--line);
-      font-size: .85rem;
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after {
-        scroll-behavior: auto !important;
-        transition: none !important;
-      }
+    @media (max-width: 520px) {
+      main { width: calc(100% - 20px); padding-top: 12px; }
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
   </style>
 </head>
 <body>
-  <main class="wrap">
+  <main>
     <header>
-      <div class="eyebrow">✦ Your AI toolbox</div>
-      <h1>Find the right AI<br>for <span>what you do.</span></h1>
-      <p class="intro">
-        Explore popular AI assistants and creative tools, organized by what they’re
-        best at. Search by name or expertise, then open a tool to try it.
-      </p>
+      <h1>AI Directory</h1>
+      <p>Choose an AI by what you want to do.</p>
     </header>
 
-    <section aria-label="Find an AI tool">
-      <div class="toolbar">
-        <label class="search-wrap">
-          <span aria-hidden="true">⌕</span>
-          <input id="search" type="search" placeholder="Search tools or expertise…" autocomplete="off">
-        </label>
-
-        <nav class="filters" aria-label="Filter by category">
-          <button class="filter active" data-filter="all">All tools</button>
-          <button class="filter" data-filter="assistants">AI assistants</button>
-          <button class="filter" data-filter="research">Search &amp; research</button>
-          <button class="filter" data-filter="coding">Coding</button>
-          <button class="filter" data-filter="images">Images &amp; design</button>
-          <button class="filter" data-filter="video">Video</button>
-          <button class="filter" data-filter="audio">Audio &amp; music</button>
-          <button class="filter" data-filter="productivity">Productivity</button>
-          <button class="filter" data-filter="open">Open &amp; local AI</button>
+    <section aria-label="AI directory">
+      <div class="controls">
+        <input id="search" type="search" placeholder="Search AI tools or expertise…" aria-label="Search AI tools">
+        <nav aria-label="Filter by expertise">
+          <button class="active" data-filter="all">All</button>
+          <button data-filter="assistants">Assistants</button>
+          <button data-filter="research">Research</button>
+          <button data-filter="coding">Coding</button>
+          <button data-filter="images">Images &amp; design</button>
+          <button data-filter="video">Video</button>
+          <button data-filter="audio">Audio</button>
+          <button data-filter="productivity">Productivity</button>
+          <button data-filter="open">Open &amp; local</button>
         </nav>
       </div>
-
-      <div class="results-line">
-        <span id="result-count" aria-live="polite"></span>
-        <span>Curated tools · Not a ranking</span>
+      <div class="status" id="status" aria-live="polite"></div>
+      <div class="grid" id="tools">
+        <a class="tool" data-category="assistants" href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer"><strong>ChatGPT</strong><small>Assistant · writing, learning, analysis</small></a>
+        <a class="tool" data-category="assistants" href="https://claude.ai/" target="_blank" rel="noopener noreferrer"><strong>Claude</strong><small>Assistant · writing, reasoning, documents</small></a>
+        <a class="tool" data-category="assistants" href="https://gemini.google.com/" target="_blank" rel="noopener noreferrer"><strong>Google Gemini</strong><small>Assistant · multimodal, Google services</small></a>
+        <a class="tool" data-category="assistants" href="https://copilot.microsoft.com/" target="_blank" rel="noopener noreferrer"><strong>Microsoft Copilot</strong><small>Assistant · web, Microsoft services</small></a>
+        <a class="tool" data-category="assistants" href="https://grok.com/" target="_blank" rel="noopener noreferrer"><strong>Grok</strong><small>Assistant · chat, current topics</small></a>
+        <a class="tool" data-category="assistants" href="https://chat.deepseek.com/" target="_blank" rel="noopener noreferrer"><strong>DeepSeek</strong><small>Assistant · reasoning, coding</small></a>
+        <a class="tool" data-category="research" href="https://www.perplexity.ai/" target="_blank" rel="noopener noreferrer"><strong>Perplexity</strong><small>Research · web answers with sources</small></a>
+        <a class="tool" data-category="research" href="https://notebooklm.google.com/" target="_blank" rel="noopener noreferrer"><strong>NotebookLM</strong><small>Research · your documents and notes</small></a>
+        <a class="tool" data-category="research" href="https://elicit.com/" target="_blank" rel="noopener noreferrer"><strong>Elicit</strong><small>Research · papers and literature reviews</small></a>
+        <a class="tool" data-category="research" href="https://consensus.app/" target="_blank" rel="noopener noreferrer"><strong>Consensus</strong><small>Research · scientific papers</small></a>
+        <a class="tool" data-category="coding" href="https://github.com/features/copilot" target="_blank" rel="noopener noreferrer"><strong>GitHub Copilot</strong><small>Coding · editor assistance</small></a>
+        <a class="tool" data-category="coding" href="https://cursor.com/" target="_blank" rel="noopener noreferrer"><strong>Cursor</strong><small>Coding · AI code editor</small></a>
+        <a class="tool" data-category="coding" href="https://windsurf.com/" target="_blank" rel="noopener noreferrer"><strong>Windsurf</strong><small>Coding · AI development environment</small></a>
+        <a class="tool" data-category="coding" href="https://replit.com/" target="_blank" rel="noopener noreferrer"><strong>Replit</strong><small>Coding · build and run apps online</small></a>
+        <a class="tool" data-category="coding" href="https://docs.anthropic.com/en/docs/claude-code/overview" target="_blank" rel="noopener noreferrer"><strong>Claude Code</strong><small>Coding · terminal-based coding assistant</small></a>
+        <a class="tool" data-category="images" href="https://www.midjourney.com/" target="_blank" rel="noopener noreferrer"><strong>Midjourney</strong><small>Images · artistic generation</small></a>
+        <a class="tool" data-category="images" href="https://firefly.adobe.com/" target="_blank" rel="noopener noreferrer"><strong>Adobe Firefly</strong><small>Images · generation and editing</small></a>
+        <a class="tool" data-category="images" href="https://ideogram.ai/" target="_blank" rel="noopener noreferrer"><strong>Ideogram</strong><small>Images · graphics and text in images</small></a>
+        <a class="tool" data-category="images" href="https://leonardo.ai/" target="_blank" rel="noopener noreferrer"><strong>Leonardo AI</strong><small>Images · illustrations and assets</small></a>
+        <a class="tool" data-category="images" href="https://www.canva.com/magic-studio/" target="_blank" rel="noopener noreferrer"><strong>Canva Magic Studio</strong><small>Design · AI-assisted graphics</small></a>
+        <a class="tool" data-category="video" href="https://runwayml.com/" target="_blank" rel="noopener noreferrer"><strong>Runway</strong><small>Video · generation and editing</small></a>
+        <a class="tool" data-category="video" href="https://openai.com/sora/" target="_blank" rel="noopener noreferrer"><strong>Sora</strong><small>Video · text-to-video</small></a>
+        <a class="tool" data-category="video" href="https://deepmind.google/models/veo/" target="_blank" rel="noopener noreferrer"><strong>Google Veo</strong><small>Video · generative video</small></a>
+        <a class="tool" data-category="video" href="https://klingai.com/" target="_blank" rel="noopener noreferrer"><strong>Kling AI</strong><small>Video · text and image to video</small></a>
+        <a class="tool" data-category="video" href="https://pika.art/" target="_blank" rel="noopener noreferrer"><strong>Pika</strong><small>Video · create and transform clips</small></a>
+        <a class="tool" data-category="audio" href="https://elevenlabs.io/" target="_blank" rel="noopener noreferrer"><strong>ElevenLabs</strong><small>Audio · voices, speech, dubbing</small></a>
+        <a class="tool" data-category="audio" href="https://suno.com/" target="_blank" rel="noopener noreferrer"><strong>Suno</strong><small>Music · generate songs</small></a>
+        <a class="tool" data-category="audio" href="https://www.udio.com/" target="_blank" rel="noopener noreferrer"><strong>Udio</strong><small>Music · generate tracks</small></a>
+        <a class="tool" data-category="audio" href="https://otter.ai/" target="_blank" rel="noopener noreferrer"><strong>Otter.ai</strong><small>Audio · transcription and meeting notes</small></a>
+        <a class="tool" data-category="productivity" href="https://www.notion.so/product/ai" target="_blank" rel="noopener noreferrer"><strong>Notion AI</strong><small>Productivity · workspace writing and search</small></a>
+        <a class="tool" data-category="productivity" href="https://gamma.app/" target="_blank" rel="noopener noreferrer"><strong>Gamma</strong><small>Productivity · presentations and documents</small></a>
+        <a class="tool" data-category="open" href="https://ollama.com/" target="_blank" rel="noopener noreferrer"><strong>Ollama</strong><small>Local AI · run models on your computer</small></a>
+        <a class="tool" data-category="open" href="https://huggingface.co/" target="_blank" rel="noopener noreferrer"><strong>Hugging Face</strong><small>Open AI · models, datasets, demos</small></a>
+        <a class="tool" data-category="open" href="https://lmstudio.ai/" target="_blank" rel="noopener noreferrer"><strong>LM Studio</strong><small>Local AI · download and run models</small></a>
       </div>
-
-      <div class="grid" id="grid">
-        <a class="card" data-category="assistants" href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">
-          <div class="card-top"><span class="icon">✳</span><div><h2>ChatGPT</h2><span class="category">AI assistant</span></div></div>
-          <p>General-purpose help with writing, brainstorming, learning, analysis, and images.</p>
-          <span class="visit">Explore ChatGPT <span>↗</span></span>
-        </a>
-
-        <a class="card" data-category="assistants" href="https://claude.ai/" target="_blank" rel="noopener noreferrer">
-          <div class="card-top"><span class="icon">✦</span><div><h2>Claude</h2><span class="category">AI assistant</span></div></div>
-          <p>Writing, reasoning, document analysis, and help with long or complex tasks.</p>
-          <span class="visit">Explore Claude <span>↗</span></span>
-        </a>
-
-        <a class="card" data-category="assistants" href="https://gemini.google.com/" target="_blank" rel="noopener noreferrer">
-          <div class="card-top"><span class="icon">✧</span><div><h2>Google Gemini</h2><span class="category">AI assistant</span></div></div>
-          <p>General assistance, multimodal tasks, and integration with Google services.</p>
-          <span class="visit">Explore Gemini <span>↗</span></span>
-        </a>
-
-        <a class="card" data-category="assistants" href="https://copilot.microsoft.com/" target="_blank" rel="noopener noreferrer">
-          <div class="card-top"><span class="icon">◈</span><div><h2>Microsoft Copilot</h2><span class="category">AI assistant</span></div></div>
-          <p>Everyday questions, web-assisted answers, and Microsoft product workflows.</p>
-          <span class="visit">Explore Copilot <span>↗</span></span>
-        </a>
-
-        <a class="card" data-category="assistants" href="https://grok.com/" target="_blank" rel="noopener noreferrer">
-          <div class="card-top"><span class="icon">𝕏</span><div><h2>Grok</h2><span class="category">AI assistant</span></div></div>
-          <p>Conversational AI with a focus on current topics and answers informed by X.</p>
-          <span class="visit">Explore Grok <span>↗</span></span>
-        </a>
-
-        <a class="card" data-category="assistants" href="https://chat.deepseek.com/" target="_blank" rel="noopener noreferrer">
-          <div class="card-top"><span class="icon">◉</span><div><h2>DeepSeek</h2><span class="category">AI assistant</span></div></div>
-          <p>General chat, reasoning, and coding assistance.</p>
-          <span class="visit">Explore DeepSeek <span>↗</span></span>
-        </a>
-
-        <a class="card" data-category="research" href="https://www.perplexity.ai/" target="_blank" rel="noopener noreferrer">
-          <div class="card-top"><span class="icon">⌕</span><div><h2>Perplexity</h2><span class="category">Search &amp; research</span></div></div>
-          <p>Web research and summarized answers with links to sources.</p>
-          <span class="visit">Explore Perplexity <span>↗</span></span>
-        </a>
-
-        <a class="card" data-category="research" href="https://notebooklm.google.com/" target="_blank" rel="noopener noreferrer">
-          <div class="card-top"><span class="icon">▤</span><div><h2>NotebookLM</h2><span class="category">Search &amp; research</span></div></div>
-          <p>Ask questions about your own documents and create source-grounded summaries.</p>
-          <span class="visit">Explore NotebookLM <span>↗</span></span>
-        </a>
-
-        <a class="card" data-category="research" href="https://elicit.com/" target="_blank" rel="noopener noreferrer">
-          <div class="card-top"><span class="icon">⌘</span><div><h2>Elicit</h2><span class="category">Search &amp; research</span></div></div>
-          <p>Research-paper discovery and literature review assistance.</p>
-          <span class="visit">Explore Elicit <span>↗</span></span>
-        </a>
-
-        <a class="card" data-category="research" href="https://consensus.app/" target="_blank" rel="noopener noreferrer">
-          <div class="card-top"><span class="icon">◎</span><div><h2>Consensus</h2><span class="category">Search &amp; research</span></div></div>
-          <p>Find and summarize research findings from scientific papers.</p>
-          <span class="visit">Explore Consensus <span>↗</span></span>
-        </a>
-
-        <a class="card" data-category="coding" href="https://github.com/features/copilot" target="_blank" rel="noopener noreferrer">
-          <div class="card-top"><span class="icon">⌨</span><div><h2>GitHub Copilot</h2><span class="category">Coding</span></div></div>
-          <p>Code suggestions, explanations, and assistance inside supported development tools.</p>
-          <span class="visit">Explore GitHub Copilot <span>↗</span></span>
-        </a>
-
-        <a class="card" data-category="coding" href="https://cursor.com/" target="_blank" rel="noopener noreferrer">
-          <div class="card-top"><span class="icon">⌁</span><div><h2>Cursor</h2><span class="category">Coding</span></div></div>
-          <p>AI-powered code editing, codebase questions, and programming workflows.</p>
-          <span class="visit">Explore Cursor <span>↗</span></span>
-        </a>
-
-        <a class="card" data-category="coding" href="https://windsurf.com/" target="_blank" rel="noopener noreferrer">
-          <div class="card-top"><span class="icon">〰</span><div><h2>Windsurf</h2><span class="category">Coding</span></div></div>
-          <p>AI-assisted coding environment for building and editing software projects.</p>
-          <span class="visit">Explore Windsurf <span>↗</span></span>
-        </a>
-
-        <a class="card" data-category="coding" href="https://replit.com/" target="_blank" rel="noopener noreferrer">
-          <div class="card-top"><span class="icon">▶</span><div><h2>Replit</h2><span class="category">Coding</span></div></div>
-          <p>Build, run, and share apps in an online development environment with AI help.</p>
-          <span class="visit">Explore Replit <span>↗</span></span>
-        </a>
-
-        <a class="card" data-category="coding" href="https://docs.anthropic.com/en/docs/claude-code/overview" target="_blank" rel="noopener noreferrer">
-          <div class="card-top"><span class="icon">⌘</span><div><h2>Claude Code</h2><span class="category">Coding</span></div></div>
-          <p>Use Claude from a terminal to assist with coding and working in a project.</p>
-          <span class="visit">Explore Claude Code <span>↗</span></span>
-        </a>
-
-        <a class="card" data-category="images" href="https://www.midjourney.com/" target="_blank" rel="noopener noreferrer">
-          <div class="card-top"><span class="icon">▧</span><div><h2>Midjourney</h2><span class="category">Images &amp; design</span></div></div>
-          <p>Generate stylized images and visual concepts from text prompts.</p>
-          <span class="visit">Explore Midjourney <span>↗</span></span>
-        </a>
-
-        <a class="card" data-category="images" href="https://firefly.adobe.com/" target="_blank" rel="noopener noreferrer">
-          <div class="card-top"><span class="icon">✺</span><div><h2>Adobe Firefly</h2><span class="category">Images &amp; design</span></div></div>
-          <p>Generate and edit images and design assets in Adobe’s creative tools.</p>
-          <span class="visit">Explore Firefly <span>↗</span></span>
-        </a>
-
-        <a class="card" data-category="images" href="https://ideogram.ai/" target="_blank" rel="noopener noreferrer">
-          <div class="card-top"><span class="icon">▤</span><div><h2>Ideogram</h2><span class="category">Images &amp; design</span></div></div>
-          <p>Create images, graphics, and designs, including visuals with text.</p>
-          <span class="visit">Explore Ideogram <span>↗</span></span>
-        </a>
-
-        <a class="card" data-category="images" href="https://leonardo.ai/" target="_blank" rel="noopener noreferrer">
-          <div class="card-top"><span class="icon">◌</span><div><h2>Leonardo AI</h2><span class="category">Images &amp; design</span></div></div>
-          <p>Generate and refine images, illustrations, and game or product assets.</p>
-          <span class="visit">Explore Leonardo <span>↗</span></span>
-        </a>
-
-        <a class="card" data-category="images" href="https://www.canva.com/magic-studio/" target="_blank" rel="noopener noreferrer">
-          <div class="card-top"><span class="icon">✿</span><div><h2>Canva Magic Studio</h2><span class="category">Images &amp; design</span></div></div>
-          <p>AI-assisted design and content creation within Canva.</p>
-          <span class="visit">Explore Canva <span>↗</span></span>
-        </a>
-
-        <a class="card" data-category="video" href="https://runwayml.com/" target="_blank" rel="noopener noreferrer">
-          <div class="card-top"><span class="icon">▶</span><div><h2>Runway</h2><span class="category">Video</span></div></div>
-          <p>AI tools for generating, editing, and experimenting with video.</p>
-          <span class="visit">Explore Runway <span>↗</span></span>
-        </a>
-
-        <a class="card" data-category="video" href="https://openai.com/sora/" target="_blank" rel="noopener noreferrer">
-          <div class="card-top"><span class="icon">◉</span><div><h2>Sora</h2><span class="category">Video</span></div></div>
-          <p>OpenAI’s video-generation tool for creating scenes from prompts.</p>
-          <span class="visit">Explore Sora <span>↗</span></span>
-        </a>
-
-        <a class="card" data-category="video" href="https://deepmind.google/models/veo/" target="_blank" rel="noopener noreferrer">
-          <div class="card-top"><span class="icon">▣</span><div><h2>Google Veo</h2><span class="category">Video</span></div></div>
-          <p>Google’s generative video model for creating video from prompts.</p>
-          <span class="visit">Explore Veo <span>↗</span></span>
-        </a>
-
-        <a class="card" data-category="video" href="https://klingai.com/" target="_blank" rel="noopener noreferrer">
-          <div class="card-top"><span class="icon">▷</span><div><h2>Kling AI</h2><span class="category">Video</span></div></div>
-          <p>Generate video and images from text or visual inputs.</p>
-          <span class="visit">Explore Kling <span>↗</span></span>
-        </a>
-
-        <a class="card" data-category="video" href="https://pika.art/" target="_blank" rel="noopener noreferrer">
-          <div class="card-top"><span class="icon">✦</span><div><h2>Pika</h2><span class="category">Video</span></div></div>
-          <p>Create and transform short videos using generative AI tools.</p>
-          <span class="visit">Explore Pika <span>↗</span></span>
-        </a>
-
-        <a class="card" data-category="audio" href="https://elevenlabs.io/" target="_blank" rel="noopener noreferrer">
-          <div class="card-top"><span class="icon">♫</span><div><h2>ElevenLabs</h2><span class="category">Audio &amp; music</span></div></div>
-          <p>AI voices, text-to-speech, dubbing, and audio creation tools.</p>
-          <span class="visit">Explore ElevenLabs <span>↗</span></span>
-        </a>
-
-        <a class="card" data-category="audio" href="https://suno.com/" target="_blank" rel="noopener noreferrer">
-          <div class="card-top"><span class="icon">♫</span><div><h2>Suno</h2><span class="category">Audio &amp; music</span></div></div>
-          <p>Generate songs and music from text prompts.</p>
-          <span class="visit">Explore Suno <span>↗</span></span>
-        </a>
-
-        <a class="card" data-category="audio" href="https://www.udio.com/" target="_blank" rel="noopener noreferrer">
-          <div class="card-top"><span class="icon">♪</span><div><h2>Udio</h2><span class="category">Audio &amp; music</span></div></div>
-          <p>Create and explore AI-generated music.</p>
-          <span class="visit">Explore Udio <span>↗</span></span>
-        </a>
-
-        <a class="card" data-category="audio" href="https://otter.ai/" target="_blank" rel="noopener noreferrer">
-          <div class="card-top"><span class="icon">◖</span><div><h2>Otter.ai</h2><span class="category">Audio &amp; music</span></div></div>
-          <p>Transcribe and summarize conversations, meetings, and interviews.</p>
-          <span class="visit">Explore Otter.ai <span>↗</span></span>
-        </a>
-
-        <a class="card" data-category="productivity" href="https://www.notion.so/product/ai" target="_blank" rel="noopener noreferrer">
-          <div class="card-top"><span class="icon">▣</span><div><h2>Notion AI</h2><span class="category">Productivity</span></div></div>
-          <p>Help with writing, summarizing, and finding information in a workspace.</p>
-          <span class="visit">Explore Notion AI <span>↗</span></span>
-        </a>
-
-        <a class="card" data-category="productivity" href="https://gamma.app/" target="_blank" rel="noopener noreferrer">
-          <div class="card-top"><span class="icon">▱</span><div><h2>Gamma</h2><span class="category">Productivity</span></div></div>
-          <p>Draft presentations, documents, and web pages with AI assistance.</p>
-          <span class="visit">Explore Gamma <span>↗</span></span>
-        </a>
-
-        <a class="card" data-category="open" href="https://ollama.com/" target="_blank" rel="noopener noreferrer">
-          <div class="card-top"><span class="icon">⌂</span><div><h2>Ollama</h2><span class="category">Open &amp; local AI</span></div></div>
-          <p>Run a range of open models locally on a compatible computer.</p>
-          <span class="visit">Explore Ollama <span>↗</span></span>
-        </a>
-
-        <a class="card" data-category="open" href="https://huggingface.co/" target="_blank" rel="noopener noreferrer">
-          <div class="card-top"><span class="icon">🤗</span><div><h2>Hugging Face</h2><span class="category">Open &amp; local AI</span></div></div>
-          <p>Discover and share AI models, datasets, and interactive demos.</p>
-          <span class="visit">Explore Hugging Face <span>↗</span></span>
-        </a>
-
-        <a class="card" data-category="open" href="https://lmstudio.ai/" target="_blank" rel="noopener noreferrer">
-          <div class="card-top"><span class="icon">▤</span><div><h2>LM Studio</h2><span class="category">Open &amp; local AI</span></div></div>
-          <p>Download and chat with supported language models on your computer.</p>
-          <span class="visit">Explore LM Studio <span>↗</span></span>
-        </a>
-      </div>
-
-      <div id="empty">No tools match that search. Try another name or category.</div>
+      <div id="empty">No matching AI tools.</div>
     </section>
-
-    <footer>
-      AI tools change often. Check each provider’s site for current features,
-      pricing, availability, and terms before using it.
-    </footer>
   </main>
-
   <script>
     const search = document.querySelector("#search");
-    const cards = [...document.querySelectorAll(".card")];
-    const filters = [...document.querySelectorAll(".filter")];
-    const count = document.querySelector("#result-count");
+    const tools = [...document.querySelectorAll(".tool")];
+    const buttons = [...document.querySelectorAll("nav button")];
+    const status = document.querySelector("#status");
     const empty = document.querySelector("#empty");
-    let activeFilter = "all";
+    let category = "all";
 
-    function updateCards() {
+    function update() {
       const query = search.value.trim().toLowerCase();
-      let visible = 0;
-
-      for (const card of cards) {
-        const matchesCategory =
-          activeFilter === "all" || card.dataset.category === activeFilter;
-        const matchesSearch = card.textContent.toLowerCase().includes(query);
-        const show = matchesCategory && matchesSearch;
-
-        card.hidden = !show;
-        if (show) visible++;
+      let shown = 0;
+      for (const tool of tools) {
+        const visible = (category === "all" || tool.dataset.category === category) && tool.textContent.toLowerCase().includes(query);
+        tool.hidden = !visible;
+        if (visible) shown++;
       }
-
-      count.textContent = `${visible} ${visible === 1 ? "tool" : "tools"}`;
-      empty.style.display = visible ? "none" : "block";
+      status.textContent = `${shown} tools`;
+      empty.style.display = shown ? "none" : "block";
     }
 
-    search.addEventListener("input", updateCards);
-
-    filters.forEach(button => {
-      button.addEventListener("click", () => {
-        activeFilter = button.dataset.filter;
-        filters.forEach(filter =>
-          filter.classList.toggle("active", filter === button)
-        );
-        updateCards();
-      });
-    });
-
-    updateCards();
+    search.addEventListener("input", update);
+    buttons.forEach(button => button.addEventListener("click", () => {
+      category = button.dataset.filter;
+      buttons.forEach(item => item.classList.toggle("active", item === button));
+      update();
+    }));
+    update();
   </script>
 </body>
 </html>
