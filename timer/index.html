@@ -107,6 +107,7 @@
 </dialog>
 
 <script src="app.js"></script>
+<script src="help.js"></script>
 <script>
 (function () {
   var $ = function (id) { return document.getElementById(id); };
@@ -114,6 +115,7 @@
   var boot = TSA.boot(Date.now(), {});
   var S = TSA.get();
   TSA.initTheme($('themeBtn'));
+  TSAHelp.init('timer');
   TSA.mountDataTools($('tools'), function () { S = TSA.get(); renderAll(); });
   (function () {
     var b = document.createElement('button'); b.type = 'button'; b.className = 'ghost'; b.id = 'sumBtn'; b.textContent = 'Send day summary';

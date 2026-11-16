@@ -212,12 +212,14 @@
 <a id="runpop" class="runpop" href="index.html" title="Go to the timers"></a>
 
 <script src="app.js"></script>
+<script src="help.js"></script>
 <script>
 (function () {
   var $ = function (id) { return document.getElementById(id); };
   var ACTS = TSA.ACTS, META = TSA.META, dur = TSA.fmtDur;
   TSA.boot(Date.now(), {});
   TSA.initTheme($('themeBtn'));
+  TSAHelp.init('dash');
   TSA.mountDataTools($('tools'), render);
   TSA.mountCsvTools($('csvTools'));
   $('autoBk').addEventListener('change', function () { TSA.setAutoBackup($('autoBk').checked); render(); });

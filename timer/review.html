@@ -56,12 +56,14 @@
 <a id="runpop" class="runpop" href="index.html" title="Go to the timers"></a>
 
 <script src="app.js"></script>
+<script src="help.js"></script>
 <script>
 (function () {
   var $ = function (id) { return document.getElementById(id); };
   var ACTS = TSA.ACTS, META = TSA.META, dur = TSA.fmtDur, pad = TSA.pad;
   TSA.boot(Date.now(), {});
   TSA.initTheme($('themeBtn'));
+  TSAHelp.init('review');
   var kind = 'week', off = 0;     // off: 0 = this period, -1 = the one before, ...
 
   function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }

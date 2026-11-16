@@ -280,3 +280,19 @@ textarea#noteInput.multi { resize: vertical; overflow: auto; white-space: pre-wr
 .nav-m .ghost.on { background: var(--accent); color: var(--accent-ink); }
 
 .nudge { width: max-content; }
+
+/* ----- How to use popup ----- */
+dialog.helpdlg { width: min(760px, 96vw); max-height: 88vh; display: flex; flex-direction: column; }
+dialog.helpdlg[open] { display: flex; }
+.helpdlg .htabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+.helpdlg .htabs button { padding: 6px 12px; font-size: 13px; }
+.helpdlg .htabs button.ghost.on, .helpdlg .htabs button.on { background: var(--accent); color: var(--accent-ink); }
+.helpdlg .hbody { overflow: auto; flex: 1; min-height: 0; padding-right: 6px; line-height: 1.5; font-size: 14px; }
+.helpdlg .hbody h3 { margin: 16px 0 6px; font-size: 15px; }
+.helpdlg .hbody h3:first-child { margin-top: 0; }
+.helpdlg .hbody p { margin: 0 0 8px; }
+.helpdlg .hbody ul { margin: 0 0 8px; padding-left: 20px; }
+.helpdlg .hbody li { margin-bottom: 5px; }
+.helpdlg .hbody code, .helpdlg .hbody kbd { background: var(--cell); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; font-size: 12.5px; }
+.helpdlg .hbody table { border-collapse: collapse; margin-bottom: 8px; }
+.helpdlg .hbody td { padding: 4px 14px 4px 0; }
