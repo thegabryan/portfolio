@@ -268,6 +268,7 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
   <div class="tabs">
     <button class="tab" id="tabAll" aria-pressed="false">All</button>
     <button class="tab" id="tabNotes" aria-pressed="true">Notes</button>
+    <button class="tab" id="tabTimer" aria-pressed="false">⏱ Timer</button>
     <button class="tab" id="tabHl" aria-pressed="false">Highlights</button>
     <button class="tab" id="tabTrash" aria-pressed="false">Trash</button>
     <span class="spacer"></span>
@@ -369,6 +370,7 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
     <p><b>What it adds to this site</b> (the script v2.5 or newer):</p>
     <ul>
       <li><b>Send to this site:</b> on any page press <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>N</kbd> (or use the script's <i>Send to site</i> button / Tampermonkey menu). The selected quote, your note, the page link and a tag for the site's domain are queued, and arrive here the next time this page is open (instantly if it's open already). On YouTube the link opens the video at the moment you sent it.</li>
+      <li><b>⏱ Timer tab:</b> notes and day summaries sent by your timer site (through the userscript), grouped by day, with a chip per timer (Work, Workflow, …) and one for summaries. They are kept out of the Notes tab but still appear in All; search and tags work as usual.</li>
       <li><b>Highlights tab:</b> a read-only, searchable view of everything you highlighted with the script, grouped by page. <i>Open page</i> jumps to the highlighted text when the browser supports it. Edit highlights on the page itself.</li>
       <li>The script's <b>All notes</b> panel can show these notes too (Highlights / Site notes / Both), refreshed whenever this page is open.</li>
       <li>The JSON export also includes your highlights (when linked), so the script's own Import can read the same file.</li>
@@ -2521,7 +2523,7 @@ const ICON = {
 };
 
 /* ---------- data & state ---------- */
-const VIEWS = ['all', 'notes', 'highlights', 'trash'];
+const VIEWS = ['all', 'notes', 'timer', 'highlights', 'trash'];
 const SORTS = ['manual', 'newest', 'oldest', 'edited'];
 function stored(key, allowed, fallback) {
   try {
@@ -2536,6 +2538,19 @@ let view = stored(VIEW_KEY, VIEWS, 'notes');
 let sortMode = stored(SORT_KEY, SORTS, 'manual');
 let query = '';
 let activeTag = null;
+let timerFilter = null;   // Timer tab: null = everything, or 'work' / 'workflow' / ... / 'summary'
+
+// Notes sent by the timer site (through the userscript) have ids like tm-workflow-<start ms> or tm-summary-<day>-...
+const TIMER_LABELS = {
+  work: '⏰ Work', paused: '⏸️ Paused', workflow: '🛠️ Workflow', workout: '🏋️ Workout',
+  eating: '🍽️ Eating', shower: '🚿 Shower', sleep: '🌙 Sleep', summary: '📊 Summaries'
+};
+const isTimerNote = n => typeof n.id === 'string' && n.id.startsWith('tm-');
+const timerKind = n => { const m = /^tm-([a-z]+)-/.exec(n.id || ''); return m ? m[1] : 'other'; };
+// When the session happened (start time in the id), else when the note was created.
+const timerWhen = n => { const m = /^tm-[a-z]+-(\d{10,})/.exec(n.id || ''); return m ? Number(m[1]) : n.created; };
+const plainNotes = () => notes.filter(n => !isTimerNote(n));
+const timerNotes = () => notes.filter(isTimerNote);
 let visibleLimit = PAGE_SIZE;
 
 // userscript bridge state
@@ -2555,6 +2570,7 @@ function saveView() { try { localStorage.setItem(VIEW_KEY, view); } catch (e) {}
 function setView(v) {
   view = v;
   if (v !== 'all' && v !== 'notes') activeTag = null;
+  timerFilter = null;
   visibleLimit = PAGE_SIZE;
   saveView();
   render();
@@ -3025,7 +3041,9 @@ function appendMore(box, remaining) {
 function renderTabs() {
   const hlCount = bridgeConnected ? countHighlights() : 0;
   $('tabAll').textContent = `All (${notes.length + hlCount})`;
-  $('tabNotes').textContent = `Notes (${notes.length})`;
+  $('tabNotes').textContent = `Notes (${plainNotes().length})`;
+  $('tabTimer').textContent = `⏱ Timer (${timerNotes().length})`;
+  $('tabTimer').setAttribute('aria-pressed', view === 'timer');
   $('tabHl').textContent = bridgeConnected ? `Highlights (${hlCount})` : 'Highlights';
   $('tabTrash').textContent = `Trash (${trash.length})`;
   $('tabAll').setAttribute('aria-pressed', view === 'all');
@@ -3037,9 +3055,10 @@ function renderTabs() {
 function renderTags() {
   const box = $('tags');
   box.textContent = '';
+  if (view === 'timer') { renderTimerChips(box); return; }
   if (view !== 'notes' && view !== 'all') return;
   const counts = new Map();
-  notes.forEach(n => tagsOf(n.text).forEach(t => counts.set(t, (counts.get(t) || 0) + 1)));
+  (view === 'notes' ? plainNotes() : notes).forEach(n => tagsOf(n.text).forEach(t => counts.set(t, (counts.get(t) || 0) + 1)));
   if (activeTag && !counts.has(activeTag)) activeTag = null;
   [...counts.entries()]
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
@@ -3063,7 +3082,7 @@ function renderNotesView() {
   box.textContent = '';
   const q = parseQuery(query);
   const isTrash = view === 'trash';
-  const src = isTrash ? trash : notes;
+  const src = isTrash ? trash : plainNotes();
   const filtering = q.active || (!isTrash && !!activeTag);
   const list = collectNotes(q, src);
 
@@ -3112,6 +3131,55 @@ function renderNotesView() {
 
   const hidden = list.length - pinnedShown.length - restShown.length;
   if (hidden > 0) appendMore(box, hidden);
+}
+
+// Timer chips: one per timer that has notes, plus summaries
+function renderTimerChips(box) {
+  const counts = new Map();
+  timerNotes().forEach(n => counts.set(timerKind(n), (counts.get(timerKind(n)) || 0) + 1));
+  if (timerFilter && !counts.has(timerFilter)) timerFilter = null;
+  const order = Object.keys(TIMER_LABELS);
+  [...counts.entries()]
+    .sort((a, b) => (order.indexOf(a[0]) + 1 || 99) - (order.indexOf(b[0]) + 1 || 99))
+    .forEach(([kind, count]) => {
+      const c = el('button', 'chip');
+      c.setAttribute('aria-pressed', kind === timerFilter);
+      c.append(TIMER_LABELS[kind] || kind);
+      c.appendChild(el('small', null, String(count)));
+      c.addEventListener('click', () => {
+        timerFilter = timerFilter === kind ? null : kind;
+        visibleLimit = PAGE_SIZE;
+        render();
+      });
+      box.appendChild(c);
+    });
+}
+
+// Timer tab: notes and day summaries from the timer, grouped by day (newest day first)
+function renderTimerView() {
+  const box = $('messages');
+  box.textContent = '';
+  const q = parseQuery(query);
+  const all = timerNotes();
+  const list = collectNotes(q, all.filter(n => !timerFilter || timerKind(n) === timerFilter));
+  const filtering = q.active || !!timerFilter;
+  $('status').textContent = filtering ? `Showing ${list.length} of ${all.length}` : '';
+
+  if (!list.length) {
+    box.appendChild(el('div', 'empty', filtering
+      ? 'No timer notes match.'
+      : 'No timer notes yet. Notes you save on the timer page (and its day summaries) arrive here through the userscript.'));
+    return;
+  }
+  const sorted = list.slice().sort((a, b) => timerWhen(b) - timerWhen(a));
+  const shown = sorted.slice(0, visibleLimit);
+  let lastDay = '';
+  shown.forEach(n => {
+    const day = new Date(timerWhen(n)).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+    if (day !== lastDay) { box.appendChild(el('div', 'section-label', day)); lastDay = day; }
+    box.appendChild(makeCard(n, {}));
+  });
+  if (sorted.length > shown.length) appendMore(box, sorted.length - shown.length);
 }
 
 // All tab: notes + highlights mixed by time, pinned notes on top
@@ -3164,6 +3232,7 @@ function render() {
   renderTags();
   if (view === 'highlights') renderHighlights();
   else if (view === 'all') renderAllView();
+  else if (view === 'timer') renderTimerView();
   else renderNotesView();
   $('sort').value = sortMode;
 }
@@ -3759,7 +3828,7 @@ function submitComposer() {
     composer.value = '';
     composer.style.height = 'auto';
     if (view === 'all' || view === 'notes') render();
-    else setView('notes');
+    else setView('notes');   // (a note typed on the Timer tab is a normal note, so it opens Notes)
   }
 }
 $('addBtn').addEventListener('click', () => { submitComposer(); composer.focus(); });
@@ -3781,6 +3850,7 @@ $('sort').addEventListener('change', e => {
 });
 $('tabAll').addEventListener('click', () => setView('all'));
 $('tabNotes').addEventListener('click', () => setView('notes'));
+$('tabTimer').addEventListener('click', () => setView('timer'));
 $('tabHl').addEventListener('click', () => setView('highlights'));
 $('tabTrash').addEventListener('click', () => setView('trash'));
 
