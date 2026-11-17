@@ -1,86 +1,184 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Random Painting</title>
-<style>
-  html, body {
-    margin: 0;
-    height: 100%;
-    background: #000;
-    overflow: hidden;
-  }
-  img {
-    width: 100vw;
-    height: 100vh;
-    object-fit: contain;
-    display: block;
-  }
-  #info {
-    position: fixed;
-    left: 12px;
-    bottom: 12px;
-    color: white;
-    font: 14px system-ui, sans-serif;
-    text-shadow: 0 1px 3px black;
-    max-width: 90%;
-  }
-</style>
-</head>
-<body>
-<img id="art" alt="Random painting">
-<div id="info">Loading…</div>
-
-<script>
-const API = "https://api.artic.edu/api/v1/artworks/search";
-const FIELDS = "id,title,artist_title,image_id,is_public_domain";
-const img = document.getElementById("art");
-const info = document.getElementById("info");
-
-function imageUrl(imageId) {
-  return `https://www.artic.edu/iiif/2/${imageId}/full/1686,/0/default.jpg`;
-}
-
-async function loadPainting() {
-  info.textContent = "Loading…";
-
-  const page = Math.floor(Math.random() * 300) + 1;
-  const url =
-    `${API}?q=painting` +
-    `&query[term][is_public_domain]=true` +
-    `&fields=${FIELDS}` +
-    `&limit=20&page=${page}`;
-
-  try {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`API error ${response.status}`);
-
-    const data = await response.json();
-    const works = (data.data || []).filter(work => work.image_id);
-
-    if (!works.length) {
-      info.textContent = "No painting found—press F5 to try again.";
-      return;
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#22242a">
+  <title>Home</title>
+  <style>
+    * { box-sizing: border-box; }
+    :root {
+      --bg: #22242a;
+      --surface: #2a2d33;
+      --surface-strong: #31353d;
+      --surface-soft: #1b1d22;
+      --line: #3a3f49;
+      --text: #edf2ff;
+      --muted: #a8afc1;
+      --accent: #8ea4ff;
+      --accent-soft: rgba(142, 164, 255, 0.18);
+      --shadow: rgba(0, 0, 0, 0.28);
+    }
+    html, body {
+      margin: 0;
+      width: 100%;
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font: 14px/1.35 system-ui, sans-serif;
+    }
+    body {
+      background:
+        radial-gradient(circle at top left, rgba(142, 164, 255, 0.12), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(126, 219, 255, 0.12), transparent 30%),
+        var(--bg);
     }
 
-    const work = works[Math.floor(Math.random() * works.length)];
-    img.src = imageUrl(work.image_id);
+    #open-menu { position: fixed; inset: 0; display: grid; place-items: center; width: 100%; height: 100%; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--text); font: inherit; cursor: pointer; }
+    #open-menu span {
+      padding: 13px 22px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--surface);
+      color: var(--text);
+      font-size: 15px;
+      font-weight: 600;
+      box-shadow: 0 8px 24px var(--shadow);
+    }
+    #open-menu:hover span {
+      border-color: var(--accent);
+      background: var(--surface-strong);
+    }
+    #open-menu:focus-visible, .close:focus-visible, input:focus-visible, nav button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    #menu[hidden], #open-menu[hidden] { display: none; }
+    #menu {
+      position: fixed; inset: 0;
+      overflow: auto;
+      background: rgba(34, 36, 42, 0.96);
+      backdrop-filter: blur(6px);
+    }
+    .content { width: min(1200px, calc(100% - 28px)); margin: 0 auto; padding: 16px 0 20px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    h1 { margin: 0; font-size: 24px; letter-spacing: -.04em; }
+    .close, nav button { padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--muted); font: inherit; cursor: pointer; }
+    .close:hover, nav button:hover, nav button.active { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
+    .controls { display: grid; gap: 8px; margin-bottom: 8px; }
+    input {
+      width: 100%;
+      height: 38px;
+      padding: 0 11px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface);
+      color: var(--text);
+      font: inherit;
+    }
+    input::placeholder { color: var(--muted); }
+    nav { display: flex; gap: 6px; overflow-x: auto; padding: 1px 0 3px; }
+    nav button { flex: 0 0 auto; padding: 6px 9px; }
+    .status { min-height: 18px; margin: 2px 0 7px; color: var(--muted); font-size: 12px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(185px, 1fr)); gap: 7px; }
+    .tool {
+      min-width: 0; padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: linear-gradient(180deg, var(--surface), var(--surface-soft));
+      color: var(--text);
+      text-decoration: none;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+    }
+    .tool:hover { border-color: var(--accent); background: linear-gradient(180deg, var(--surface-strong), var(--surface)); }
+    .tool strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+    .tool small { display: block; overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+    #empty { display: none; padding: 18px 0; color: var(--muted); }
+    @media (max-width: 520px) { .content { width: calc(100% - 20px); padding-top: 12px; } h1 { font-size: 21px; } .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; } .tool { padding: 7px; } }
+  </style>
+</head>
+<body>
+  <button id="open-menu" type="button" aria-controls="menu" aria-expanded="false" aria-label="Continue"><span>Continue</span></button>
 
-    img.onload = () => {
-      info.textContent = work.title + (work.artist_title ? ` — ${work.artist_title}` : "");
-    };
+  <main id="menu" hidden>
+    <div class="content">
+      <div class="topbar"><h1>AI Directory</h1><button class="close" id="close-menu" type="button">Close ×</button></div>
+      <section aria-label="AI directory">
+        <div class="controls">
+          <input id="search" type="search" placeholder="Search tools or expertise…" aria-label="Search AI tools">
+          <nav aria-label="Filter by expertise">
+            <button class="active" data-filter="all">All</button>
+            <button data-filter="assistant">Assistants</button>
+            <button data-filter="search">Search &amp; research</button>
+            <button data-filter="open">Open models</button>
+          </nav>
+        </div>
+        <div class="status" id="status" aria-live="polite"></div>
+        <div class="grid" id="tools">
+          <a class="tool" data-category="assistant" href="https://gemini.google.com/app" target="_blank" rel="noopener noreferrer"><strong>Google Gemini</strong><small>Assistant · Google ecosystem, multimodal</small></a>
+          <a class="tool" data-category="assistant" href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer"><strong>ChatGPT</strong><small>Assistant · general-purpose, writing, analysis</small></a>
+          <a class="tool" data-category="assistant" href="https://claude.ai/" target="_blank" rel="noopener noreferrer"><strong>Claude</strong><small>Assistant · writing, reasoning, docs</small></a>
+          <a class="tool" data-category="search" href="https://www.perplexity.ai/" target="_blank" rel="noopener noreferrer"><strong>Perplexity</strong><small>Search · web answers with sources</small></a>
+          <a class="tool" data-category="assistant" href="https://github.com/copilot/" target="_blank" rel="noopener noreferrer"><strong>GitHub Copilot</strong><small>Assistant · coding and chat</small></a>
+          <a class="tool" data-category="assistant" href="https://chat.mistral.ai/" target="_blank" rel="noopener noreferrer"><strong>Mistral Le Chat</strong><small>Assistant · chat, writing, research</small></a>
+          <a class="tool" data-category="assistant" href="https://www.meta.ai/" target="_blank" rel="noopener noreferrer"><strong>Meta AI</strong><small>Assistant · chat and creative help</small></a>
+          <a class="tool" data-category="assistant" href="https://grok.com/" target="_blank" rel="noopener noreferrer"><strong>Grok</strong><small>Assistant · chat and current topics</small></a>
+          <a class="tool" data-category="assistant" href="https://manus.im/app" target="_blank" rel="noopener noreferrer"><strong>Manus</strong><small>AI agent · multi-step tasks</small></a>
+          <a class="tool" data-category="search" href="https://exa.ai/" target="_blank" rel="noopener noreferrer"><strong>Exa</strong><small>Search · AI web and research search</small></a>
+          <a class="tool" data-category="assistant" href="https://venice.ai/" target="_blank" rel="noopener noreferrer"><strong>Venice</strong><small>Assistant · private chat and generation</small></a>
+          <a class="tool" data-category="assistant" href="https://venice.ai/chat/agent" target="_blank" rel="noopener noreferrer"><strong>Venice Agent</strong><small>AI agent · assisted multi-step chat</small></a>
+          <a class="tool" data-category="assistant" href="https://chat.deepseek.com/" target="_blank" rel="noopener noreferrer"><strong>DeepSeek</strong><small>Assistant · reasoning, chat, coding</small></a>
+          <a class="tool" data-category="assistant" href="https://www.kimi.com/" target="_blank" rel="noopener noreferrer"><strong>Kimi</strong><small>Assistant · research and long-form chat</small></a>
+          <a class="tool" data-category="assistant" href="https://poe.com/" target="_blank" rel="noopener noreferrer"><strong>Poe</strong><small>Assistant hub · multiple models</small></a>
+          <a class="tool" data-category="assistant" href="https://pi.ai/" target="_blank" rel="noopener noreferrer"><strong>Pi</strong><small>Assistant · friendly conversational support</small></a>
+        </div>
+        <div id="empty">No matching tools.</div>
+      </section>
+    </div>
+  </main>
 
-    img.onerror = () => {
-      info.textContent = "Image failed to load—press F5 to try again.";
-    };
-  } catch (error) {
-    info.textContent = "Could not load artwork. Check your internet connection.";
-    console.error(error);
-  }
-}
+  <script>
+    const launcher = document.querySelector("#open-menu");
+    const menu = document.querySelector("#menu");
+    const closeButton = document.querySelector("#close-menu");
 
-loadPainting();
-</script>
+    function setMenuOpen(open) {
+      menu.hidden = !open;
+      launcher.hidden = open;
+      launcher.setAttribute("aria-expanded", String(open));
+      if (open) document.querySelector("#search").focus();
+      else launcher.focus();
+    }
+
+    launcher.addEventListener("click", () => setMenuOpen(true));
+    closeButton.addEventListener("click", () => setMenuOpen(false));
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape" && !menu.hidden) setMenuOpen(false);
+    });
+
+    const search = document.querySelector("#search");
+    const tools = [...document.querySelectorAll(".tool")];
+    const buttons = [...document.querySelectorAll("nav button")];
+    const status = document.querySelector("#status");
+    const empty = document.querySelector("#empty");
+    let category = "all";
+
+    function update() {
+      const query = search.value.trim().toLowerCase();
+      let shown = 0;
+      for (const tool of tools) {
+        const visible = (category === "all" || tool.dataset.category === category) && tool.textContent.toLowerCase().includes(query);
+        tool.hidden = !visible;
+        if (visible) shown++;
+      }
+      status.textContent = `${shown} tools`;
+      empty.style.display = shown ? "none" : "block";
+    }
+
+    search.addEventListener("input", update);
+    buttons.forEach(button => button.addEventListener("click", () => {
+      category = button.dataset.filter;
+      buttons.forEach(item => item.classList.toggle("active", item === button));
+      update();
+    }));
+    update();
+  </script>
 </body>
 </html>
