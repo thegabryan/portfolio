@@ -282,7 +282,7 @@ textarea#noteInput.multi { resize: vertical; overflow: auto; white-space: pre-wr
 .nudge { width: max-content; }
 
 /* ----- How to use popup ----- */
-dialog.helpdlg { width: min(760px, 96vw); max-height: 88vh; display: flex; flex-direction: column; }
+dialog.helpdlg { width: min(760px, 96vw); max-height: 88vh; flex-direction: column; }
 dialog.helpdlg[open] { display: flex; }
 .helpdlg .htabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
 .helpdlg .htabs button { padding: 6px 12px; font-size: 13px; }
@@ -308,3 +308,34 @@ dialog.alarmdlg .alform button { flex: none; }
 .alarmdlg .alrow { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); }
 .alarmdlg .alrow b { font-size: 20px; font-variant-numeric: tabular-nums; }
 .alarmdlg .almeta { flex: 1; font-size: 13px; color: var(--muted); }
+
+/* ----- small header buttons: theme, how to use, alarms ----- */
+.nav .hbtn { padding: 4px 10px; font-size: 14px; line-height: 1.2; border-radius: 999px; min-width: 32px; }
+.nav .hbtn.alarmtime { font-variant-numeric: tabular-nums; }
+
+/* ----- clearer separation between blocks of the day timeline ----- */
+.tl { gap: 0; }
+.tl > span { box-shadow: inset 1px 0 0 var(--card), inset -1px 0 0 var(--card); }
+
+/* ----- outreach: note field, log notes ----- */
+.who input { margin-bottom: 6px; }
+.who .whofu { display: flex; gap: 6px; align-items: center; font-size: 12px; color: var(--muted); }
+.who .whofu input { width: auto; margin: 0; }
+.onote { margin-top: 3px; font-size: 13px; color: var(--muted); white-space: pre-wrap; }
+
+/* ----- follow-ups and lists ----- */
+.fubar { display: flex; align-items: center; gap: 10px; }
+.fubar button { padding: 3px 10px; font-size: 13px; }
+dialog.lstdlg { width: min(720px, 96vw); max-height: 88vh; flex-direction: column; }
+dialog.lstdlg[open] { display: flex; }
+.lstdlg .htabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+.lstdlg .htabs button { padding: 6px 12px; font-size: 13px; }
+.lstdlg .htabs button.ghost.on { background: var(--accent); color: var(--accent-ink); }
+.lstdlg .lstbody { overflow: auto; flex: 1; min-height: 0; font-size: 14px; }
+.lstdlg .lrow { display: flex; gap: 10px; align-items: center; justify-content: space-between; padding: 10px 0; border-top: 1px solid var(--line); flex-wrap: wrap; }
+.lstdlg .lmain { flex: 1; min-width: 200px; overflow-wrap: anywhere; }
+.lstdlg .lbtns { display: flex; gap: 6px; flex-wrap: wrap; }
+.lstdlg .lbtns button { padding: 5px 10px; font-size: 13px; }
+.lstdlg .duenow { color: var(--danger); }
+.lstdlg .todoform { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+.lstdlg .todoform input { flex: 1; min-width: 140px; padding: 7px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: inherit; font: inherit; }

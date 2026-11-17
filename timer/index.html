@@ -13,7 +13,7 @@
   <header class="nav">
     <strong class="brand">Focus Timer</strong>
     <span id="todayLbl" class="muted"></span>
-    <button id="themeBtn" class="ghost" type="button">Theme: auto</button>
+    <button id="themeBtn" class="ghost hbtn" type="button">🌓</button>
     <nav>
       <a class="active" href="index.html">Timer</a>
       <a href="dashboard.html">Dashboard</a>
@@ -23,6 +23,7 @@
 
   <div id="notice" class="notice" hidden></div>
 
+  <div id="fuBar" class="notice fubar" hidden><span id="fuTxt"></span> <button id="fuOpen" class="ghost" type="button">Open</button></div>
   <section id="cards" class="cards" aria-label="Timers"></section>
 
   <section class="card bar" aria-label="Settings">
@@ -84,7 +85,16 @@
 
 <form id="whoBox" class="who" hidden autocomplete="off">
   <input id="whoInput" type="text" maxlength="200" placeholder="Who? name or link (Enter saves)" aria-label="Who was this outreach to">
+  <input id="whoNote" type="text" maxlength="1000" placeholder="Note (optional, Enter saves)" aria-label="Note for this outreach">
+  <label class="whofu"><input id="whoFollow" type="checkbox"> Remind me to follow up (every 2 days, 3 times)</label>
 </form>
+
+<dialog id="lstDlg" class="lstdlg">
+  <h2>📋 Outreach lists</h2>
+  <div class="htabs" id="lstTabs"><button type="button" class="ghost on" data-t="follow">Follow-ups</button><button type="button" class="ghost" data-t="todo">To reach out</button><button type="button" class="ghost" data-t="done">Finished</button></div>
+  <div id="lstBody" class="lstbody"></div>
+  <div class="drow"><button type="button" class="primary" id="lstClose">Close</button></div>
+</dialog>
 
 <dialog id="gDlg">
   <form method="dialog">
@@ -116,8 +126,8 @@
   var boot = TSA.boot(Date.now(), {});
   var S = TSA.get();
   TSA.initTheme($('themeBtn'));
-  TSAAlarms.init();
   TSAHelp.init('timer');
+  TSAAlarms.init();
   TSA.mountDataTools($('tools'), function () { S = TSA.get(); renderAll(); });
   (function () {
     var b = document.createElement('button'); b.type = 'button'; b.className = 'ghost'; b.id = 'sumBtn'; b.textContent = 'Send day summary';
@@ -199,6 +209,7 @@
     document.title = META[S.active].icon + ' ' + hms(shown) + ' · ' + META[S.active].label;
     TSA.setFavicon(S.active);
     renderOutreach(now);
+    renderFollow();
     checkNudge(now);
   }
 
@@ -302,18 +313,24 @@
     $('ocMinus').disabled = n === 0;
   }
   var whoMs = 0, whoTimer = null;
-  function hideWho() { $('whoBox').hidden = true; clearTimeout(whoTimer); if (document.activeElement === $('whoInput')) $('whoInput').blur(); }
-  function armWho() { clearTimeout(whoTimer); whoTimer = setTimeout(hideWho, 8000); }
-  $('whoInput').addEventListener('input', armWho);
+  function hideWho() { $('whoBox').hidden = true; clearTimeout(whoTimer); var a = document.activeElement; if (a === $('whoInput') || a === $('whoNote')) a.blur(); }
+  function armWho() { clearTimeout(whoTimer); whoTimer = setTimeout(hideWho, 10000); }
+  $('whoInput').addEventListener('input', armWho); $('whoNote').addEventListener('input', armWho);
+  $('whoBox').addEventListener('focusin', function () { clearTimeout(whoTimer); });
+  $('whoBox').addEventListener('focusout', function () { setTimeout(function () { if (!$('whoBox').hidden && !$('whoBox').contains(document.activeElement)) armWho(); }, 0); });
   $('whoBox').addEventListener('submit', function (e) {
     e.preventDefault();
-    if ($('whoInput').value.trim() && whoMs) TSA.setOutreachName(whoMs, $('whoInput').value);
+    var nm = $('whoInput').value.trim();
+    if (nm && whoMs) TSA.setOutreachName(whoMs, nm);
+    if ($('whoNote').value.trim() && whoMs) TSA.setOutreachNote(whoMs, $('whoNote').value);
+    if (nm && $('whoFollow').checked) TSA.startFollow(nm, '', whoMs || Date.now());
+    S = TSA.get(); renderFollow();
     hideWho();
   });
-  $('whoInput').addEventListener('keydown', function (e) { if (e.key === 'Escape') hideWho(); });
+  $('whoBox').addEventListener('keydown', function (e) { if (e.key === 'Escape') hideWho(); });
   $('ocPlus').addEventListener('click', function () {
-    var now = Date.now(); TSA.outreachAdd(now); renderOutreach(now);
-    whoMs = now; $('whoInput').value = ''; $('whoBox').hidden = false;
+    var now = Date.now(); whoMs = TSA.outreachAdd(now); renderOutreach(now);
+    $('whoInput').value = ''; $('whoNote').value = ''; $('whoFollow').checked = false; $('whoBox').hidden = false;
     var r = $('oc').getBoundingClientRect(); $('whoBox').style.left = Math.max(8, Math.min(r.left, innerWidth - 328)) + 'px'; $('whoBox').style.bottom = (innerHeight - r.top + 8) + 'px';
     $('whoInput').focus(); armWho();
   });
@@ -370,6 +387,76 @@
       TSA.nudgeBeep();
     }
   }
+
+  /* ---------- follow-ups and the 'To reach out' list ---------- */
+  var esc = function (t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+  var linkify = function (t) { return esc(t).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>'); };
+  var lstTab = 'follow';
+  var dayLbl = function (ms) { return new Date(ms).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }); };
+  var leadHtml = function (f) { return '<b>' + linkify(f.name || f.url) + '</b>' + (f.name && f.url ? ' <span class="muted">' + linkify(f.url) + '</span>' : ''); };
+  function renderFollow() {
+    var now = Date.now(), due = TSA.followDue(now), todo = TSA.todoList().length;
+    $('fuBar').hidden = !due.length;
+    if (due.length) $('fuTxt').textContent = '📋 ' + due.length + ' follow-up' + (due.length === 1 ? '' : 's') + ' due: ' + due.slice(0, 3).map(function (f) { return f.name || f.url; }).join(', ') + (due.length > 3 ? '…' : '');
+    var b = $('lstBtn'); if (b) b.textContent = '📋 Outreach lists' + (due.length ? ' (' + due.length + ' due)' : todo ? ' (' + todo + ')' : '');
+    if ($('lstDlg').open) paintLists();
+  }
+  function paintLists() {
+    var now = Date.now(), html = '';
+    [].forEach.call($('lstTabs').children, function (b) { b.classList.toggle('on', b.dataset.t === lstTab); });
+    if (lstTab === 'follow') {
+      var act = TSA.followList().filter(function (f) { return f.status === 'active'; }).sort(function (a, b) { return a.due - b.due; });
+      html = act.length ? act.map(function (f) {
+        var isDue = f.due <= now;
+        return '<div class="lrow"><div class="lmain">' + leadHtml(f) + '<div class="muted">' + f.count + ' / ' + TSA.FOLLOW_MAX + ' follow-ups · ' + (isDue ? '<b class="duenow">due now</b>' : 'next ' + dayLbl(f.due)) + ' · outreach ' + dayLbl(f.started) + '</div></div>' +
+          '<div class="lbtns"><button type="button" class="primary" data-fu-done="' + f.id + '">Followed up</button><button type="button" class="ghost" data-fu-rep="' + f.id + '">Replied</button><button type="button" class="ghost" data-fu-stop="' + f.id + '">Stop</button></div></div>';
+      }).join('') : '<p class="muted">No active follow-ups. Mark an outreach as reached (or tick “Remind me to follow up” on the +1 box) and it shows up here.</p>';
+    } else if (lstTab === 'todo') {
+      var td = TSA.todoList();
+      html = '<form id="todoForm" class="todoform"><input id="tdName" type="text" maxlength="120" placeholder="Name"><input id="tdUrl" type="text" maxlength="300" placeholder="Channel link"><button class="primary">Add</button></form>' +
+        (td.length ? td.map(function (t) {
+          return '<div class="lrow"><div class="lmain">' + leadHtml(t) + '<div class="muted">added ' + dayLbl(t.added) + '</div></div><div class="lbtns"><button type="button" class="primary" data-td-reach="' + t.id + '">Outreached ✓</button><button type="button" class="ghost" data-td-del="' + t.id + '">Remove</button></div></div>';
+        }).join('') : '<p class="muted">Nobody on the list. The YouTube userscript adds channels here, or add one above.</p>');
+    } else {
+      var fin = TSA.followList().filter(function (f) { return f.status !== 'active'; }).sort(function (a, b) { return (b.log[b.log.length - 1] || b.started) - (a.log[a.log.length - 1] || a.started); });
+      var lab = { done: 'finished (3 follow-ups)', replied: 'replied', stopped: 'stopped' };
+      html = fin.length ? fin.map(function (f) { return '<div class="lrow"><div class="lmain">' + leadHtml(f) + '<div class="muted">' + lab[f.status] + ' · ' + f.count + ' follow-up' + (f.count === 1 ? '' : 's') + ' · outreach ' + dayLbl(f.started) + '</div></div></div>'; }).join('') : '<p class="muted">Nothing finished yet.</p>';
+    }
+    $('lstBody').innerHTML = html;
+  }
+  (function () {
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'ghost'; b.id = 'lstBtn'; b.textContent = '📋 Outreach lists';
+    $('tools').appendChild(b);
+    var open = function (tab) { lstTab = tab || lstTab; paintLists(); if (!$('lstDlg').open) $('lstDlg').showModal(); };
+    b.addEventListener('click', function () { open(); });
+    $('fuOpen').addEventListener('click', function () { open('follow'); });
+    $('lstClose').addEventListener('click', function () { $('lstDlg').close(); });
+    $('lstTabs').addEventListener('click', function (e) { var t = e.target.closest('button'); if (t) { lstTab = t.dataset.t; paintLists(); } });
+    $('lstDlg').addEventListener('click', function (e) {
+      var t = e.target.closest('button'); if (!t) { if (e.target === $('lstDlg')) $('lstDlg').close(); return; }
+      var d = t.dataset;
+      if (d.fuDone) TSA.followDone(d.fuDone); else if (d.fuRep) TSA.followStop(d.fuRep, 'replied'); else if (d.fuStop) TSA.followStop(d.fuStop, 'stopped');
+      else if (d.tdDel) TSA.removeTodo(d.tdDel);
+      else if (d.tdReach) { var it = TSA.todoList().filter(function (x) { return x.id === d.tdReach; })[0]; if (it) { TSA.markReached(it.name, it.url, Date.now(), { note: 'From the To-reach-out list' }); renderOutreach(Date.now()); } }
+      else return;
+      S = TSA.get(); renderFollow();
+    });
+    $('lstDlg').addEventListener('submit', function (e) {
+      if (e.target.id !== 'todoForm') return; e.preventDefault();
+      if (TSA.addTodo($('tdName').value, $('tdUrl').value)) { S = TSA.get(); renderFollow(); }
+    });
+    /* channels sent by the YouTube userscript */
+    window.addEventListener('message', function (e) {
+      var m = e.data;
+      if (e.origin !== location.origin || !m || m.channel !== 'timer-bridge' || m.from !== 'userscript' || m.type !== 'lead') return;
+      if (TSA.leadFromScript(m)) {
+        S = TSA.get(); renderOutreach(Date.now()); renderFollow();
+        showNotice((m.kind === 'done' ? '+1 outreach and follow-ups started for ' : 'Added to “To reach out”: ') + (m.name || m.url));
+        window.postMessage({ channel: 'timer-bridge', from: 'page', type: 'lead-ok', id: m.id }, location.origin);
+      }
+    });
+    renderFollow(); setInterval(renderFollow, 60000);
+  })();
 
   /* ---------- run ---------- */
   TSA.engine(function (kind) {

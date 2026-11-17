@@ -24,7 +24,7 @@
     '<li>A note box also opens when you stop Work or switch away from it.</li>' +
     '</ul>' +
     '<h3>Alarms</h3>' +
-    '<p>The <b>⏰ Alarms</b> button in the top bar (on every page) opens the alarm list. Pick a time on the 24-hour clock, an optional label, and <i>Once</i> or <i>Every day</i>, then press Add. When the time comes a loud repeating alarm rings with a <b>Stop alarm</b> banner. Alarms ring while any page of this site is open; one missed by more than 15 minutes only shows a notice. Alarms are included in Export / Import.</p>' +
+    '<p>The top bar (on every page) has three small buttons in this order: <b>theme</b> (🌓 auto, ☀️ light, 🌙 dark – click to cycle), <b>?</b> (this guide) and <b>⏰</b> (alarms). The ⏰ button shows the time of the next alarm, e.g. <i>⏰ 17:50</i>; hover it to see all alarms. Click it to open the alarm list. Pick a time on the 24-hour clock, an optional label, and <i>Once</i> or <i>Every day</i>, then press Add. When the time comes a loud repeating alarm rings with a <b>Stop alarm</b> banner. Alarms ring while any page of this site is open; one missed by more than 15 minutes only shows a notice. Alarms are included in Export / Import.</p>' +
     '<h3>Daily goals</h3>' +
     '<p>Click <b>Goal</b> on a card to set a daily goal: Work and Workout are goals to <i>reach</i>, Paused is a <i>maximum</i>. A progress bar shows how you are doing today.</p>' +
     '<h3>Settings bar</h3>' +
@@ -38,9 +38,11 @@
     '</ul>' +
     '<h3>Bottom row</h3>' +
     '<ul>' +
-    '<li><b>Export all data / Import backup</b> – saves or restores everything in one file named with the date and time. Importing replaces what is saved in this browser.</li>' +
+    '<li><b>Export all data / Import backup</b> – saves or restores everything in one file named with the date and time: timer data, outreach (names, notes, To-reach-out list, follow-ups), alarms and the capsule\'s linked-sites list (needs the capsule script to have run once). Importing replaces what is saved in this browser.</li>' +
+    '<li><b>📋 Outreach lists</b> – a popup with three tabs: <b>Follow-ups</b>, <b>To reach out</b> and <b>Finished</b>. In To reach out you can add a creator (name and optional link) and press <i>Outreached ✓</i> when you contact them; that counts +1 and starts follow-ups.</li>' +
     '<li><b>Send day summary</b> – queues today\'s summary as a note for Url Notes (needs the userscript; otherwise it copies the text).</li>' +
-    '<li><b>Outreach counter</b> – <b>+1</b> adds an outreach, <b>−</b> removes one, <b>Goal</b> changes the daily goal. After +1 a small box lets you type a name or note for that outreach.</li>' +
+    '<li><b>Outreach counter</b> – <b>+1</b> adds an outreach, <b>−</b> removes one, <b>Goal</b> changes the daily goal. After +1 a small box lets you type the creator\'s <b>name</b> and a <b>note</b> (Enter saves both), and tick <i>remind me to follow up</i>. Notes can also be edited in the dashboard\'s outreach log, are searchable there and are in the CSV and the backup.</li>' +
+    '<li><b>Follow-up bar</b> – when a follow-up is due, a slim bar appears above the cards. Follow-ups are due 2 days after the outreach, then 2 days after each follow-up. Press <b>Followed up</b> (the 3rd one finishes it), <b>Replied</b> or <b>Stop</b>. Following up does not change your score.</li>' +
     '<li><b>Chronometer</b> – a separate stopwatch that keeps counting through refreshes and is not part of the export.</li>' +
     '</ul>';
   H.dash =
@@ -87,21 +89,23 @@
     '<li><b>Streaks</b> – consecutive days meeting your goals, current and best.</li>' +
     '</ul>';
   H.script =
-    '<h3>The three userscripts</h3>' +
+    '<h3>The userscripts</h3>' +
     '<p>These pieces live in Tampermonkey and are separate scripts. The timer site is expected at <code>gabryan.com/timer</code> and Url Notes at <code>gabryan.com/notes</code>.</p>' +
     '<ul>' +
     '<li><b>Focus Timer Capsule</b> – the capsule, the site list with the switch prompt, and copying timer notes to Url Notes.</li>' +
     '<li><b>Claude Reset Alarm</b> – reads when your Claude limit resets and sets an alarm.</li>' +
+    '<li><b>YouTube Outreach Popup</b> – on a creator\'s channel page it asks whether to add them to your outreach list.</li>' +
     '<li><b>Make Highlights &amp; Notes</b> – highlights and notes on any page (version 3.0 also tags notes with the running timer).</li>' +
     '</ul>' +
     '<h3>Running-timer capsule</h3>' +
     '<ul>' +
-    '<li>On every other web page a small see-through capsule shows the running timer (emoji, name, elapsed time). It shows <i>⏱ timer off</i> when the timer page has been closed for a while.</li>' +
+    '<li>On every other web page a small see-through capsule shows the running timer (emoji, name and elapsed time – no project or tags). It keeps the same size on every site whatever the page zoom; the Tampermonkey menu has <b>Capsule size</b> (small / normal / large) and a recalibrate command.</li>' +
+    '<li>It shows the timer (emoji, name, elapsed time). It shows <i>⏱ timer off</i> when the timer page has been closed for a while.</li>' +
     '<li><b>Click</b> it to open the timer page. <b>Drag</b> it anywhere; the position is remembered for every site. <b>Double-click</b> puts it back in the bottom-left corner.</li>' +
     '</ul>' +
     '<h3>Switch timer when I open a site</h3>' +
     '<ul>' +
-    '<li>Press the <b>+</b> on the capsule while you are on a site and pick a timer (for example Claude → Workflow). The whole website is linked; the + turns green when a site is linked, and the same menu lets you change or remove it and shows all linked sites.</li>' +
+    '<li>Press the <b>+</b> on the capsule while you are on a site and pick a timer (for example Claude → Workflow). The whole website is linked (the list is copied into the timer page, so Export / Import keeps it); the + turns green when a site is linked, and the same menu lets you change or remove it and shows all linked sites.</li>' +
     '<li>When you open a linked site and a different timer is running, the capsule asks <i>Switch to Workflow now?</i> with <b>Switch</b> and <b>Not now</b>. Switch changes the timer on the timer page; if the timer page is not open, it opens in a new tab and switches. After <i>Not now</i>, that site does not ask again for 30 minutes.</li>' +
     '</ul>' +
     '<h3>Notes to Url Notes</h3>' +
@@ -113,7 +117,9 @@
     '<li>Notes you send from other pages with the highlights script while a timer runs get the running timer\'s tag (and project) added, e.g. <code>#work #my-project</code>.</li>' +
     '</ul>' +
     '<h3>Claude limit-reset alarm</h3>' +
-    '<p>When a claude.ai page says when your usage limit resets (wording like <i>resets at 3:00 PM</i> or <i>resets in 2 hr 10 min</i>), the Claude Reset Alarm script reads that time and the timer page (when open) adds a <b>Claude limit resets</b> alarm for it. A newer time replaces the old one; you can delete it like any alarm.</p>' +
+    '<p>When a claude.ai page says when your usage limit resets (wording like <i>resets at 3:00 PM</i>, <i>resets in 2 hr 10 min</i> or <i>You are out of free messages until 5:50 PM</i>), the Claude Reset Alarm script reads that time and the timer page (when open) adds a <b>Claude limit resets</b> alarm for it. A newer time replaces the old one; you can delete it like any alarm.</p>' +
+    '<h3>YouTube outreach popup</h3>'+
+    '<p>On a YouTube channel page (<code>/@name</code>, <code>/channel/…</code>) a small popup asks: <b>I want to outreach to them</b> (adds to <i>To reach out</i>), <b>I already outreached (+1)</b> (counts +1, saves the name and starts follow-ups) or <b>Not now</b> (asks again after a day). Channels already in your lists are skipped. Your choice is delivered the next time the timer page is open.</p>' +
     '<h3>Highlighting and notes on web pages</h3>' +
     '<p>The Make Highlights &amp; Notes script lets you highlight text and attach notes on any page: <b>Alt+Shift+H</b> opens the panel, <b>Alt+Shift+N</b> sends a note to Url Notes.</p>';
   H.keys =
@@ -135,7 +141,7 @@
   function init(page) {
     var nav = document.querySelector('.nav nav'); if (!nav) return;
     var btn = document.createElement('button');
-    btn.type = 'button'; btn.className = 'ghost'; btn.id = 'helpBtn'; btn.textContent = '? How to use';
+    btn.type = 'button'; btn.className = 'ghost hbtn'; btn.id = 'helpBtn'; btn.textContent = '?'; btn.title = 'How to use'; btn.setAttribute('aria-label', 'How to use');
     nav.parentNode.insertBefore(btn, nav);
     var dlg = document.createElement('dialog'); dlg.id = 'helpDlg'; dlg.className = 'helpdlg';
     dlg.innerHTML = '<h2>How to use</h2><div class="htabs" role="tablist"></div><div class="hbody"></div><div class="drow"><button type="button" class="primary" id="helpClose">Close</button></div>';

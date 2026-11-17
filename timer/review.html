@@ -12,7 +12,7 @@
 <div class="wrap">
   <header class="nav">
     <strong class="brand">Focus Timer</strong>
-    <button id="themeBtn" class="ghost" type="button">Theme: auto</button>
+    <button id="themeBtn" class="ghost hbtn" type="button">🌓</button>
     <nav>
       <a href="index.html">Timer</a>
       <a href="dashboard.html">Dashboard</a>
@@ -64,8 +64,8 @@
   var ACTS = TSA.ACTS, META = TSA.META, dur = TSA.fmtDur, pad = TSA.pad;
   TSA.boot(Date.now(), {});
   TSA.initTheme($('themeBtn'));
-  TSAAlarms.init();
   TSAHelp.init('review');
+  TSAAlarms.init();
   var kind = 'week', off = 0;     // off: 0 = this period, -1 = the one before, ...
 
   function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }

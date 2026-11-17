@@ -72,7 +72,9 @@
   function refreshUi() {
     if (!btn) return;
     var list = read().sort(function (a, b) { return a.at - b.at; });
-    btn.textContent = '⏰ Alarms' + (list.length ? ' (' + list.length + ')' : '');
+    var nx = list[0];
+    btn.textContent = nx ? '⏰ ' + pad(new Date(nx.at).getHours()) + ':' + pad(new Date(nx.at).getMinutes()) : '⏰';
+    btn.title = list.length ? 'Alarms: ' + list.map(function (a) { return pad(new Date(a.at).getHours()) + ':' + pad(new Date(a.at).getMinutes()) + (a.label ? ' ' + a.label : '') + ' (' + when(a.at) + ')'; }).join(' · ') : 'Alarms (none set)';
     if (!listEl) return;
     listEl.innerHTML = list.length ? list.map(function (a) {
       return '<div class="alrow"><b>' + pad(new Date(a.at).getHours()) + ':' + pad(new Date(a.at).getMinutes()) + '</b>' +
@@ -82,8 +84,9 @@
   }
   function init() {
     var nav = document.querySelector('.nav nav'); if (!nav) return;
-    btn = document.createElement('button'); btn.type = 'button'; btn.className = 'ghost'; btn.id = 'alarmBtn';
-    nav.parentNode.insertBefore(btn, document.getElementById('helpBtn') || nav);
+    btn = document.createElement('button'); btn.type = 'button'; btn.className = 'ghost hbtn alarmtime'; btn.id = 'alarmBtn';
+    var hb = document.getElementById('helpBtn');                       // order in the header: theme, how to use, alarms
+    if (hb) hb.after(btn); else nav.parentNode.insertBefore(btn, nav);
     dlg = document.createElement('dialog'); dlg.id = 'alarmDlg'; dlg.className = 'alarmdlg';
     var opts = function (n) { var s = ''; for (var i = 0; i < n; i++) s += '<option value="' + i + '">' + pad(i) + '</option>'; return s; };
     dlg.innerHTML = '<h2>⏰ Alarms</h2>' +

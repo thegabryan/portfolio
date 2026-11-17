@@ -66,7 +66,7 @@
       liveProject: '', lastProject: '',   // project tag of the running Work/Workflow run; the last one used
       segments: [],              // finished stretches: { act, start, end, [id, note] }
       sessions: [],              // finished work rounds (= points)
-      outreach: { clicks: [], goal: 3, adj: {}, names: {} },   // click times of the outreach counter + hand corrections per day
+      outreach: { clicks: [], goal: 3, adj: {}, names: {}, notes: {}, todo: [], follow: [], seen: [] },   // click times of the outreach counter + hand corrections per day
       days: {}                   // 'YYYY-MM-DD' -> { firstOpen }
     };
   }
@@ -85,7 +85,7 @@
     if (!(r.settings.idleNudgeMin >= 0 && r.settings.idleNudgeMin <= 600)) r.settings.idleNudgeMin = 30;
     if (!(r.lastBackup > 0)) r.lastBackup = null;
     ['segments', 'sessions'].forEach(function (k) { if (!Array.isArray(r[k])) r[k] = defaults()[k]; });
-    if (!r.outreach || typeof r.outreach !== 'object') r.outreach = { clicks: [], goal: 3, adj: {}, names: {} };
+    if (!r.outreach || typeof r.outreach !== 'object') r.outreach = { clicks: [], goal: 3, adj: {}, names: {}, notes: {}, todo: [], follow: [], seen: [] };
     if (!Array.isArray(r.outreach.clicks)) r.outreach.clicks = [];
     if (!(r.outreach.goal >= 1)) r.outreach.goal = 3;
     if (!r.outreach.adj || typeof r.outreach.adj !== 'object' || Array.isArray(r.outreach.adj)) r.outreach.adj = {};   // hand-typed corrections per day
@@ -93,6 +93,9 @@
     if (typeof r.liveProject !== 'string') r.liveProject = '';
     if (typeof r.lastProject !== 'string') r.lastProject = '';
     if (!r.outreach.names || typeof r.outreach.names !== 'object' || Array.isArray(r.outreach.names)) r.outreach.names = {};   // who each outreach was to, by click time
+    var oc = r.outreach;
+    if (!oc.notes || typeof oc.notes !== 'object' || Array.isArray(oc.notes)) oc.notes = {};     // a note for each outreach, by click time
+    ['todo', 'follow', 'seen'].forEach(function (k) { if (!Array.isArray(oc[k])) oc[k] = []; });   // 'To reach out' list, follow-up reminders, ids already applied from the userscript
     if (!r.days || typeof r.days !== 'object') r.days = {};
     if (!r.timer || !r.timer.mode) r.timer = { mode: 'idle' };
     r.segments.forEach(function (g) { if (g && g.act === 'family') { g.act = 'paused'; delete g.id; delete g.note; } });   // the removed Family timer counts as Paused
@@ -446,17 +449,24 @@
   /* A day's count = real clicks + the hand correction for that day (never below 0). */
   function outreachOn(k) { return Math.max(0, clicksOn(k) + (S.outreach.adj[k] || 0)); }
   function outreachToday(now) { return outreachOn(dayKey(now || Date.now())); }
-  function outreachAdd(now) {
+  /* Adds one outreach at `now` (or any past time, kept in order). name / note are optional. Returns the click time. */
+  function outreachAdd(now, name, note) {
+    var c = S.outreach.clicks;
     now = now || Date.now();
-    S.outreach.clicks.push(now); save();
-    return outreachToday(now);
+    while (c.indexOf(now) >= 0) now++;                    // click times are the ids, so they stay unique
+    var i = c.length; while (i > 0 && c[i - 1] > now) i--;
+    c.splice(i, 0, now);
+    save();
+    if (name) setOutreachName(now, name);
+    if (note) setOutreachNote(now, note);
+    return now;
   }
   /* Removes the latest click if it was made today, else lowers a hand-added amount for today. */
   function outreachUndo(now) {
     now = now || Date.now();
     var k = dayKey(now), c = S.outreach.clicks;
     if (outreachOn(k) === 0) return false;
-    if (c.length && dayKey(c[c.length - 1]) === k) delete S.outreach.names[c.pop()];
+    if (c.length && dayKey(c[c.length - 1]) === k) { var ms = c.pop(); delete S.outreach.names[ms]; delete S.outreach.notes[ms]; }
     else if ((S.outreach.adj[k] || 0) > 0) { S.outreach.adj[k]--; if (!S.outreach.adj[k]) delete S.outreach.adj[k]; }
     else return false;
     save(); return true;
@@ -469,10 +479,82 @@
     if (n) S.outreach.names[ms] = n; else delete S.outreach.names[ms];
     save(); return true;
   }
-  /* Every counted click, newest first, with its name. */
+  /* A note for an outreach (empty text removes it). */
+  function setOutreachNote(ms, text) {
+    ms = +ms;
+    if (S.outreach.clicks.indexOf(ms) < 0) return false;
+    var n = String(text || '').replace(/\r\n?/g, '\n').trim().slice(0, NOTE_MAX);
+    if (n) S.outreach.notes[ms] = n; else delete S.outreach.notes[ms];
+    save(); return true;
+  }
+  /* Every counted click, newest first, with its name and note. */
   function outreachLog() {
-    var nm = S.outreach.names;
-    return S.outreach.clicks.map(function (ms) { return { ms: ms, name: nm[ms] || '' }; }).sort(function (a, b) { return b.ms - a.ms; });
+    var nm = S.outreach.names, nt = S.outreach.notes;
+    return S.outreach.clicks.map(function (ms) { return { ms: ms, name: nm[ms] || '', note: nt[ms] || '' }; }).sort(function (a, b) { return b.ms - a.ms; });
+  }
+
+  /* ---------- 'To reach out' list and follow-up reminders ---------- */
+  var FOLLOW_DAYS = 2, FOLLOW_MAX = 3;
+  var leadKey = function (name, url) { return String(url || name || '').toLowerCase().replace(/[?#].*$/, '').replace(/\/+$/, '').trim(); };
+  var dayStartOf = function (k) { var p = k.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]).getTime(); };
+  var due2 = function (from) { return dayStartOf(addDays(dayKey(from), FOLLOW_DAYS)); };      // two calendar days later, from midnight
+  function todoList() { return S.outreach.todo.slice(); }
+  function addTodo(name, url, now) {
+    name = String(name || '').replace(/\s+/g, ' ').trim().slice(0, 120); url = String(url || '').trim().slice(0, 300);
+    if (!name && !url) return false;
+    var key = leadKey(name, url);
+    if (S.outreach.todo.some(function (t) { return leadKey(t.name, t.url) === key; })) return false;
+    S.outreach.todo.push({ id: uid(), name: name, url: url, added: now || Date.now() });
+    save(); return true;
+  }
+  function removeTodo(id) {
+    var n = S.outreach.todo.length;
+    S.outreach.todo = S.outreach.todo.filter(function (t) { return t.id !== id; });
+    if (S.outreach.todo.length !== n) { save(); return true; } return false;
+  }
+  /* Counts one outreach (+1, logged with the name/link) and starts the follow-up reminders for it. */
+  function markReached(name, url, now, opts) {
+    now = now || Date.now();
+    name = String(name || '').replace(/\s+/g, ' ').trim().slice(0, 120); url = String(url || '').trim().slice(0, 300);
+    var key = leadKey(name, url);
+    S.outreach.todo = S.outreach.todo.filter(function (t) { return leadKey(t.name, t.url) !== key; });
+    var ms = outreachAdd(now, [name, url].filter(Boolean).join(' ').slice(0, 200), opts && opts.note);
+    if (!(opts && opts.noFollow)) startFollow(name, url, now);
+    return ms;
+  }
+  function startFollow(name, url, now) {
+    now = now || Date.now();
+    var key = leadKey(name, url);
+    if (!key || S.outreach.follow.some(function (f) { return f.status === 'active' && leadKey(f.name, f.url) === key; })) return false;
+    S.outreach.follow.push({ id: uid(), name: name || '', url: url || '', started: now, count: 0, due: due2(now), status: 'active', log: [] });
+    save(); return true;
+  }
+  function followList() { return S.outreach.follow.slice(); }
+  function followDue(now) { now = now || Date.now(); return S.outreach.follow.filter(function (f) { return f.status === 'active' && f.due <= now; }).sort(function (a, b) { return a.due - b.due; }); }
+  /* 'Followed up': counts it, schedules the next one two days later; the third one finishes the reminders. */
+  function followDone(id, now) {
+    now = now || Date.now();
+    var f = S.outreach.follow.filter(function (x) { return x.id === id && x.status === 'active'; })[0];
+    if (!f) return false;
+    f.count++; f.log.push(now);
+    if (f.count >= FOLLOW_MAX) f.status = 'done'; else f.due = due2(now);
+    save(); return true;
+  }
+  function followStop(id, status) {
+    var f = S.outreach.follow.filter(function (x) { return x.id === id && x.status === 'active'; })[0];
+    if (!f) return false;
+    f.status = status === 'replied' ? 'replied' : 'stopped'; save(); return true;
+  }
+  /* A request from the YouTube userscript: { id, kind: 'todo' | 'done', name, url, ts }. Applied once per id. */
+  function leadFromScript(m) {
+    if (!m || !m.id) return false;
+    var seen = S.outreach.seen;
+    if (seen.indexOf(m.id) >= 0) return true;
+    var ts = +m.ts > 0 && +m.ts <= Date.now() + 60000 ? +m.ts : Date.now();
+    if (m.kind === 'done') markReached(m.name, m.url, ts, { note: 'From the YouTube channel page' });
+    else if (m.kind === 'todo') addTodo(m.name, m.url, ts);
+    else return false;
+    seen.push(m.id); S.outreach.seen = seen.slice(-300); save(); return true;
   }
   /* Sets a day's total by hand. Real click times stay; the difference is stored as a correction. */
   function setOutreachDay(k, n, now) {
@@ -619,11 +701,13 @@
   /* Alarms live under their own key (see alarms.js) but travel in the backup file. */
   var ALARMS_KEY = 'tsa2_alarms';
   function readAlarmsRaw() { try { var a = JSON.parse(root.localStorage.getItem(ALARMS_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+  var CAPSULE_KEY = 'tsa2_capsule';     // the capsule script's linked sites, copied here by the userscript
+  function readCapsuleRaw() { try { var c = JSON.parse(root.localStorage.getItem(CAPSULE_KEY) || 'null'); return c && typeof c === 'object' ? c : null; } catch (e) { return null; } }
   function exportAll(now) {
     var d = new Date(now || Date.now());
     var name = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + '_' +
       pad(d.getHours()) + '-' + pad(d.getMinutes()) + '-' + pad(d.getSeconds()) + '.json';
-    return { name: name, json: JSON.stringify({ app: 'timer-score', exportedAt: d.toISOString(), data: S, alarms: readAlarmsRaw() }, null, 2) };
+    return { name: name, json: JSON.stringify({ app: 'timer-score', exportedAt: d.toISOString(), data: S, alarms: readAlarmsRaw(), capsule: readCapsuleRaw() }, null, 2) };
   }
   function importText(text) {
     var o;
@@ -631,6 +715,7 @@
     var d = o && o.app === 'timer-score' ? o.data : null;
     if (!d || !Array.isArray(d.sessions)) throw new Error('This does not look like a backup from this app.');
     S = normalize(migrate(d, Date.now()));
+    if (o.capsule && typeof o.capsule === 'object') { try { o.capsule.at = Date.now(); root.localStorage.setItem(CAPSULE_KEY, JSON.stringify(o.capsule)); } catch (e) {} }   // the newer copy wins: the userscript takes it back
     if (Array.isArray(o.alarms)) { try { root.localStorage.setItem(ALARMS_KEY, JSON.stringify(o.alarms)); } catch (e) {} }
     boot(Date.now(), { keep: true });
     return S.sessions.length;
@@ -675,7 +760,7 @@
           return [d.day, d.points, d.outreach, d.firstOpen ? dt(d.firstOpen) : ''].concat(ACTS.map(function (a) { return Math.round(d.t[a]); }));
         }));
     } else if (kind === 'outreachlog') {
-      rows = [['day', 'time', 'name']].concat(outreachLog().reverse().map(function (o) { return [dayKey(o.ms), dt(o.ms), o.name]; }));
+      rows = [['day', 'time', 'name', 'note']].concat(outreachLog().reverse().map(function (o) { return [dayKey(o.ms), dt(o.ms), o.name, o.note]; }));
     } else if (kind === 'outreach') {
       var goal = S.outreach.goal;
       rows = [['day', 'outreach', 'goal', 'goal_met', 'edited_by_hand']].concat(A.days.slice().reverse().map(function (d) {
@@ -839,8 +924,8 @@
     if (t === 'light' || t === 'dark') el.setAttribute('data-theme', t); else el.removeAttribute('data-theme');
   }
   function initTheme(btn) {
-    var label = { auto: 'Theme: auto', light: 'Theme: light', dark: 'Theme: dark' };
-    var paint = function () { applyTheme(); if (btn) btn.textContent = label[S.settings.theme] || label.auto; };
+    var label = { auto: 'Theme: auto', light: 'Theme: light', dark: 'Theme: dark' }, sym = { auto: '🌓', light: '☀️', dark: '🌙' };
+    var paint = function () { applyTheme(); if (btn) { var t = S.settings.theme in label ? S.settings.theme : 'auto'; btn.textContent = sym[t]; btn.title = label[t] + ' (click to change)'; btn.setAttribute('aria-label', label[t]); } };
     paint();
     if (btn) btn.addEventListener('click', function () {
       var order = ['auto', 'light', 'dark'];
@@ -937,7 +1022,7 @@
     boot: boot, get: function () { return S; }, reload: reload, save: save,
     storageOK: function () { return !memoryOnly; },
     switchTo: switchTo, setNote: setNote, setNoteAt: setNoteAt, noteTarget: noteTarget, allNotes: allNotes, heartbeat: heartbeat, tick: tick,
-    outreachToday: outreachToday, outreachAdd: outreachAdd, outreachUndo: outreachUndo, setOutreachDay: setOutreachDay, setOutreachName: setOutreachName, outreachLog: outreachLog, projectList: projectList, renameProject: renameProject, projectTime: projectTime, actByHour: actByHour, setGoal: setGoal,
+    outreachToday: outreachToday, outreachAdd: outreachAdd, outreachUndo: outreachUndo, setOutreachDay: setOutreachDay, setOutreachName: setOutreachName, setOutreachNote: setOutreachNote, todoList: todoList, addTodo: addTodo, removeTodo: removeTodo, markReached: markReached, startFollow: startFollow, followList: followList, followDue: followDue, followDone: followDone, followStop: followStop, leadFromScript: leadFromScript, FOLLOW_MAX: FOLLOW_MAX, outreachLog: outreachLog, projectList: projectList, renameProject: renameProject, projectTime: projectTime, actByHour: actByHour, setGoal: setGoal,
     todayTotals: todayTotals, todayPoints: todayPoints, analyze: analyze,
     exportAll: exportAll, importText: importText,
     audio: audio, audioReady: audioReady, beep: beep, nudgeBeep: nudgeBeep, alarmStart: alarmStart, alarmStop: alarmStop,

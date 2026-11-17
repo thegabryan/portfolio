@@ -12,7 +12,7 @@
 <div class="wrap">
   <header class="nav">
     <strong class="brand">Focus Timer</strong>
-    <button id="themeBtn" class="ghost" type="button">Theme: auto</button>
+    <button id="themeBtn" class="ghost hbtn" type="button">🌓</button>
     <nav>
       <a href="index.html">Timer</a>
       <a class="active" href="dashboard.html">Dashboard</a>
@@ -176,7 +176,8 @@
   <form method="dialog">
     <h2 id="olTitle">Outreach</h2>
     <input id="olInput" type="text" maxlength="200" placeholder="Name or link" autocomplete="off" style="width:100%">
-    <p class="hint">Save with empty text to remove the name.</p>
+    <textarea id="olNote" rows="3" maxlength="1000" placeholder="Note (optional)" style="width:100%;margin-top:8px;box-sizing:border-box;font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:inherit;resize:vertical"></textarea>
+    <p class="hint">Save with empty text to remove the name or the note.</p>
     <div class="drow"><button class="primary" value="save">Save</button></div>
   </form>
 </dialog>
@@ -220,8 +221,8 @@
   var ACTS = TSA.ACTS, META = TSA.META, dur = TSA.fmtDur;
   TSA.boot(Date.now(), {});
   TSA.initTheme($('themeBtn'));
-  TSAAlarms.init();
   TSAHelp.init('dash');
+  TSAAlarms.init();
   TSA.mountDataTools($('tools'), render);
   TSA.mountCsvTools($('csvTools'));
   $('autoBk').addEventListener('change', function () { TSA.setAutoBackup($('autoBk').checked); render(); });
@@ -345,7 +346,7 @@
   });
   $('olDlg').addEventListener('close', function () {
     if (this.returnValue !== 'save') return;
-    TSA.setOutreachName(this.dataset.ms, $('olInput').value); render();
+    TSA.setOutreachName(this.dataset.ms, $('olInput').value); TSA.setOutreachNote(this.dataset.ms, $('olNote').value); render();
   });
   $('prDlg').addEventListener('close', function () {
     if (this.returnValue !== 'save') return;
@@ -360,7 +361,7 @@
     if (lb) {
       var ms = +lb.dataset.ol, cur = TSA.outreachLog().filter(function (o) { return o.ms === ms; })[0];
       $('olTitle').textContent = 'Outreach on ' + fmtDay(TSA.dayKey(ms), true) + ', ' + clock(ms);
-      $('olInput').value = cur ? cur.name : ''; $('olDlg').dataset.ms = ms; $('olDlg').returnValue = ''; $('olDlg').showModal(); $('olInput').select(); return;
+      $('olInput').value = cur ? cur.name : ''; $('olNote').value = cur ? cur.note : ''; $('olDlg').dataset.ms = ms; $('olDlg').returnValue = ''; $('olDlg').showModal(); $('olInput').select(); return;
     }
     var pb = e.target.closest && e.target.closest('[data-pr]');
     if (pb) { $('prTitle').textContent = 'Rename “' + pb.dataset.pr + '”'; $('prInput').value = pb.dataset.pr; $('prDlg').dataset.from = pb.dataset.pr; $('prDlg').returnValue = ''; $('prDlg').showModal(); $('prInput').select(); return; }
@@ -564,10 +565,10 @@
 
     /* outreach log */
     var olq = $('olQ').value.trim().toLowerCase();
-    var olist = TSA.outreachLog().filter(function (o) { return !olq || o.name.toLowerCase().indexOf(olq) >= 0; });
+    var olist = TSA.outreachLog().filter(function (o) { return !olq || o.name.toLowerCase().indexOf(olq) >= 0 || o.note.toLowerCase().indexOf(olq) >= 0; });
     $('ol').innerHTML = olist.length ? olist.slice(0, 300).map(function (o) {
-      return '<div class="nrow"><span class="nt">' + fmtDay(TSA.dayKey(o.ms), true) + ' · ' + clock(o.ms) + '</span><span>🤝 Outreach</span><span class="nx">' + (o.name ? linkify(esc(o.name)) : '<span class="muted">–</span>') +
-        '</span><button type="button" class="linkbtn" data-ol="' + o.ms + '">' + (o.name ? 'Edit' : 'Add name') + '</button></div>';
+      return '<div class="nrow"><span class="nt">' + fmtDay(TSA.dayKey(o.ms), true) + ' · ' + clock(o.ms) + '</span><span>🤝 Outreach</span><span class="nx">' + (o.name ? linkify(esc(o.name)) : '<span class="muted">–</span>') + (o.note ? '<div class="onote">' + linkify(esc(o.note)) + '</div>' : '') +
+        '</span><button type="button" class="linkbtn" data-ol="' + o.ms + '">' + (o.name || o.note ? 'Edit' : 'Add name') + '</button></div>';
     }).join('') + (olist.length > 300 ? '<p class="muted">Showing the newest 300 of ' + olist.length + '.</p>' : '')
       : '<div class="empty-msg">' + (olq ? 'No names match.' : 'No outreaches counted yet.') + '</div>';
 
