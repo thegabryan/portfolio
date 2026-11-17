@@ -393,7 +393,10 @@
   var linkify = function (t) { return esc(t).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>'); };
   var lstTab = 'follow';
   var dayLbl = function (ms) { return new Date(ms).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }); };
-  var leadHtml = function (f) { return '<b>' + linkify(f.name || f.url) + '</b>' + (f.name && f.url ? ' <span class="muted">' + linkify(f.url) + '</span>' : ''); };
+  var leadHtml = function (f) {
+    var pic = TSA.picFor(f), letter = (f.name || f.url || '?').replace(/^\W+/, '').charAt(0).toUpperCase() || '?';
+    return '<div class="lwho"><span class="av" data-l="' + esc(letter) + '">' + (pic ? '<img src="' + esc(pic) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' : '') + '</span><div class="lname"><b>' + linkify(f.name || f.url) + '</b>' + (f.name && f.url ? ' <span class="muted">' + linkify(f.url) + '</span>' : '') + '</div></div>';
+  };
   function renderFollow() {
     var now = Date.now(), due = TSA.followDue(now), todo = TSA.todoList().length;
     $('fuBar').hidden = !due.length;
@@ -464,6 +467,11 @@
         showNotice((m.kind === 'done' ? '+1 outreach and follow-ups started for ' : 'Added to “To reach out”: ') + (m.name || m.url));
         window.postMessage({ channel: 'timer-bridge', from: 'page', type: 'lead-ok', id: m.id }, location.origin);
       }
+    });
+    window.addEventListener('message', function (e) {   // profile pictures sent by the YouTube userscript
+      var m = e.data;
+      if (e.origin !== location.origin || !m || m.channel !== 'timer-bridge' || m.from !== 'userscript' || m.type !== 'pics') return;
+      if (TSA.setPics(m.pics)) { S = TSA.get(); lastLstHtml = ''; renderFollow(); }
     });
     renderFollow(); setInterval(renderFollow, 60000);
   })();

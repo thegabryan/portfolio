@@ -66,7 +66,7 @@
       liveProject: '', lastProject: '',   // project tag of the running Work/Workflow run; the last one used
       segments: [],              // finished stretches: { act, start, end, [id, note] }
       sessions: [],              // finished work rounds (= points)
-      outreach: { clicks: [], goal: 3, adj: {}, names: {}, notes: {}, todo: [], follow: [], seen: [] },   // click times of the outreach counter + hand corrections per day
+      outreach: { clicks: [], goal: 3, adj: {}, names: {}, notes: {}, todo: [], follow: [], seen: [], pics: {} },   // click times of the outreach counter + hand corrections per day
       days: {}                   // 'YYYY-MM-DD' -> { firstOpen }
     };
   }
@@ -95,6 +95,7 @@
     if (!r.outreach.names || typeof r.outreach.names !== 'object' || Array.isArray(r.outreach.names)) r.outreach.names = {};   // who each outreach was to, by click time
     var oc = r.outreach;
     if (!oc.notes || typeof oc.notes !== 'object' || Array.isArray(oc.notes)) oc.notes = {};     // a note for each outreach, by click time
+    if (!oc.pics || typeof oc.pics !== 'object' || Array.isArray(oc.pics)) oc.pics = {};          // channel profile picture links, by channel key
     ['todo', 'follow', 'seen'].forEach(function (k) { if (!Array.isArray(oc[k])) oc[k] = []; });   // 'To reach out' list, follow-up reminders, ids already applied from the userscript
     if (!r.days || typeof r.days !== 'object') r.days = {};
     if (!r.timer || !r.timer.mode) r.timer = { mode: 'idle' };
@@ -546,6 +547,34 @@
     f.status = status === 'replied' ? 'replied' : 'stopped'; save(); return true;
   }
   /* A request from the YouTube userscript: { id, kind: 'todo' | 'done', name, url, ts }. Applied once per id. */
+  /* Channel profile pictures: only the image link is saved. A channel is found by its @handle / channel id / name. */
+  var PIC_HOST = /^https:\/\/[a-z0-9.-]*(googleusercontent\.com|ggpht\.com|ytimg\.com)\//i;
+  function picKeys(name, url) {
+    var keys = [], m = /youtube\.com\/(@[^\s\/?#"')]+|channel\/[^\s\/?#"')]+|c\/[^\s\/?#"')]+|user\/[^\s\/?#"')]+)/i.exec(String(url || ''));
+    if (m) { var k = m[1]; try { k = decodeURIComponent(k); } catch (e) {} keys.push(k.toLowerCase()); }
+    var n = String(name || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    if (n) keys.push('n:' + n);
+    return keys;
+  }
+  function picFor(item) {
+    var p = S.outreach.pics || {}, ks = picKeys(item && item.name, item && item.url);
+    for (var i = 0; i < ks.length; i++) if (p[ks[i]]) return p[ks[i]];
+    return '';
+  }
+  /* map = { key: imageUrl }. Only channels that are in the To-reach-out list or in follow-ups keep a picture. */
+  function setPics(map) {
+    if (!map || typeof map !== 'object') return false;
+    var want = {};
+    S.outreach.todo.concat(S.outreach.follow).forEach(function (it) { picKeys(it.name, it.url).forEach(function (k) { want[k] = 1; }); });
+    var changed = false;
+    Object.keys(map).forEach(function (k) {
+      var u = String(map[k] || '');
+      if (!want[k] || !PIC_HOST.test(u) || u.length > 400 || S.outreach.pics[k] === u) return;
+      S.outreach.pics[k] = u; changed = true;
+    });
+    if (changed) save();
+    return changed;
+  }
   function leadFromScript(m) {
     if (!m || !m.id) return false;
     var seen = S.outreach.seen;
@@ -554,6 +583,7 @@
     if (m.kind === 'done') markReached(m.name, m.url, ts, { note: 'From the YouTube channel page' });
     else if (m.kind === 'todo') addTodo(m.name, m.url, ts);
     else return false;
+    if (m.pic) { var pm = {}; picKeys(m.name, m.url).forEach(function (k) { pm[k] = m.pic; }); setPics(pm); }
     seen.push(m.id); S.outreach.seen = seen.slice(-300); save(); return true;
   }
   /* Sets a day's total by hand. Real click times stay; the difference is stored as a correction. */
@@ -1077,7 +1107,7 @@
     todayTotals: todayTotals, todayPoints: todayPoints, analyze: analyze,
     exportAll: exportAll, importText: importText,
     audio: audio, audioReady: audioReady, beep: beep, nudgeBeep: nudgeBeep, alarmStart: alarmStart, alarmStop: alarmStop,
-    setFavicon: setFavicon, setTitle: setTitle, startFlash: startFlash, quickBlink: quickBlink, engine: engine, initTheme: initTheme, mountDataTools: mountDataTools, mountCsvTools: mountCsvTools, csvExport: csvExport, maybeAutoBackup: maybeAutoBackup, setAutoBackup: setAutoBackup, setGoalSec: setGoalSec, GOALS: GOALS,
+    setFavicon: setFavicon, setTitle: setTitle, picFor: picFor, setPics: setPics, startFlash: startFlash, quickBlink: quickBlink, engine: engine, initTheme: initTheme, mountDataTools: mountDataTools, mountCsvTools: mountCsvTools, csvExport: csvExport, maybeAutoBackup: maybeAutoBackup, setAutoBackup: setAutoBackup, setGoalSec: setGoalSec, GOALS: GOALS,
     dailySummary: dailySummary, sendSummary: sendSummary,
     KEY: KEY, CHRONO_KEY: CHRONO_KEY
   };
