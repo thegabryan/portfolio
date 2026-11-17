@@ -1,0 +1,844 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#22242a">
+  <title>Home</title>
+  <style>
+    * { box-sizing: border-box; }
+    :root {
+      --bg: #22242a;
+      --surface: #2a2d33;
+      --surface-strong: #31353d;
+      --surface-soft: #1b1d22;
+      --line: #3a3f49;
+      --text: #edf2ff;
+      --muted: #a8afc1;
+      --accent: #8ea4ff;
+      --accent-soft: rgba(142, 164, 255, 0.18);
+      --shadow: rgba(0, 0, 0, 0.28);
+    }
+    html, body {
+      margin: 0;
+      width: 100%;
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font: 14px/1.35 system-ui, sans-serif;
+    }
+    body {
+      background:
+        radial-gradient(circle at top left, rgba(142, 164, 255, 0.12), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(126, 219, 255, 0.12), transparent 30%),
+        var(--bg);
+    }
+
+    #open-menu { position: fixed; inset: 0; display: grid; place-items: center; width: 100%; height: 100%; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--text); font: inherit; cursor: pointer; }
+    #open-menu span {
+      padding: 13px 22px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--surface);
+      color: var(--text);
+      font-size: 15px;
+      font-weight: 600;
+      box-shadow: 0 8px 24px var(--shadow);
+    }
+    #open-menu:hover span {
+      border-color: var(--accent);
+      background: var(--surface-strong);
+    }
+    #open-menu:focus-visible, .close:focus-visible, input:focus-visible, nav button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    #menu[hidden], #open-menu[hidden] { display: none; }
+    #menu {
+      position: fixed; inset: 0;
+      overflow: auto;
+      background: rgba(34, 36, 42, 0.96);
+      backdrop-filter: blur(6px);
+    }
+    .content { width: min(1200px, calc(100% - 28px)); margin: 0 auto; padding: 16px 0 20px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    h1 { margin: 0; font-size: 24px; letter-spacing: -.04em; }
+    .close, nav button { padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--muted); font: inherit; cursor: pointer; }
+    .close:hover, nav button:hover, nav button.active { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
+    .controls { display: grid; gap: 8px; margin-bottom: 8px; }
+    input {
+      width: 100%;
+      height: 38px;
+      padding: 0 11px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface);
+      color: var(--text);
+      font: inherit;
+    }
+    input::placeholder { color: var(--muted); }
+    nav { display: flex; gap: 6px; overflow-x: auto; padding: 1px 0 3px; }
+    nav button { flex: 0 0 auto; padding: 6px 9px; }
+    .status { min-height: 18px; margin: 2px 0 7px; color: var(--muted); font-size: 12px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(185px, 1fr)); gap: 7px; }
+    .tool {
+      min-width: 0; padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: linear-gradient(180deg, var(--surface), var(--surface-soft));
+      color: var(--text);
+      text-decoration: none;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+    }
+    .tool:hover { border-color: var(--accent); background: linear-gradient(180deg, var(--surface-strong), var(--surface)); }
+    .tool strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+    .tool small { display: block; overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+    #empty { display: none; padding: 18px 0; color: var(--muted); }
+    @media (max-width: 520px) { .content { width: calc(100% - 20px); padding-top: 12px; } h1 { font-size: 21px; } .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; } .tool { padding: 7px 8px; } }
+  </style>
+</head>
+<body>
+  <button id="open-menu" type="button" aria-controls="menu" aria-expanded="false" aria-label="Continue"><span>Continue</span></button>
+
+  <main id="menu" hidden>
+    <div class="content">
+      <div class="topbar"><h1>AI Directory</h1><button class="close" id="close-menu" type="button">Close ×</button></div>
+      <section aria-label="AI directory">
+        <div class="controls">
+          <input id="search" type="search" placeholder="Search tools or expertise…" aria-label="Search AI tools">
+          <nav aria-label="Filter by expertise">
+            <button class="active" data-filter="all">All</button>
+            <button data-filter="assistant">Assistants</button>
+            <button data-filter="search">Search &amp; research</button>
+            <button data-filter="open">Open models</button>
+          </nav>
+        </div>
+        <div class="status" id="status" aria-live="polite"></div>
+        <div class="grid" id="tools">
+          <a class="tool" data-category="assistant" href="https://gemini.google.com/app" target="_blank" rel="noopener noreferrer"><strong>Google Gemini</strong><small>Assistant · Google ecosystem, model access</small></a>
+          <a class="tool" data-category="assistant" href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer"><strong>ChatGPT</strong><small>Assistant · general-purpose, writing, analysis</small></a>
+          <a class="tool" data-category="assistant" href="https://claude.ai/" target="_blank" rel="noopener noreferrer"><strong>Claude</strong><small>Assistant · writing, reasoning, docs</small></a>
+          <a class="tool" data-category="search" href="https://www.perplexity.ai/" target="_blank" rel="noopener noreferrer"><strong>Perplexity</strong><small>Search · web answers with sources</small></a>
+          <a class="tool" data-category="assistant" href="https://github.com/copilot/" target="_blank" rel="noopener noreferrer"><strong>GitHub Copilot</strong><small>Assistant · coding and chat</small></a>
+          <a class="tool" data-category="assistant" href="https://chat.mistral.ai/" target="_blank" rel="noopener noreferrer"><strong>Mistral Le Chat</strong><small>Assistant · chat, writing, research</small></a>
+          <a class="tool" data-category="assistant" href="https://www.meta.ai/" target="_blank" rel="noopener noreferrer"><strong>Meta AI</strong><small>Assistant · chat and creative help</small></a>
+          <a class="tool" data-category="assistant" href="https://grok.com/" target="_blank" rel="noopener noreferrer"><strong>Grok</strong><small>Assistant · chat and current topics</small></a>
+          <a class="tool" data-category="assistant" href="https://manus.im/app" target="_blank" rel="noopener noreferrer"><strong>Manus</strong><small>AI agent · multi-step tasks</small></a>
+          <a class="tool" data-category="search" href="https://exa.ai/" target="_blank" rel="noopener noreferrer"><strong>Exa</strong><small>Search · AI web and research search</small></a>
+          <a class="tool" data-category="assistant" href="https://venice.ai/" target="_blank" rel="noopener noreferrer"><strong>Venice</strong><small>Assistant · private chat and generation</small></a>
+          <a class="tool" data-category="assistant" href="https://venice.ai/chat/agent" target="_blank" rel="noopener noreferrer"><strong>Venice Agent</strong><small>AI agent · assisted multi-step chat</small></a>
+          <a class="tool" data-category="assistant" href="https://chat.deepseek.com/" target="_blank" rel="noopener noreferrer"><strong>DeepSeek</strong><small>Assistant · reasoning, chat, coding</small></a>
+          <a class="tool" data-category="assistant" href="https://www.kimi.com/" target="_blank" rel="noopener noreferrer"><strong>Kimi</strong><small>Assistant · research and long-form chat</small></a>
+          <a class="tool" data-category="assistant" href="https://poe.com/" target="_blank" rel="noopener noreferrer"><strong>Poe</strong><small>Assistant hub · multiple models</small></a>
+          <a class="tool" data-category="assistant" href="https://pi.ai/" target="_blank" rel="noopener noreferrer"><strong>Pi</strong><small>Assistant · friendly conversational support</small></a>
+        </div>
+        <div id="empty">No matching tools.</div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const launcher = document.querySelector("#open-menu");
+    const menu = document.querySelector("#menu");
+    const closeButton = document.querySelector("#close-menu");
+
+    function setMenuOpen(open) {
+      menu.hidden = !open;
+      launcher.hidden = open;
+      launcher.setAttribute("aria-expanded", String(open));
+      if (open) document.querySelector("#search").focus();
+      else launcher.focus();
+    }
+
+    launcher.addEventListener("click", () => setMenuOpen(true));
+    closeButton.addEventListener("click", () => setMenuOpen(false));
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape" && !menu.hidden) setMenuOpen(false);
+    });
+
+    const search = document.querySelector("#search");
+    const tools = [...document.querySelectorAll(".tool")];
+    const buttons = [...document.querySelectorAll("nav button")];
+    const status = document.querySelector("#status");
+    const empty = document.querySelector("#empty");
+    let category = "all";
+
+    function update() {
+      const query = search.value.trim().toLowerCase();
+      let shown = 0;
+      for (const tool of tools) {
+        const visible = (category === "all" || tool.dataset.category === category) && tool.textContent.toLowerCase().includes(query);
+        tool.hidden = !visible;
+        if (visible) shown++;
+      }
+      status.textContent = `${shown} tools`;
+      empty.style.display = shown ? "none" : "block";
+    }
+
+    search.addEventListener("input", update);
+    buttons.forEach(button => button.addEventListener("click", () => {
+      category = button.dataset.filter;
+      buttons.forEach(item => item.classList.toggle("active", item === button));
+      update();
+    }));
+    update();
+  </script>
+</body>
+</html>
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Random Painting Background</title>
+  <style>
+    :root {
+      --panel-bg: rgba(15, 16, 20, 0.62);
+      --panel-border: rgba(255, 255, 255, 0.12);
+      --text: #edf2ff;
+      --muted: #d4d9eb;
+      --accent: #9bc4ff;
+      --accent-strong: #cfe6ff;
+      --shadow: rgba(0, 0, 0, 0.46);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      width: 100%;
+      min-height: 100%;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background: #0d1117;
+    }
+
+    body {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background-size: cover;
+      background-position: center center;
+      background-repeat: no-repeat;
+      transition: background-image 0.6s ease, filter 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(10, 12, 18, 0.52), rgba(10, 12, 18, 0.22));
+      backdrop-filter: blur(2px);
+      z-index: 0;
+    }
+
+    .panel {
+      position: relative;
+      z-index: 1;
+      width: min(720px, 100%);
+      padding: 22px 22px 18px;
+      border: 1px solid var(--panel-border);
+      border-radius: 20px;
+      background: var(--panel-bg);
+      box-shadow: 0 20px 60px var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(2rem, 3vw, 3rem);
+      line-height: 1.1;
+      letter-spacing: -0.06em;
+    }
+
+    p {
+      margin: 0 0 18px;
+      color: var(--muted);
+      font-size: 1rem;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    input {
+      width: 100%;
+      height: 42px;
+      padding: 0 12px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      font: inherit;
+    }
+
+    input::placeholder { color: rgba(237, 242, 255, 0.6); }
+
+    button {
+      height: 42px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    }
+
+    button:hover {
+      border-color: rgba(155, 196, 255, 0.7);
+      background: rgba(155, 196, 255, 0.12);
+      transform: translateY(-1px);
+    }
+
+    .list-wrap {
+      margin-top: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.02);
+      overflow: hidden;
+    }
+
+    #links {
+      list-style: none;
+      margin: 0;
+      padding: 8px;
+      display: grid;
+      gap: 8px;
+      max-height: 220px;
+      overflow: auto;
+    }
+
+    #links li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+    }
+
+    .url-text {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 0.92rem;
+      color: var(--muted);
+    }
+
+    .remove-btn {
+      flex: 0 0 auto;
+      width: 34px;
+      height: 30px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(255, 255, 255, 0.1);
+      color: var(--accent-strong);
+      font-weight: 700;
+    }
+
+    .footer {
+      margin-top: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      color: rgba(237, 242, 255, 0.8);
+      font-size: 0.84rem;
+    }
+
+    .footer strong {
+      color: var(--accent-strong);
+    }
+
+    @media (max-width: 620px) {
+      .controls {
+        grid-template-columns: 1fr;
+      }
+
+      .panel {
+        padding: 18px 16px 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <h1>Random painting</h1>
+    <p>Saved image URLs are stored in the browser and chosen at random for the background.</p>
+
+    <div class="controls">
+      <input id="imageUrl" type="url" placeholder="Paste image URL here" aria-label="Image URL" />
+      <button id="addUrl" type="button">Add</button>
+      <button id="shuffle" type="button">Shuffle</button>
+    </div>
+
+    <div class="list-wrap">
+      <ul id="links" aria-live="polite"></ul>
+    </div>
+
+    <div class="footer">
+      <span>Stored URLs: <strong id="count">0</strong></span>
+      <button id="reset" type="button">Reset</button>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'new-tab-painting-links';
+    const FALLBACK_LINKS = [
+      'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?auto=format&fit=crop&w=1600&q=80',
+      'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=80',
+      'https://images.unsplash.com/photo-1493246507139-91e8fad9978e?auto=format&fit=crop&w=1600&q=80',
+      'https://images.unsplash.com/photo-1515405295579-ba7b45403062?auto=format&fit=crop&w=1600&q=80',
+      'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=80'
+    ];
+
+    const imageUrlInput = document.getElementById('imageUrl');
+    const addUrlButton = document.getElementById('addUrl');
+    const shuffleButton = document.getElementById('shuffle');
+    const resetButton = document.getElementById('reset');
+    const linksList = document.getElementById('links');
+    const countEl = document.getElementById('count');
+
+    function safeReadLinks() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return [...FALLBACK_LINKS];
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed) || parsed.length === 0) return [...FALLBACK_LINKS];
+        return parsed.filter(Boolean).map(item => String(item).trim()).filter(Boolean);
+      } catch (error) {
+        return [...FALLBACK_LINKS];
+      }
+    }
+
+    function saveLinks(list) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+      } catch (error) {
+        console.warn('Could not save list:', error);
+      }
+    }
+
+    function pickRandomLink() {
+      const links = safeReadLinks();
+      return links[Math.floor(Math.random() * links.length)] || FALLBACK_LINKS[0];
+    }
+
+    function applyBackground(url) {
+      document.body.style.backgroundImage = `url("${url}")`;
+    }
+
+    function renderLinks() {
+      const links = safeReadLinks();
+      linksList.innerHTML = '';
+
+      links.forEach((link, index) => {
+        const item = document.createElement('li');
+        const text = document.createElement('span');
+        text.className = 'url-text';
+        text.textContent = link;
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'remove-btn';
+        removeBtn.textContent = '×';
+        removeBtn.title = 'Remove this image';
+        removeBtn.addEventListener('click', () => {
+          const next = safeReadLinks();
+          next.splice(index, 1);
+          if (next.length === 0) {
+            saveLinks([...FALLBACK_LINKS]);
+          } else {
+            saveLinks(next);
+          }
+          renderLinks();
+          applyBackground(pickRandomLink());
+        });
+
+        item.appendChild(text);
+        item.appendChild(removeBtn);
+        linksList.appendChild(item);
+      });
+
+      countEl.textContent = String(links.length);
+    }
+
+    function addLink() {
+      const raw = imageUrlInput.value.trim();
+      if (!raw) return;
+
+      const next = safeReadLinks();
+      if (!next.includes(raw)) next.push(raw);
+      saveLinks(next);
+      imageUrlInput.value = '';
+      renderLinks();
+      applyBackground(pickRandomLink());
+    }
+
+    function shuffleBackground() {
+      applyBackground(pickRandomLink());
+    }
+
+    function resetLinks() {
+      saveLinks([...FALLBACK_LINKS]);
+      renderLinks();
+      applyBackground(pickRandomLink());
+    }
+
+    addUrlButton.addEventListener('click', addLink);
+    shuffleButton.addEventListener('click', shuffleBackground);
+    resetButton.addEventListener('click', resetLinks);
+    imageUrlInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        addLink();
+      }
+    });
+
+    renderLinks();
+    applyBackground(pickRandomLink());
+  </script>
+</body>
+</html>
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Random Painting Background</title>
+  <style>
+    :root {
+      --panel-bg: rgba(15, 16, 20, 0.62);
+      --panel-border: rgba(255, 255, 255, 0.12);
+      --text: #edf2ff;
+      --muted: #d4d9eb;
+      --accent: #9bc4ff;
+      --accent-strong: #cfe6ff;
+      --shadow: rgba(0, 0, 0, 0.46);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      width: 100%;
+      min-height: 100%;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background: #0d1117;
+    }
+
+    body {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background-size: cover;
+      background-position: center center;
+      background-repeat: no-repeat;
+      transition: background-image 0.6s ease, filter 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(10, 12, 18, 0.52), rgba(10, 12, 18, 0.22));
+      backdrop-filter: blur(2px);
+      z-index: 0;
+    }
+
+    .panel {
+      position: relative;
+      z-index: 1;
+      width: min(720px, 100%);
+      padding: 22px 22px 18px;
+      border: 1px solid var(--panel-border);
+      border-radius: 20px;
+      background: var(--panel-bg);
+      box-shadow: 0 20px 60px var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(2rem, 3vw, 3rem);
+      line-height: 1.1;
+      letter-spacing: -0.06em;
+    }
+
+    p {
+      margin: 0 0 18px;
+      color: var(--muted);
+      font-size: 1rem;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    input {
+      width: 100%;
+      height: 42px;
+      padding: 0 12px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      font: inherit;
+    }
+
+    input::placeholder { color: rgba(237, 242, 255, 0.6); }
+
+    button {
+      height: 42px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    }
+
+    button:hover {
+      border-color: rgba(155, 196, 255, 0.7);
+      background: rgba(155, 196, 255, 0.12);
+      transform: translateY(-1px);
+    }
+
+    .list-wrap {
+      margin-top: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.02);
+      overflow: hidden;
+    }
+
+    #links {
+      list-style: none;
+      margin: 0;
+      padding: 8px;
+      display: grid;
+      gap: 8px;
+      max-height: 220px;
+      overflow: auto;
+    }
+
+    #links li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+    }
+
+    .url-text {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 0.92rem;
+      color: var(--muted);
+    }
+
+    .remove-btn {
+      flex: 0 0 auto;
+      width: 34px;
+      height: 30px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(255, 255, 255, 0.1);
+      color: var(--accent-strong);
+      font-weight: 700;
+    }
+
+    .footer {
+      margin-top: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      color: rgba(237, 242, 255, 0.8);
+      font-size: 0.84rem;
+    }
+
+    .footer strong {
+      color: var(--accent-strong);
+    }
+
+    @media (max-width: 620px) {
+      .controls {
+        grid-template-columns: 1fr;
+      }
+
+      .panel {
+        padding: 18px 16px 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <h1>Random painting</h1>
+    <p>Saved image URLs are stored in the browser and chosen at random for the background.</p>
+
+    <div class="controls">
+      <input id="imageUrl" type="url" placeholder="Paste image URL here" aria-label="Image URL" />
+      <button id="addUrl" type="button">Add</button>
+      <button id="shuffle" type="button">Shuffle</button>
+    </div>
+
+    <div class="list-wrap">
+      <ul id="links" aria-live="polite"></ul>
+    </div>
+
+    <div class="footer">
+      <span>Stored URLs: <strong id="count">0</strong></span>
+      <button id="reset" type="button">Reset</button>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'new-tab-painting-links';
+    const FALLBACK_LINKS = [
+      'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?auto=format&fit=crop&w=1600&q=80',
+      'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=80',
+      'https://images.unsplash.com/photo-1493246507139-91e8fad9978e?auto=format&fit=crop&w=1600&q=80',
+      'https://images.unsplash.com/photo-1515405295579-ba7b45403062?auto=format&fit=crop&w=1600&q=80',
+      'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=80'
+    ];
+
+    const imageUrlInput = document.getElementById('imageUrl');
+    const addUrlButton = document.getElementById('addUrl');
+    const shuffleButton = document.getElementById('shuffle');
+    const resetButton = document.getElementById('reset');
+    const linksList = document.getElementById('links');
+    const countEl = document.getElementById('count');
+
+    function safeReadLinks() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return [...FALLBACK_LINKS];
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed) || parsed.length === 0) return [...FALLBACK_LINKS];
+        return parsed.filter(Boolean).map(item => String(item).trim()).filter(Boolean);
+      } catch (error) {
+        return [...FALLBACK_LINKS];
+      }
+    }
+
+    function saveLinks(list) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+      } catch (error) {
+        console.warn('Could not save list:', error);
+      }
+    }
+
+    function pickRandomLink() {
+      const links = safeReadLinks();
+      return links[Math.floor(Math.random() * links.length)] || FALLBACK_LINKS[0];
+    }
+
+    function applyBackground(url) {
+      document.body.style.backgroundImage = `url("${url}")`;
+    }
+
+    function renderLinks() {
+      const links = safeReadLinks();
+      linksList.innerHTML = '';
+
+      links.forEach((link, index) => {
+        const item = document.createElement('li');
+        const text = document.createElement('span');
+        text.className = 'url-text';
+        text.textContent = link;
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'remove-btn';
+        removeBtn.textContent = '×';
+        removeBtn.title = 'Remove this image';
+        removeBtn.addEventListener('click', () => {
+          const next = safeReadLinks();
+          next.splice(index, 1);
+          if (next.length === 0) {
+            saveLinks([...FALLBACK_LINKS]);
+          } else {
+            saveLinks(next);
+          }
+          renderLinks();
+          applyBackground(pickRandomLink());
+        });
+
+        item.appendChild(text);
+        item.appendChild(removeBtn);
+        linksList.appendChild(item);
+      });
+
+      countEl.textContent = String(links.length);
+    }
+
+    function addLink() {
+      const raw = imageUrlInput.value.trim();
+      if (!raw) return;
+
+      const next = safeReadLinks();
+      if (!next.includes(raw)) next.push(raw);
+      saveLinks(next);
+      imageUrlInput.value = '';
+      renderLinks();
+      applyBackground(pickRandomLink());
+    }
+
+    function shuffleBackground() {
+      applyBackground(pickRandomLink());
+    }
+
+    function resetLinks() {
+      saveLinks([...FALLBACK_LINKS]);
+      renderLinks();
+      applyBackground(pickRandomLink());
+    }
+
+    addUrlButton.addEventListener('click', addLink);
+    shuffleButton.addEventListener('click', shuffleBackground);
+    resetButton.addEventListener('click', resetLinks);
+    imageUrlInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        addLink();
+      }
+    });
+
+    renderLinks();
+    applyBackground(pickRandomLink());
+  </script>
+</body>
+</html>
