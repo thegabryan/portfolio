@@ -14,6 +14,11 @@
       --accent: #9bc4ff;
       --accent-strong: #cfe6ff;
       --shadow: rgba(0, 0, 0, 0.48);
+      --gold: #ffd166;
+      --dim: 0.16;
+      --blur: 0px;
+      --bg-scale: 1;
+      --fade: 800ms;
     }
 
     * { box-sizing: border-box; }
@@ -33,9 +38,69 @@
       min-height: 100dvh;
       overflow: hidden;
       background-color: #0d1117;
-      background-repeat: no-repeat;
     }
 
+    /* ---------- Background stage (two layers for cross-fading) ---------- */
+    .stage {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .bg-layer {
+      position: absolute;
+      inset: 0;
+      background-repeat: no-repeat;
+      opacity: 0;
+      filter: blur(var(--blur));
+      transform: scale(var(--bg-scale));
+      transition: opacity var(--fade) ease;
+      will-change: opacity;
+    }
+
+    .bg-layer.visible { opacity: 1; }
+
+    .dim {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      background: rgba(10, 12, 18, var(--dim));
+      pointer-events: none;
+    }
+
+    .caption {
+      position: fixed;
+      z-index: 1;
+      left: 20px;
+      bottom: 18px;
+      max-width: min(62vw, 720px);
+      margin: 0;
+      color: #fff;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 14px rgba(0, 0, 0, 0.6);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity var(--fade) ease;
+    }
+
+    .caption.visible { opacity: 0.92; }
+
+    .caption-title {
+      display: block;
+      font-size: 0.95rem;
+      font-weight: 650;
+      line-height: 1.3;
+    }
+
+    .caption-artist {
+      display: block;
+      margin-top: 2px;
+      font-size: 0.8rem;
+      opacity: 0.85;
+    }
+
+    /* ---------- Menu toggle ---------- */
     .menu-toggle {
       position: fixed;
       z-index: 3;
@@ -66,17 +131,20 @@
 
     button:focus-visible,
     input:focus-visible,
-    select:focus-visible {
+    select:focus-visible,
+    textarea:focus-visible,
+    summary:focus-visible {
       outline: 2px solid var(--accent);
       outline-offset: 3px;
     }
 
+    /* ---------- Panel ---------- */
     .panel {
       position: fixed;
       z-index: 2;
       top: 50%;
       left: 50%;
-      width: min(760px, calc(100% - 32px));
+      width: min(780px, calc(100% - 32px));
       max-height: calc(100vh - 40px);
       max-height: calc(100dvh - 40px);
       padding: 22px;
@@ -158,13 +226,14 @@
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
       gap: 10px;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
     }
 
-    input[type="url"] {
+    input[type="url"],
+    input[type="search"],
+    textarea {
       width: 100%;
       min-width: 0;
-      height: 42px;
       padding: 0 12px;
       border: 1px solid rgba(255, 255, 255, 0.12);
       border-radius: 12px;
@@ -173,7 +242,59 @@
       font: inherit;
     }
 
-    input::placeholder { color: rgba(237, 242, 255, 0.6); }
+    input[type="url"],
+    input[type="search"] { height: 42px; }
+
+    textarea {
+      min-height: 84px;
+      padding: 10px 12px;
+      resize: vertical;
+      font-size: 0.82rem;
+    }
+
+    input::placeholder,
+    textarea::placeholder { color: rgba(237, 242, 255, 0.6); }
+
+    .paste-box {
+      margin: 0 0 12px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--muted);
+      font-size: 0.86rem;
+    }
+
+    .paste-box summary { cursor: pointer; font-weight: 600; }
+    .paste-box p { margin: 8px 0; font-size: 0.8rem; color: rgba(237, 242, 255, 0.75); }
+    .paste-box .paste-actions { display: flex; gap: 10px; margin-top: 8px; }
+    .paste-box button { min-height: 36px; }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .toggles {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px 18px;
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    .toggles label {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      cursor: pointer;
+    }
+
+    .toggles input { accent-color: var(--accent); cursor: pointer; }
 
     .options {
       display: flex;
@@ -217,7 +338,7 @@
       font-weight: 700;
     }
 
-    #verticalPosition {
+    .position-control input[type="range"] {
       display: block;
       width: 100%;
       height: 22px;
@@ -226,6 +347,15 @@
       accent-color: var(--accent);
       cursor: pointer;
     }
+
+    .look-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin: 0 0 12px;
+    }
+
+    .look-grid .position-control { margin: 0; }
 
     .position-hint {
       margin-top: 6px;
@@ -252,7 +382,7 @@
     #links {
       display: grid;
       gap: 8px;
-      max-height: 300px;
+      max-height: 340px;
       margin: 0;
       padding: 8px;
       overflow-y: auto;
@@ -261,10 +391,11 @@
     }
 
     #links li {
+      position: relative;
       display: grid;
-      grid-template-columns: 104px minmax(0, 1fr) auto;
+      grid-template-columns: 18px 104px minmax(0, 1fr) auto;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
       min-width: 0;
       padding: 8px;
       border: 1px solid transparent;
@@ -276,6 +407,31 @@
       border-color: rgba(155, 196, 255, 0.7);
       background: rgba(155, 196, 255, 0.11);
     }
+
+    #links li.dragging { opacity: 0.4; }
+    #links li.drop-before::before,
+    #links li.drop-after::after {
+      content: "";
+      position: absolute;
+      left: 6px;
+      right: 6px;
+      height: 3px;
+      border-radius: 2px;
+      background: var(--accent);
+    }
+    #links li.drop-before::before { top: -6px; }
+    #links li.drop-after::after { bottom: -6px; }
+
+    .drag-handle {
+      color: rgba(237, 242, 255, 0.45);
+      font-size: 1.1rem;
+      line-height: 1;
+      text-align: center;
+      cursor: grab;
+      user-select: none;
+    }
+
+    .drag-handle:hover { color: var(--accent-strong); }
 
     .image-choice {
       display: block;
@@ -309,7 +465,7 @@
 
     .image-name {
       display: block;
-      margin-bottom: 4px;
+      margin-bottom: 2px;
       color: var(--text);
       font-size: 0.88rem;
       font-weight: 650;
@@ -317,7 +473,7 @@
       word-break: break-word;
     }
 
-    .image-url {
+    .image-sub {
       display: block;
       color: var(--muted);
       font-size: 0.76rem;
@@ -325,8 +481,36 @@
       word-break: break-word;
     }
 
-    .remove-btn {
-      flex: 0 0 34px;
+    .quality-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .quality-select {
+      flex: 1 1 auto;
+      min-width: 0;
+      min-height: 32px;
+      padding: 0 8px;
+      font-size: 0.78rem;
+      font-weight: 500;
+    }
+
+    .fetch-btn {
+      flex: 0 0 auto;
+      min-height: 32px;
+      padding: 0 10px;
+      font-size: 0.76rem;
+    }
+
+    .row-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .icon-btn {
       width: 34px;
       min-height: 34px;
       height: 34px;
@@ -337,6 +521,10 @@
       color: var(--accent-strong);
       font-weight: 700;
     }
+
+    .icon-btn.fav.on { color: var(--gold); border-color: rgba(255, 209, 102, 0.6); }
+    .icon-btn.pin { opacity: 0.55; }
+    .icon-btn.pin.on { opacity: 1; border-color: rgba(155, 196, 255, 0.7); background: rgba(155, 196, 255, 0.16); }
 
     .empty-list {
       padding: 14px;
@@ -349,29 +537,74 @@
     .footer {
       display: flex;
       align-items: center;
-      gap: 12px;
+      flex-wrap: wrap;
+      gap: 10px 12px;
       margin-top: 12px;
       color: rgba(237, 242, 255, 0.8);
       font-size: 0.84rem;
     }
 
     .footer strong { color: var(--accent-strong); }
+    .footer .spacer { flex: 1 1 auto; }
+    .footer button { min-height: 36px; font-size: 0.82rem; }
+
+    .keys-hint {
+      margin: 10px 0 0;
+      font-size: 0.76rem;
+      color: rgba(237, 242, 255, 0.6);
+    }
+
+    kbd {
+      padding: 1px 6px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 5px;
+      background: rgba(255, 255, 255, 0.08);
+      font: inherit;
+      font-size: 0.74rem;
+    }
+
+    /* ---------- Backup reminder ---------- */
+    .backup-banner {
+      position: fixed;
+      z-index: 5;
+      left: 50%;
+      bottom: 20px;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px 12px;
+      width: max-content;
+      max-width: calc(100% - 32px);
+      padding: 12px 16px;
+      border: 1px solid var(--panel-border);
+      border-radius: 14px;
+      background: var(--panel-bg);
+      box-shadow: 0 12px 40px var(--shadow);
+      backdrop-filter: blur(14px);
+      transform: translateX(-50%);
+      font-size: 0.88rem;
+    }
+
+    .backup-banner[hidden] { display: none; }
+    .backup-banner button { min-height: 36px; font-size: 0.84rem; }
 
     @media (max-width: 620px) {
       .panel { padding: 18px 16px 14px; }
       .controls { grid-template-columns: 1fr auto; }
       .menu-toggle { top: 10px; right: 10px; }
+      .look-grid { grid-template-columns: 1fr; }
     }
 
-    @media (max-width: 440px) {
+    @media (max-width: 520px) {
       #links li {
-        grid-template-columns: 76px minmax(0, 1fr) auto;
-        gap: 9px;
+        grid-template-columns: 14px 76px minmax(0, 1fr);
+        gap: 8px;
       }
 
-      .image-choice {
-        width: 76px;
-      }
+      .row-actions { grid-column: 2 / -1; justify-content: flex-end; }
+
+      .image-choice { width: 76px; }
 
       .image-choice img {
         width: 76px;
@@ -379,7 +612,7 @@
       }
 
       .image-name { font-size: 0.82rem; }
-      .image-url { font-size: 0.7rem; }
+      .image-sub { font-size: 0.7rem; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -388,6 +621,17 @@
   </style>
 </head>
 <body>
+  <div class="stage" aria-hidden="true">
+    <div class="bg-layer" id="bgA"></div>
+    <div class="bg-layer" id="bgB"></div>
+  </div>
+  <div class="dim" aria-hidden="true"></div>
+
+  <figure class="caption" id="caption" aria-live="polite">
+    <span class="caption-title" id="captionTitle"></span>
+    <span class="caption-artist" id="captionArtist"></span>
+  </figure>
+
   <button
     class="menu-toggle"
     id="menuToggle"
@@ -395,14 +639,20 @@
     aria-controls="settingsPanel"
     aria-expanded="false"
     aria-label="Open image settings"
-    title="Image settings"
+    title="Image settings (Enter)"
   >☰</button>
+
+  <div class="backup-banner" id="backupBanner" role="alert" hidden>
+    <span id="backupText"></span>
+    <button id="backupNow" type="button">Download backup</button>
+    <button id="backupLater" type="button">Not now</button>
+  </div>
 
   <main class="panel" id="settingsPanel" aria-labelledby="pageTitle" aria-hidden="true" inert>
     <div class="panel-heading">
       <div>
         <h1 id="pageTitle">Random painting</h1>
-        <p>On page load, one image is chosen randomly and stays until you choose another.</p>
+        <p>One image is picked on page load and stays until you choose another.</p>
       </div>
       <button class="close-menu" id="closeMenu" type="button" aria-label="Close image settings">Close</button>
     </div>
@@ -412,6 +662,25 @@
       <button id="addButton" type="submit">Add</button>
     </form>
 
+    <details class="paste-box" id="pasteBox">
+      <summary>Set qualities by pasting Wikipedia’s dropdown</summary>
+      <p>On Wikipedia’s image viewer, copy the quality dropdown (the <code>&lt;select&gt;</code> HTML, or just the lines like “Medium (1280×853 px)”), paste it here and apply it to the image that is currently selected.</p>
+      <textarea id="pasteArea" aria-label="Wikipedia quality list" placeholder="&lt;select …&gt;&lt;option value=&quot;original&quot;&gt;Original file (4995×3329 px)&lt;/option&gt; …"></textarea>
+      <div class="paste-actions">
+        <button id="pasteApply" type="button">Apply to selected image</button>
+      </div>
+    </details>
+
+    <div class="toolbar">
+      <input id="searchInput" type="search" placeholder="Search your images (Enter picks the first match)" aria-label="Search images" autocomplete="off" />
+      <button id="shuffleBtn" type="button" title="Pick another random image (R)">🔀 Shuffle</button>
+    </div>
+
+    <div class="toggles">
+      <label><input type="checkbox" id="favOnly" /> Favorites only (list and random picks)</label>
+      <label><input type="checkbox" id="captionToggle" /> Show title &amp; artist</label>
+    </div>
+
     <div class="options">
       <label for="fitMode">Image fit</label>
       <select id="fitMode">
@@ -419,9 +688,23 @@
         <option value="stretch">Stretch (may distort)</option>
         <option value="contain">Fit whole image (may show bars)</option>
       </select>
+    </div>
 
-      <label for="qualitySelect">Quality</label>
-      <select id="qualitySelect" aria-label="Image quality" disabled></select>
+    <div class="look-grid">
+      <div class="position-control">
+        <div class="position-heading">
+          <label for="dimRange">Dim</label>
+          <output id="dimValue" for="dimRange">16</output>
+        </div>
+        <input id="dimRange" type="range" min="0" max="80" step="1" value="16" />
+      </div>
+      <div class="position-control">
+        <div class="position-heading">
+          <label for="blurRange">Blur</label>
+          <output id="blurValue" for="blurRange">0</output>
+        </div>
+        <input id="blurRange" type="range" min="0" max="20" step="1" value="0" />
+      </div>
     </div>
 
     <div class="position-control" id="positionControl" hidden>
@@ -441,19 +724,35 @@
     </div>
 
     <div class="footer">
-      <span>Saved images: <strong id="count">0</strong></span>
+      <span>Images: <strong id="count">0</strong></span>
+      <span class="spacer"></span>
+      <button id="exportBtn" type="button">Export backup</button>
+      <button id="importBtn" type="button">Import backup</button>
+      <input id="importFile" type="file" accept="application/json,.json" hidden />
     </div>
+    <p class="keys-hint">
+      Keys (when you are not typing): <kbd>Enter</kbd> menu + search · <kbd>R</kbd> shuffle · <kbd>F</kbd> favorite · <kbd>P</kbd> pin · <kbd>Esc</kbd> close.
+      Pin = this image is shown whenever the page opens.
+    </p>
     <p class="message" id="message" role="status"></p>
   </main>
 
   <script>
     const STORAGE_KEY = 'new-tab-painting-library-v3';
+    const SETTINGS_KEY = 'new-tab-painting-settings-v1';
     const OLD_STORAGE_KEYS = [
       'new-tab-painting-links-v2',
       'new-tab-painting-links'
     ];
 
-    const WIKIMEDIA_WIDTHS = [500, 720, 1280, 1920, 3840];
+    const SITE_NAME = 'new-tab-painting';        // used in backup file names
+    // Wikipedia's Small / Medium / Large / Extra large, plus 960 (an efficient size
+    // between 700 and 1000 px that Wikimedia serves as a standard thumbnail step).
+    const WIKIMEDIA_WIDTHS = [500, 960, 1280, 1920, 3840];
+    const SIZE_NAMES = { 500: 'Small', 1280: 'Medium', 1920: 'Large', 3840: 'Extra large' };
+    const EXTRA_WIDTH = 960;
+    const DEFAULT_TARGET_WIDTH = 960;            // new images default to the size closest to this
+    const FADE_MS = 800;
 
     const OLD_STOCK_URLS = [
       'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?auto=format&fit=crop&w=1600&q=80',
@@ -462,27 +761,113 @@
       'https://images.unsplash.com/photo-1515405295579-ba7b45403062?auto=format&fit=crop&w=1600&q=80'
     ];
 
-    const menuToggle = document.getElementById('menuToggle');
-    const settingsPanel = document.getElementById('settingsPanel');
-    const closeMenuButton = document.getElementById('closeMenu');
-    const addForm = document.getElementById('addForm');
-    const imageUrlInput = document.getElementById('imageUrl');
-    const addButton = document.getElementById('addButton');
-    const fitMode = document.getElementById('fitMode');
-    const qualitySelect = document.getElementById('qualitySelect');
-    const positionControl = document.getElementById('positionControl');
-    const verticalPosition = document.getElementById('verticalPosition');
-    const positionValue = document.getElementById('positionValue');
-    const imageInfo = document.getElementById('imageInfo');
-    const message = document.getElementById('message');
-    const linksList = document.getElementById('links');
-    const emptyList = document.getElementById('emptyList');
-    const countEl = document.getElementById('count');
+    const $ = id => document.getElementById(id);
+    const menuToggle = $('menuToggle');
+    const settingsPanel = $('settingsPanel');
+    const closeMenuButton = $('closeMenu');
+    const addForm = $('addForm');
+    const imageUrlInput = $('imageUrl');
+    const addButton = $('addButton');
+    const pasteArea = $('pasteArea');
+    const pasteApply = $('pasteApply');
+    const pasteBox = $('pasteBox');
+    const searchInput = $('searchInput');
+    const shuffleBtn = $('shuffleBtn');
+    const favOnlyToggle = $('favOnly');
+    const captionToggle = $('captionToggle');
+    const fitMode = $('fitMode');
+    const dimRange = $('dimRange');
+    const dimValue = $('dimValue');
+    const blurRange = $('blurRange');
+    const blurValue = $('blurValue');
+    const positionControl = $('positionControl');
+    const verticalPosition = $('verticalPosition');
+    const positionValue = $('positionValue');
+    const imageInfo = $('imageInfo');
+    const message = $('message');
+    const linksList = $('links');
+    const emptyList = $('emptyList');
+    const countEl = $('count');
+    const exportBtn = $('exportBtn');
+    const importBtn = $('importBtn');
+    const importFile = $('importFile');
+    const caption = $('caption');
+    const captionTitle = $('captionTitle');
+    const captionArtist = $('captionArtist');
+    const backupBanner = $('backupBanner');
+    const backupText = $('backupText');
+    const backupNow = $('backupNow');
+    const backupLater = $('backupLater');
+    const bgA = $('bgA');
+    const bgB = $('bgB');
 
     let library = [];
     let currentImageId = null;
     let imageInfoRequest = 0;
+    const metaTried = new Set();
 
+    /* =========================================================
+       Settings (dim, blur, caption, favorites filter, pin, backup state)
+       ========================================================= */
+    const DEFAULT_SETTINGS = {
+      dim: 16,
+      blur: 0,
+      caption: true,
+      favOnly: false,
+      pinnedId: null,
+      lastChangeAt: 0,
+      lastBackupAt: 0,
+      backupSnoozedDay: ''
+    };
+
+    function readSettings() {
+      try {
+        const raw = localStorage.getItem(SETTINGS_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          return { ...DEFAULT_SETTINGS, ...parsed };
+        }
+      } catch (error) {
+        console.warn('Could not read settings:', error);
+      }
+      return { ...DEFAULT_SETTINGS };
+    }
+
+    let settings = readSettings();
+
+    function saveSettings({ changed = false } = {}) {
+      if (changed) settings.lastChangeAt = Date.now();
+      try {
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+        return true;
+      } catch (error) {
+        console.warn('Could not save settings:', error);
+        return false;
+      }
+    }
+
+    function applyLook() {
+      const root = document.documentElement;
+      const dim = Math.max(0, Math.min(80, Number(settings.dim) || 0));
+      const blur = Math.max(0, Math.min(20, Number(settings.blur) || 0));
+      // Scale up slightly so blurred edges never show a dark border.
+      const scale = blur ? 1 + (blur * 2.2) / Math.max(320, Math.min(window.innerWidth, window.innerHeight)) : 1;
+
+      root.style.setProperty('--dim', String(dim / 100));
+      root.style.setProperty('--blur', `${blur}px`);
+      root.style.setProperty('--bg-scale', String(scale));
+
+      dimRange.value = String(dim);
+      dimValue.value = String(dim);
+      blurRange.value = String(blur);
+      blurValue.value = String(blur);
+      favOnlyToggle.checked = Boolean(settings.favOnly);
+      captionToggle.checked = Boolean(settings.caption);
+    }
+
+    /* =========================================================
+       Menu
+       ========================================================= */
     function setMenuOpen(open) {
       settingsPanel.classList.toggle('open', open);
       settingsPanel.setAttribute('aria-hidden', String(!open));
@@ -490,34 +875,89 @@
       menuToggle.setAttribute('aria-expanded', String(open));
       menuToggle.setAttribute('aria-label', open ? 'Close image settings' : 'Open image settings');
 
-      if (open) imageUrlInput.focus();
+      if (open) focusSearch();
       else menuToggle.focus();
     }
 
-    menuToggle.addEventListener('click', () => {
-      setMenuOpen(!settingsPanel.classList.contains('open'));
-    });
+    function focusSearch() {
+      // The panel is still fading in (visibility: hidden), and hidden elements
+      // cannot take focus, so retry for a moment until the focus sticks.
+      let attempts = 0;
+      const tryFocus = () => {
+        searchInput.focus();
+        if (document.activeElement === searchInput) {
+          searchInput.select();
+        } else if (++attempts < 12 && menuIsOpen()) {
+          setTimeout(tryFocus, 25);
+        }
+      };
+      tryFocus();
+    }
 
+    const menuIsOpen = () => settingsPanel.classList.contains('open');
+
+    menuToggle.addEventListener('click', () => setMenuOpen(!menuIsOpen()));
     closeMenuButton.addEventListener('click', () => setMenuOpen(false));
-
-    document.addEventListener('keydown', event => {
-      if (event.key === 'Escape' && settingsPanel.classList.contains('open')) {
-        setMenuOpen(false);
-      }
-    });
 
     // Close only when the click really lands outside the menu.
     // composedPath() is captured at dispatch time, so it stays correct even when
     // a handler re-renders the list and detaches the clicked element.
     document.addEventListener('click', event => {
-      if (!settingsPanel.classList.contains('open')) return;
+      if (!menuIsOpen()) return;
 
       const path = event.composedPath();
-      if (path.includes(settingsPanel) || path.includes(menuToggle)) return;
+      if (
+        path.includes(settingsPanel) ||
+        path.includes(menuToggle) ||
+        path.includes(backupBanner)
+      ) return;
 
       setMenuOpen(false);
     });
 
+    /* =========================================================
+       Keyboard shortcuts
+       ========================================================= */
+    document.addEventListener('keydown', event => {
+      if (event.defaultPrevented) return;
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+
+      const target = event.target;
+      const typing = target instanceof Element &&
+        target.matches('input:not([type="checkbox"]):not([type="range"]), textarea, select, [contenteditable="true"]');
+
+      if (event.key === 'Escape') {
+        if (menuIsOpen()) setMenuOpen(false);
+        return;
+      }
+
+      if (typing) return;
+
+      const onControl = target instanceof Element && target.closest('button, a, summary, input, select');
+
+      if (event.key === 'Enter' && !onControl) {
+        event.preventDefault();
+        if (menuIsOpen()) focusSearch();
+        else setMenuOpen(true);
+        return;
+      }
+
+      const key = event.key.toLowerCase();
+      if (key === 'r') {
+        event.preventDefault();
+        shuffle();
+      } else if (key === 'f') {
+        const item = currentImage();
+        if (item) { event.preventDefault(); toggleFavorite(item); }
+      } else if (key === 'p') {
+        const item = currentImage();
+        if (item) { event.preventDefault(); togglePin(item); }
+      }
+    });
+
+    /* =========================================================
+       Helpers: ids, urls, records
+       ========================================================= */
     function makeId() {
       if (globalThis.crypto?.randomUUID) return crypto.randomUUID();
       return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -548,19 +988,63 @@
       return OLD_STOCK_URLS.some(stock => fileKey(stock) === fileKey(url));
     }
 
+    function makeLabel({ width, height, original, name, label }) {
+      if (width && height) {
+        const niceName = name || (original ? 'Original file' : SIZE_NAMES[width] || '');
+        return niceName ? `${niceName} (${width}×${height} px)` : `${width}×${height} px`;
+      }
+      if (name) return name;
+      if (label && label !== 'Original') return label;
+      return original ? 'Original file' : 'Linked image';
+    }
+
     function normalizeVariant(variant) {
       if (typeof variant === 'string') {
-        return { url: variant, width: null, height: null, label: 'Image' };
+        return { url: variant, width: null, height: null, original: false, name: '', label: 'Linked image' };
       }
 
       if (!variant || typeof variant !== 'object' || !variant.url) return null;
 
+      const width = Number(variant.width) || null;
+      const height = Number(variant.height) || null;
+      const original = Boolean(variant.original) || /^original/i.test(String(variant.label || ''));
+      const name = String(variant.name || '') || (original ? 'Original file' : (width ? SIZE_NAMES[width] || '' : ''));
+
       return {
         url: String(variant.url),
-        width: Number(variant.width) || null,
-        height: Number(variant.height) || null,
-        label: String(variant.label || '')
+        width,
+        height,
+        original,
+        name,
+        label: makeLabel({ width, height, original, name, label: variant.label })
       };
+    }
+
+    // Wikipedia order: Original file first, then smallest to largest.
+    function sortVariants(variants) {
+      return [...variants].sort((a, b) =>
+        (Number(b.original) - Number(a.original)) || ((a.width || 0) - (b.width || 0))
+      );
+    }
+
+    function pickDefaultVariant(variants) {
+      const sized = variants.filter(variant => variant.width);
+      if (!sized.length) return variants[0];
+
+      return [...sized].sort((a, b) =>
+        Math.abs(a.width - DEFAULT_TARGET_WIDTH) - Math.abs(b.width - DEFAULT_TARGET_WIDTH) ||
+        a.width - b.width
+      )[0];
+    }
+
+    function normalizeMeta(meta) {
+      if (!meta || typeof meta !== 'object') return null;
+      const clean = {
+        title: String(meta.title || '').slice(0, 300),
+        artist: String(meta.artist || '').slice(0, 300),
+        date: String(meta.date || '').slice(0, 100)
+      };
+      return clean.title || clean.artist || clean.date ? clean : null;
     }
 
     function normalizeRecord(item) {
@@ -573,7 +1057,10 @@
           url,
           fit: 'cover',
           y: 50,
-          variants: [{ url, width: null, height: null, label: 'Original' }]
+          fav: false,
+          qualityChosen: false,
+          meta: null,
+          variants: [normalizeVariant({ url, label: 'Original' })]
         };
       }
 
@@ -588,12 +1075,12 @@
         : [];
 
       if (!variants.some(variant => variant.url === url)) {
-        variants.unshift({
+        variants.unshift(normalizeVariant({
           url,
-          width: Number(item.width) || null,
-          height: Number(item.height) || null,
+          width: item.width,
+          height: item.height,
           label: 'Saved image'
-        });
+        }));
       }
 
       return {
@@ -604,7 +1091,10 @@
         y: Number.isFinite(Number(item.y))
           ? Math.max(0, Math.min(100, Number(item.y)))
           : 50,
-        variants,
+        fav: Boolean(item.fav),
+        qualityChosen: Boolean(item.qualityChosen),
+        meta: normalizeMeta(item.meta),
+        variants: sortVariants(variants),
         note: String(item.note || '')
       };
     }
@@ -643,9 +1133,11 @@
       return [];
     }
 
-    function saveLibrary() {
+    function saveLibrary({ changed = true } = {}) {
+      if (changed) settings.lastChangeAt = Date.now();
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(library));
+        if (changed) saveSettings();
         return true;
       } catch (error) {
         console.warn('Could not save image list:', error);
@@ -657,52 +1149,109 @@
       return library.find(item => item.id === currentImageId) || null;
     }
 
+    function isWikiItem(item) {
+      return Boolean(getWikiFileName(item.sourceUrl));
+    }
+
     function escapeCssUrl(url) {
       return url.replace(/["\\\n\r]/g, character => encodeURIComponent(character));
     }
 
-    function applyImageStyle(item) {
+    /* =========================================================
+       Background with cross-fade
+       ========================================================= */
+    let activeLayer = bgA;
+    let idleLayer = bgB;
+    let showToken = 0;
+
+    function paintLayer(layer, item) {
+      layer.style.backgroundImage = `url("${escapeCssUrl(item.url)}")`;
+      layer.style.backgroundSize = item.fit === 'stretch' ? '100% 100%' : item.fit;
+      layer.style.backgroundPosition = `center ${100 - item.y}%`;
+    }
+
+    function showImage(item) {
+      const token = ++showToken;
+
       if (!item) {
-        document.body.style.backgroundImage = 'none';
-        document.body.style.backgroundSize = '';
-        document.body.style.backgroundPosition = '';
+        for (const layer of [bgA, bgB]) {
+          layer.classList.remove('visible');
+          layer.dataset.url = '';
+        }
         return;
       }
 
-      const imageSize = item.fit === 'stretch' ? '100% 100%' : item.fit;
-      const cssY = 100 - item.y;
-
-      document.body.style.backgroundImage =
-        `linear-gradient(rgba(10, 12, 18, 0.16), rgba(10, 12, 18, 0.16)), url("${escapeCssUrl(item.url)}")`;
-      document.body.style.backgroundSize = `100% 100%, ${imageSize}`;
-      document.body.style.backgroundPosition = `center center, center ${cssY}%`;
-      document.body.style.backgroundColor = '#0d1117';
-    }
-
-    function updateQualityOptions(item) {
-      qualitySelect.replaceChildren();
-
-      if (!item) {
-        qualitySelect.disabled = true;
-        qualitySelect.add(new Option('No image selected', ''));
+      // Same file, only fit / position changed: update right away, no fade.
+      if (activeLayer.dataset.url === item.url) {
+        paintLayer(activeLayer, item);
         return;
       }
 
-      qualitySelect.disabled = false;
+      message.textContent = 'Loading image…';
+      const loader = new Image();
 
-      item.variants.forEach((variant, index) => {
-        const label = variant.label ||
-          (variant.width && variant.height
-            ? `${variant.width} × ${variant.height}`
-            : index === 0 ? 'Original / saved image' : `Image ${index + 1}`);
+      loader.onload = () => {
+        if (token !== showToken) return;
+        if (message.textContent === 'Loading image…') message.textContent = '';
 
-        const option = new Option(label, variant.url);
-        qualitySelect.add(option);
-      });
+        paintLayer(idleLayer, item);
+        idleLayer.dataset.url = item.url;
+        idleLayer.style.zIndex = '1';
+        activeLayer.style.zIndex = '0';
+        idleLayer.classList.add('visible');
 
-      qualitySelect.value = item.url;
+        const previous = activeLayer;
+        [activeLayer, idleLayer] = [idleLayer, previous];
+
+        setTimeout(() => {
+          if (previous !== activeLayer) {
+            previous.classList.remove('visible');
+            previous.dataset.url = '';
+          }
+        }, FADE_MS + 60);
+      };
+
+      loader.onerror = () => {
+        if (token !== showToken) return;
+        message.textContent = 'Could not load that image or quality. Pick another quality or press Fetch.';
+      };
+
+      loader.src = item.url;
     }
 
+    /* =========================================================
+       Caption (title + artist)
+       ========================================================= */
+    function updateCaption() {
+      const item = currentImage();
+      const meta = item?.meta;
+      const show = Boolean(settings.caption && meta && (meta.title || meta.artist));
+
+      if (show) {
+        captionTitle.textContent = meta.title || '';
+        captionArtist.textContent = [meta.artist, meta.date].filter(Boolean).join(' · ');
+      }
+      caption.classList.toggle('visible', show);
+    }
+
+    function ensureMeta(item) {
+      if (!item || item.meta || metaTried.has(item.id) || !isWikiItem(item)) return;
+      metaTried.add(item.id);
+
+      queryWikiImage(getWikiFileName(item.sourceUrl), null, true)
+        .then(info => {
+          if (!info.meta) return;
+          item.meta = info.meta;
+          saveLibrary({ changed: false });
+          if (item.id === currentImageId) updateCaption();
+          renderLinks();
+        })
+        .catch(error => console.warn('Could not read title/artist:', error));
+    }
+
+    /* =========================================================
+       Current image
+       ========================================================= */
     function setCurrentImage(item) {
       if (!item) {
         currentImageId = null;
@@ -710,9 +1259,10 @@
         positionControl.hidden = true;
         verticalPosition.value = '50';
         positionValue.value = '50';
-        updateQualityOptions(null);
-        applyImageStyle(null);
+        showImage(null);
+        updateCaption();
         imageInfo.textContent = '';
+        renderLinks();
         return;
       }
 
@@ -722,15 +1272,15 @@
       positionValue.value = String(item.y);
       positionControl.hidden = item.fit !== 'cover';
 
-      updateQualityOptions(item);
-      applyImageStyle(item);
+      showImage(item);
       showImageInfo(item);
+      updateCaption();
       renderLinks();
+      ensureMeta(item);
     }
 
     function saveCurrentPreset() {
-      const item = currentImage();
-      if (item) saveLibrary();
+      if (currentImage()) saveLibrary();
     }
 
     fitMode.addEventListener('change', () => {
@@ -739,7 +1289,7 @@
 
       item.fit = fitMode.value;
       positionControl.hidden = item.fit !== 'cover';
-      applyImageStyle(item);
+      showImage(item);
       saveCurrentPreset();
       showImageInfo(item);
     });
@@ -750,24 +1300,36 @@
 
       item.y = Number(verticalPosition.value);
       positionValue.value = String(item.y);
-      applyImageStyle(item);
+      showImage(item);
       saveCurrentPreset();
       showImageInfo(item);
     });
 
-    qualitySelect.addEventListener('change', () => {
-      const item = currentImage();
-      if (!item) return;
+    dimRange.addEventListener('input', () => {
+      settings.dim = Number(dimRange.value);
+      applyLook();
+      saveSettings({ changed: true });
+    });
 
-      const matchingVariant = item.variants.find(candidate => candidate.url === qualitySelect.value);
-      if (!matchingVariant) return;
+    blurRange.addEventListener('input', () => {
+      settings.blur = Number(blurRange.value);
+      applyLook();
+      saveSettings({ changed: true });
+    });
 
-      item.url = matchingVariant.url;
-      applyImageStyle(item);
-      saveCurrentPreset();
-      showImageInfo(item);
+    favOnlyToggle.addEventListener('change', () => {
+      settings.favOnly = favOnlyToggle.checked;
+      saveSettings({ changed: true });
       renderLinks();
-      message.textContent = `Image quality set to ${matchingVariant.label}.`;
+      if (settings.favOnly && !library.some(item => item.fav)) {
+        message.textContent = 'No favorites yet. Star some images (★) and this filter will use them.';
+      }
+    });
+
+    captionToggle.addEventListener('change', () => {
+      settings.caption = captionToggle.checked;
+      saveSettings({ changed: true });
+      updateCaption();
     });
 
     function showImageInfo(item) {
@@ -776,7 +1338,7 @@
 
       const variant = item.variants.find(candidate => candidate.url === item.url);
       if (variant?.width && variant?.height) {
-        showDimensions(item, variant.width, variant.height, viewportText);
+        showDimensions(item, variant, viewportText);
         return;
       }
 
@@ -787,9 +1349,10 @@
         if (variant) {
           variant.width = image.naturalWidth;
           variant.height = image.naturalHeight;
+          variant.label = makeLabel(variant);
         }
-        saveCurrentPreset();
-        showDimensions(item, image.naturalWidth, image.naturalHeight, viewportText);
+        saveLibrary({ changed: false });
+        showDimensions(item, { ...variant, width: image.naturalWidth, height: image.naturalHeight }, viewportText);
       };
       image.onerror = () => {
         if (requestId === imageInfoRequest) {
@@ -800,7 +1363,8 @@
       imageInfo.textContent = `${viewportText} · Checking image dimensions…`;
     }
 
-    function showDimensions(item, width, height, viewportText) {
+    function showDimensions(item, variant, viewportText) {
+      const { width, height } = variant;
       let detail = `${viewportText} · Image ${width} × ${height}`;
 
       if (item.fit === 'cover') {
@@ -819,80 +1383,293 @@
         detail += ' · Fit shows the whole image; bars may appear';
       }
 
+      if (width < window.innerWidth * (window.devicePixelRatio || 1) * 0.75) {
+        detail += ' · Lower than your screen resolution: try a bigger quality';
+      }
+
       imageInfo.textContent = detail;
     }
 
-    function renderLinks() {
-      linksList.replaceChildren();
-      emptyList.hidden = library.length > 0;
-      countEl.textContent = String(library.length);
+    /* =========================================================
+       Picking: random, shuffle, pin, favorites
+       ========================================================= */
+    function pickRandom(excludeId = null) {
+      const favorites = library.filter(item => item.fav);
+      let pool = settings.favOnly && favorites.length ? favorites : library;
+      if (excludeId && pool.length > 1) pool = pool.filter(item => item.id !== excludeId);
+      return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
+    }
 
-      library.forEach((item, index) => {
-        const row = document.createElement('li');
-        if (item.id === currentImageId) row.classList.add('selected');
+    function shuffle() {
+      if (!library.length) {
+        message.textContent = 'No images saved yet.';
+        return;
+      }
+      const next = pickRandom(currentImageId);
+      if (!next) return;
+      setCurrentImage(next);
+      message.textContent = 'Shuffled.';
+    }
 
-        const selectButton = document.createElement('button');
-        selectButton.type = 'button';
-        selectButton.className = 'image-choice';
-        selectButton.setAttribute('aria-label', `Set image ${index + 1} as background`);
+    shuffleBtn.addEventListener('click', shuffle);
 
-        const thumbnail = document.createElement('img');
-        thumbnail.src = item.url;
-        thumbnail.alt = '';
-        thumbnail.loading = 'lazy';
-        thumbnail.decoding = 'async';
-        selectButton.appendChild(thumbnail);
+    function toggleFavorite(item) {
+      item.fav = !item.fav;
+      saveLibrary();
+      renderLinks();
+      message.textContent = item.fav ? 'Added to favorites.' : 'Removed from favorites.';
+    }
 
-        const details = document.createElement('div');
-        details.className = 'image-details';
+    function togglePin(item) {
+      settings.pinnedId = settings.pinnedId === item.id ? null : item.id;
+      saveSettings({ changed: true });
+      renderLinks();
+      message.textContent = settings.pinnedId
+        ? 'Pinned: this image will open every time the page loads.'
+        : 'Unpinned: a random image will be picked on load again.';
+    }
 
-        const name = document.createElement('span');
-        name.className = 'image-name';
-        name.textContent = getDisplayName(item.sourceUrl);
+    /* =========================================================
+       Search
+       ========================================================= */
+    function searchText(item) {
+      return [
+        getDisplayName(item.sourceUrl),
+        item.meta?.title,
+        item.meta?.artist,
+        item.meta?.date,
+        item.sourceUrl
+      ].filter(Boolean).join(' ').toLowerCase();
+    }
 
-        const url = document.createElement('span');
-        url.className = 'image-url';
-        url.textContent = item.sourceUrl;
-
-        details.append(name, url);
-
-        const removeButton = document.createElement('button');
-        removeButton.type = 'button';
-        removeButton.className = 'remove-btn';
-        removeButton.textContent = '×';
-        removeButton.title = 'Remove this image';
-        removeButton.setAttribute('aria-label', `Remove image ${index + 1}`);
-
-        selectButton.addEventListener('click', () => {
-          setCurrentImage(item);
-          message.textContent = 'Background image selected.';
-        });
-
-        removeButton.addEventListener('click', event => {
-          event.stopPropagation();
-
-          const removedImage = item;
-          const wasCurrent = item.id === currentImageId;
-
-          library = library.filter(saved => saved.id !== item.id);
-          saveLibrary();
-          renderLinks();
-
-          if (wasCurrent) {
-            const next = library.length
-              ? library[Math.floor(Math.random() * library.length)]
-              : null;
-            setCurrentImage(next);
-          }
-
-          message.textContent = library.length
-            ? 'Image removed.'
-            : 'Image removed. No images are saved.';
-        });
-
-        row.append(selectButton, details, removeButton);
-        linksList.appendChild(row);
+    function visibleItems() {
+      const favorites = library.filter(item => item.fav);
+      const base = settings.favOnly && favorites.length ? favorites : library;
+      const terms = searchInput.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+      if (!terms.length) return base;
+      return base.filter(item => {
+        const text = searchText(item);
+        return terms.every(term => text.includes(term));
       });
+    }
+
+    searchInput.addEventListener('input', renderLinks);
+
+    searchInput.addEventListener('keydown', event => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        const first = visibleItems()[0];
+        if (first) {
+          setCurrentImage(first);
+          message.textContent = 'Background image selected.';
+        } else {
+          message.textContent = 'No image matches your search.';
+        }
+      } else if (event.key === 'Escape' && searchInput.value) {
+        event.preventDefault();
+        searchInput.value = '';
+        renderLinks();
+      }
+    });
+
+    /* =========================================================
+       List rendering
+       ========================================================= */
+    function thumbnailUrl(item) {
+      const small = item.variants
+        .filter(variant => variant.width && variant.width >= 300)
+        .sort((a, b) => a.width - b.width)[0];
+      return small ? small.url : item.url;
+    }
+
+    let dragId = null;
+
+    function moveItem(movingId, targetId, after) {
+      const from = library.findIndex(item => item.id === movingId);
+      if (from < 0 || movingId === targetId) return;
+
+      const [moving] = library.splice(from, 1);
+      const targetIndex = library.findIndex(item => item.id === targetId);
+      library.splice(targetIndex + (after ? 1 : 0), 0, moving);
+      saveLibrary();
+      renderLinks();
+    }
+
+    function buildRow(item, index) {
+      const row = document.createElement('li');
+      if (item.id === currentImageId) row.classList.add('selected');
+
+      const name = item.meta?.title || getDisplayName(item.sourceUrl);
+
+      // Drag handle: the row is only draggable while the handle is held,
+      // so selects, buttons and text keep working normally.
+      const handle = document.createElement('span');
+      handle.className = 'drag-handle';
+      handle.textContent = '⠿';
+      handle.title = 'Drag to reorder';
+      handle.setAttribute('aria-hidden', 'true');
+      handle.addEventListener('mousedown', () => { row.draggable = true; });
+      handle.addEventListener('mouseup', () => { row.draggable = false; });
+
+      row.addEventListener('dragstart', event => {
+        dragId = item.id;
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', item.id);
+        row.classList.add('dragging');
+      });
+      row.addEventListener('dragover', event => {
+        if (!dragId || dragId === item.id) return;
+        event.preventDefault();
+        const rect = row.getBoundingClientRect();
+        const after = event.clientY > rect.top + rect.height / 2;
+        row.classList.toggle('drop-after', after);
+        row.classList.toggle('drop-before', !after);
+      });
+      row.addEventListener('dragleave', event => {
+        if (!row.contains(event.relatedTarget)) row.classList.remove('drop-before', 'drop-after');
+      });
+      row.addEventListener('drop', event => {
+        if (!dragId) return;
+        event.preventDefault();
+        const rect = row.getBoundingClientRect();
+        moveItem(dragId, item.id, event.clientY > rect.top + rect.height / 2);
+      });
+      row.addEventListener('dragend', () => {
+        dragId = null;
+        row.draggable = false;
+        renderLinks();
+      });
+
+      const selectButton = document.createElement('button');
+      selectButton.type = 'button';
+      selectButton.className = 'image-choice';
+      selectButton.setAttribute('aria-label', `Set ${name} as background`);
+
+      const thumbnail = document.createElement('img');
+      thumbnail.src = thumbnailUrl(item);
+      thumbnail.alt = '';
+      thumbnail.loading = 'lazy';
+      thumbnail.decoding = 'async';
+      selectButton.appendChild(thumbnail);
+
+      selectButton.addEventListener('click', () => {
+        setCurrentImage(item);
+        message.textContent = 'Background image selected.';
+      });
+
+      const details = document.createElement('div');
+      details.className = 'image-details';
+
+      const nameEl = document.createElement('span');
+      nameEl.className = 'image-name';
+      nameEl.textContent = name;
+
+      const sub = document.createElement('span');
+      sub.className = 'image-sub';
+      sub.textContent = item.meta?.artist
+        ? [item.meta.artist, item.meta.date].filter(Boolean).join(' · ')
+        : item.sourceUrl;
+
+      const qualityRow = document.createElement('div');
+      qualityRow.className = 'quality-row';
+
+      const qualitySelect = document.createElement('select');
+      qualitySelect.className = 'quality-select';
+      qualitySelect.setAttribute('aria-label', `Quality for ${name}`);
+      item.variants.forEach(variant => qualitySelect.add(new Option(variant.label, variant.url)));
+      qualitySelect.value = item.url;
+      qualitySelect.addEventListener('change', () => {
+        const variant = item.variants.find(candidate => candidate.url === qualitySelect.value);
+        if (!variant) return;
+
+        item.url = variant.url;
+        item.qualityChosen = true;
+        saveLibrary();
+        if (item.id === currentImageId) {
+          showImage(item);
+          showImageInfo(item);
+        }
+        message.textContent = `Quality set to ${variant.label}.`;
+      });
+      qualityRow.appendChild(qualitySelect);
+
+      if (isWikiItem(item)) {
+        const fetchButton = document.createElement('button');
+        fetchButton.type = 'button';
+        fetchButton.className = 'fetch-btn';
+        fetchButton.textContent = item.variants.length > 1 ? 'Refetch' : 'Fetch qualities';
+        fetchButton.title = 'Ask Wikimedia which sizes this image is available in';
+        fetchButton.addEventListener('click', () => fetchQualities(item, fetchButton));
+        qualityRow.appendChild(fetchButton);
+      }
+
+      details.append(nameEl, sub, qualityRow);
+
+      const actions = document.createElement('div');
+      actions.className = 'row-actions';
+
+      const favButton = document.createElement('button');
+      favButton.type = 'button';
+      favButton.className = `icon-btn fav${item.fav ? ' on' : ''}`;
+      favButton.textContent = item.fav ? '★' : '☆';
+      favButton.title = item.fav ? 'Remove from favorites' : 'Add to favorites';
+      favButton.setAttribute('aria-pressed', String(item.fav));
+      favButton.setAttribute('aria-label', `${item.fav ? 'Unfavorite' : 'Favorite'} ${name}`);
+      favButton.addEventListener('click', () => toggleFavorite(item));
+
+      const pinned = settings.pinnedId === item.id;
+      const pinButton = document.createElement('button');
+      pinButton.type = 'button';
+      pinButton.className = `icon-btn pin${pinned ? ' on' : ''}`;
+      pinButton.textContent = '📌';
+      pinButton.title = pinned ? 'Unpin (random again on load)' : 'Pin: always open with this image';
+      pinButton.setAttribute('aria-pressed', String(pinned));
+      pinButton.setAttribute('aria-label', `${pinned ? 'Unpin' : 'Pin'} ${name}`);
+      pinButton.addEventListener('click', () => togglePin(item));
+
+      const removeButton = document.createElement('button');
+      removeButton.type = 'button';
+      removeButton.className = 'icon-btn';
+      removeButton.textContent = '×';
+      removeButton.title = 'Remove this image';
+      removeButton.setAttribute('aria-label', `Remove ${name}`);
+      removeButton.addEventListener('click', () => removeItem(item));
+
+      actions.append(favButton, pinButton, removeButton);
+      row.append(handle, selectButton, details, actions);
+      return row;
+    }
+
+    function renderLinks() {
+      const scrollTop = linksList.scrollTop;
+      linksList.replaceChildren();
+
+      const items = visibleItems();
+      emptyList.hidden = items.length > 0;
+      emptyList.textContent = library.length
+        ? 'No images match your search.'
+        : 'No images saved. Add an image URL above.';
+      countEl.textContent = items.length === library.length
+        ? String(library.length)
+        : `${items.length} of ${library.length}`;
+
+      items.forEach((item, index) => linksList.appendChild(buildRow(item, index)));
+      linksList.scrollTop = scrollTop;
+    }
+
+    function removeItem(item) {
+      const wasCurrent = item.id === currentImageId;
+
+      library = library.filter(saved => saved.id !== item.id);
+      if (settings.pinnedId === item.id) settings.pinnedId = null;
+      saveLibrary();
+
+      if (wasCurrent) setCurrentImage(pickRandom());
+      else renderLinks();
+
+      message.textContent = library.length
+        ? 'Image removed.'
+        : 'Image removed. No images are saved.';
     }
 
     function getDisplayName(url) {
@@ -947,6 +1724,13 @@
           // Leave as-is if decode fails.
         }
 
+        // thumbnails look like ".../Name.jpg/1280px-Name.jpg": use the real file name
+        if (/\/thumb\//.test(parsed.pathname) && parts.length >= 2) {
+          let original = parts[parts.length - 2];
+          try { original = decodeURIComponent(original); } catch { /* keep */ }
+          return original.replaceAll('_', ' ');
+        }
+
         return fileName.replace(/^\d+px-/, '').replaceAll('_', ' ');
       }
 
@@ -962,7 +1746,16 @@
       }
     }
 
-    function makeWikiApiUrl(fileName, width = null) {
+    /* =========================================================
+       Wikimedia: qualities, title and artist
+       ========================================================= */
+    function stripHtml(html) {
+      if (!html) return '';
+      const doc = new DOMParser().parseFromString(String(html), 'text/html');
+      return (doc.body.textContent || '').replace(/\s+/g, ' ').trim();
+    }
+
+    function makeWikiApiUrl(fileName, width = null, withMeta = false) {
       const apiUrl = new URL('https://commons.wikimedia.org/w/api.php');
       const params = {
         action: 'query',
@@ -970,17 +1763,18 @@
         origin: '*',
         prop: 'imageinfo',
         titles: `File:${fileName}`,
-        iiprop: 'url|size'
+        iiprop: withMeta ? 'url|size|extmetadata' : 'url|size'
       };
 
       if (width) params.iiurlwidth = String(width);
+      if (withMeta) params.iiextmetadatafilter = 'ObjectName|Artist|DateTimeOriginal|DateTime';
       apiUrl.search = new URLSearchParams(params).toString();
       return apiUrl;
     }
 
-    async function queryWikiImage(fileName, width = null) {
-      const response = await fetch(makeWikiApiUrl(fileName, width));
-      if (!response.ok) throw new Error('Wikimedia image lookup failed.');
+    async function queryWikiImage(fileName, width = null, withMeta = false) {
+      const response = await fetch(makeWikiApiUrl(fileName, width, withMeta));
+      if (!response.ok) throw new Error(`Wikimedia lookup failed (HTTP ${response.status}).`);
 
       const data = await response.json();
       const page = Object.values(data.query?.pages || {})[0];
@@ -988,10 +1782,19 @@
       if (!info) throw new Error('Wikimedia did not return this file.');
 
       const isThumb = Boolean(width && info.thumburl);
+      const extra = info.extmetadata || {};
+
       return {
         url: isThumb ? info.thumburl : info.url,
         width: isThumb ? info.thumbwidth : info.width,
-        height: isThumb ? info.thumbheight : info.height
+        height: isThumb ? info.thumbheight : info.height,
+        meta: withMeta
+          ? normalizeMeta({
+              title: stripHtml(extra.ObjectName?.value),
+              artist: stripHtml(extra.Artist?.value),
+              date: stripHtml(extra.DateTimeOriginal?.value || extra.DateTime?.value)
+            })
+          : null
       };
     }
 
@@ -999,15 +1802,15 @@
       const fileName = getWikiFileName(sourceUrl);
       if (!fileName) return null;
 
-      const original = await queryWikiImage(fileName);
+      const original = await queryWikiImage(fileName, null, true);
       if (!original.url) throw new Error('Wikimedia did not return the original image.');
 
-      const variants = [{
+      const variants = [normalizeVariant({
         url: original.url,
         width: original.width,
         height: original.height,
-        label: `Original (${original.width} × ${original.height})`
-      }];
+        original: true
+      })];
 
       const results = await Promise.allSettled(
         WIKIMEDIA_WIDTHS.map(width => queryWikiImage(fileName, width))
@@ -1017,35 +1820,211 @@
         if (result.status !== 'fulfilled' || !result.value.url) continue;
 
         const candidate = result.value;
+        // Bigger than (or as big as) the original: that size is just the original again.
+        if (candidate.width >= original.width) continue;
         if (variants.some(variant =>
           variant.url === candidate.url ||
           (variant.width === candidate.width && variant.height === candidate.height)
-        )) {
-          continue;
-        }
+        )) continue;
 
-        variants.push({
+        variants.push(normalizeVariant({
           url: candidate.url,
           width: candidate.width,
-          height: candidate.height,
-          label: `${candidate.width} × ${candidate.height}`
-        });
+          height: candidate.height
+        }));
       }
 
-      variants.sort((a, b) => (a.width || 0) - (b.width || 0));
-      const originalEntry = variants.find(candidate =>
-        candidate.label.startsWith('Original')
-      );
-
-      if (originalEntry) {
-        const index = variants.indexOf(originalEntry);
-        variants.splice(index, 1);
-        variants.push(originalEntry);
-      }
-
-      return variants;
+      return { variants: sortVariants(variants), meta: original.meta };
     }
 
+    // Keeps the user's choice when it still exists; otherwise picks the "around HD" size.
+    function applyVariants(item, variants) {
+      item.variants = sortVariants(variants);
+
+      const stillThere = item.variants.some(variant => variant.url === item.url);
+      if (!(item.qualityChosen && stillThere)) {
+        item.url = pickDefaultVariant(item.variants).url;
+      }
+
+      if (item.id === currentImageId) {
+        showImage(item);
+        showImageInfo(item);
+      }
+    }
+
+    async function fetchQualities(item, button) {
+      button.disabled = true;
+      const oldText = button.textContent;
+      button.textContent = 'Fetching…';
+      message.textContent = '';
+
+      try {
+        const result = await getWikimediaVariants(item.sourceUrl);
+        if (!result) throw new Error('This link is not a Wikimedia image.');
+
+        applyVariants(item, result.variants);
+        if (result.meta) item.meta = result.meta;
+        saveLibrary();
+        if (item.id === currentImageId) updateCaption();
+        renderLinks();
+        message.textContent = `Found ${result.variants.length} quality option${result.variants.length === 1 ? '' : 's'}.`;
+      } catch (error) {
+        button.disabled = false;
+        button.textContent = oldText;
+        message.textContent = `Could not fetch qualities: ${error.message || error}. You can paste Wikipedia’s dropdown in the box above instead.`;
+      }
+    }
+
+    /* ---- Paste Wikipedia's dropdown ---- */
+    function parseWikiQualityText(text) {
+      const entries = [];
+      const push = (rawName, widthText, heightText, value = '') => {
+        const width = parseInt(String(widthText).replace(/[.,\s]/g, ''), 10);
+        const height = parseInt(String(heightText).replace(/[.,\s]/g, ''), 10);
+        if (!width || !height) return;
+
+        const name = rawName.replace(/\s+/g, ' ').trim();
+        const original = value === 'original' || /original/i.test(name);
+        entries.push({ name, width, height, original });
+      };
+
+      const pattern = /([^()\n<>]*?)\s*\(\s*([\d.,]+)\s*[×xX]\s*([\d.,]+)\s*px\s*\)/g;
+
+      if (/<option/i.test(text)) {
+        const doc = new DOMParser().parseFromString(text, 'text/html');
+        for (const option of doc.querySelectorAll('option')) {
+          const match = pattern.exec(option.textContent.replace(/\s+/g, ' '));
+          pattern.lastIndex = 0;
+          if (match) push(match[1], match[2], match[3], option.value);
+        }
+      } else {
+        for (const match of text.matchAll(pattern)) push(match[1], match[2], match[3]);
+      }
+
+      return entries;
+    }
+
+    function deriveOriginalUrl(url) {
+      try {
+        const parsed = new URL(url);
+        const host = parsed.hostname.toLowerCase();
+        if (host !== 'upload.wikimedia.org' && host !== 'thumb.wikimedia.org') return null;
+
+        const thumb = parsed.pathname.match(/^\/wikipedia\/([^/]+)\/thumb\/([0-9a-f]\/[0-9a-f]{2})\/([^/]+)\/[^/]+$/);
+        if (thumb) return `https://upload.wikimedia.org/wikipedia/${thumb[1]}/${thumb[2]}/${thumb[3]}`;
+
+        if (/^\/wikipedia\/[^/]+\/[0-9a-f]\/[0-9a-f]{2}\/[^/]+$/.test(parsed.pathname)) {
+          return `https://upload.wikimedia.org${parsed.pathname}`;
+        }
+      } catch { /* fall through */ }
+      return null;
+    }
+
+    function constructThumbUrl(originalUrl, width) {
+      const match = originalUrl.match(/^https:\/\/upload\.wikimedia\.org\/wikipedia\/([^/]+)\/([0-9a-f]\/[0-9a-f]{2})\/([^/]+\.(?:jpe?g|png|gif|webp))$/i);
+      if (!match) return null;
+      return `https://upload.wikimedia.org/wikipedia/${match[1]}/thumb/${match[2]}/${match[3]}/${width}px-${match[3]}`;
+    }
+
+    async function resolveOriginalUrl(item) {
+      const known = item.variants.find(variant => variant.original);
+      if (known) return known.url;
+
+      const derived = deriveOriginalUrl(item.sourceUrl);
+      if (derived) return derived;
+
+      const fileName = getWikiFileName(item.sourceUrl);
+      if (!fileName) throw new Error('This link is not a Wikimedia image.');
+      return (await queryWikiImage(fileName)).url;
+    }
+
+    async function applyPastedQualities(item, text) {
+      const entries = parseWikiQualityText(text);
+      if (!entries.length) {
+        throw new Error('I could not find sizes like “Medium (1280×853 px)” in what you pasted.');
+      }
+
+      const originalUrl = await resolveOriginalUrl(item);
+      const fileName = getWikiFileName(item.sourceUrl);
+      const variants = [];
+
+      for (const entry of entries) {
+        let url = null;
+
+        if (entry.original) {
+          url = originalUrl;
+        } else {
+          try {
+            if (fileName) url = (await queryWikiImage(fileName, entry.width)).url;
+          } catch { /* build it by hand below */ }
+          if (!url) url = constructThumbUrl(originalUrl, entry.width);
+        }
+
+        if (!url) continue;
+        variants.push(normalizeVariant({
+          url,
+          width: entry.width,
+          height: entry.height,
+          original: entry.original,
+          name: entry.name
+        }));
+      }
+
+      if (!variants.length) throw new Error('Could not build image links from that list.');
+
+      // Keep the efficient 960 px size next to Wikipedia's own sizes.
+      const originalVariant = variants.find(variant => variant.original);
+      if (
+        originalVariant?.width > EXTRA_WIDTH &&
+        !variants.some(variant => variant.width === EXTRA_WIDTH)
+      ) {
+        let extraUrl = null;
+        try {
+          if (fileName) extraUrl = (await queryWikiImage(fileName, EXTRA_WIDTH)).url;
+        } catch { /* build it by hand below */ }
+        if (!extraUrl) extraUrl = constructThumbUrl(originalUrl, EXTRA_WIDTH);
+
+        if (extraUrl) {
+          variants.push(normalizeVariant({
+            url: extraUrl,
+            width: EXTRA_WIDTH,
+            height: Math.round(EXTRA_WIDTH * originalVariant.height / originalVariant.width)
+          }));
+        }
+      }
+
+      applyVariants(item, variants);
+      saveLibrary();
+      renderLinks();
+      return variants.length;
+    }
+
+    pasteApply.addEventListener('click', async () => {
+      const item = currentImage();
+      if (!item) {
+        message.textContent = 'Select an image first (click its thumbnail), then apply the pasted list.';
+        return;
+      }
+      if (!pasteArea.value.trim()) {
+        message.textContent = 'Paste Wikipedia’s quality list into the box first.';
+        return;
+      }
+
+      pasteApply.disabled = true;
+      try {
+        const count = await applyPastedQualities(item, pasteArea.value);
+        pasteArea.value = '';
+        message.textContent = `Applied ${count} quality option${count === 1 ? '' : 's'} to the selected image.`;
+      } catch (error) {
+        message.textContent = error.message || 'Could not apply that list.';
+      } finally {
+        pasteApply.disabled = false;
+      }
+    });
+
+    /* =========================================================
+       Add image
+       ========================================================= */
     addForm.addEventListener('submit', async event => {
       event.preventDefault();
       message.textContent = '';
@@ -1079,46 +2058,50 @@
 
       try {
         let variants = null;
+        let meta = null;
+        let lookupError = '';
 
         try {
-          variants = await getWikimediaVariants(sourceUrl);
+          const result = await getWikimediaVariants(sourceUrl);
+          if (result) {
+            variants = result.variants;
+            meta = result.meta;
+          }
         } catch (error) {
+          lookupError = error.message || String(error);
           console.warn('Could not fetch Wikimedia image qualities:', error);
         }
 
         if (!variants && isDirectImageUrl(sourceUrl)) {
-          variants = [{
-            url: sourceUrl,
-            width: null,
-            height: null,
-            label: 'Linked image'
-          }];
+          variants = [normalizeVariant({ url: sourceUrl, label: 'Linked image' })];
         }
 
         if (!variants || !variants.length) {
-          throw new Error('Could not find an image file from that link. Try a direct image URL or a Wikimedia File page.');
+          throw new Error(lookupError
+            ? `Could not reach Wikimedia (${lookupError}). Try again, or use a direct image URL.`
+            : 'Could not find an image file from that link. Try a direct image URL or a Wikimedia File page.');
         }
 
-        const fastVariant = [...variants]
-          .filter(variant => variant.width && variant.width <= 720)
-          .pop() || variants[0];
+        const chosen = pickDefaultVariant(variants);
 
         const record = {
           id: makeId(),
           sourceUrl,
-          url: fastVariant.url,
+          url: chosen.url,
           fit: 'cover',
           y: 50,
+          fav: false,
+          qualityChosen: false,
+          meta,
           variants,
           note: variants.length > 1
-            ? `Defaulting to ${fastVariant.label} for faster loading`
-            : ''
+            ? `Defaulting to ${chosen.label} (around HD) for fast loading`
+            : 'Only one quality is known. Use “Fetch qualities” on the row if this is a Wikimedia image.'
         };
 
         library.push(record);
         saveLibrary();
         imageUrlInput.value = '';
-        renderLinks();
         setCurrentImage(record);
         message.textContent = record.note || 'Image added.';
       } catch (error) {
@@ -1131,20 +2114,157 @@
 
     imageUrlInput.addEventListener('input', () => imageUrlInput.setCustomValidity(''));
 
+    /* =========================================================
+       Backup: export / import / next-day reminder
+       ========================================================= */
+    const pad = number => String(number).padStart(2, '0');
+
+    function dayKey(timestamp) {
+      const date = new Date(timestamp);
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+    }
+
+    function backupFileName() {
+      const now = new Date();
+      return `${dayKey(now)}_${pad(now.getHours())}-${pad(now.getMinutes())}_${SITE_NAME}.json`;
+    }
+
+    function downloadBackup() {
+      const payload = {
+        app: SITE_NAME,
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        settings: {
+          dim: settings.dim,
+          blur: settings.blur,
+          caption: settings.caption,
+          favOnly: settings.favOnly,
+          pinnedId: settings.pinnedId
+        },
+        library
+      };
+
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const link = document.createElement('a');
+      const objectUrl = URL.createObjectURL(blob);
+      link.href = objectUrl;
+      link.download = backupFileName();
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 2000);
+
+      settings.lastBackupAt = Date.now();
+      saveSettings();
+      return link.download;
+    }
+
+    exportBtn.addEventListener('click', () => {
+      const name = downloadBackup();
+      backupBanner.hidden = true;
+      message.textContent = `Backup saved as ${name}.`;
+    });
+
+    importBtn.addEventListener('click', () => importFile.click());
+
+    importFile.addEventListener('change', async () => {
+      const file = importFile.files?.[0];
+      importFile.value = '';
+      if (!file) return;
+
+      try {
+        const data = JSON.parse(await file.text());
+        const incoming = Array.isArray(data) ? data : data.library;
+        if (!Array.isArray(incoming)) throw new Error('This file does not look like a backup of this page.');
+
+        const wasEmpty = library.length === 0;
+        let added = 0;
+        let skipped = 0;
+
+        for (const raw of incoming) {
+          const record = normalizeRecord(raw);
+          if (!record) continue;
+
+          const exists = library.some(saved =>
+            saved.id === record.id || fileKey(saved.sourceUrl) === fileKey(record.sourceUrl)
+          );
+          if (exists) { skipped++; continue; }
+
+          library.push(record);
+          added++;
+        }
+
+        if (wasEmpty && data.settings && typeof data.settings === 'object') {
+          const incomingSettings = data.settings;
+          settings.dim = Number(incomingSettings.dim) || 0;
+          settings.blur = Number(incomingSettings.blur) || 0;
+          settings.caption = incomingSettings.caption !== false;
+          settings.favOnly = Boolean(incomingSettings.favOnly);
+          settings.pinnedId = library.some(item => item.id === incomingSettings.pinnedId)
+            ? incomingSettings.pinnedId
+            : null;
+          applyLook();
+        }
+
+        saveLibrary();
+        renderLinks();
+        if (!currentImage()) setCurrentImage(pickInitial());
+        message.textContent = `Imported ${added} new image${added === 1 ? '' : 's'}${skipped ? ` (${skipped} already in your list)` : ''}.`;
+      } catch (error) {
+        message.textContent = error.message || 'Could not read that backup file.';
+      }
+    });
+
+    function checkBackupReminder() {
+      if (!library.length) return;
+      if (!settings.lastChangeAt || settings.lastChangeAt <= settings.lastBackupAt) return;
+
+      const today = dayKey(Date.now());
+      const changeDay = dayKey(settings.lastChangeAt);
+      if (today <= changeDay) return;                 // same day: wait for the next one
+      if (settings.backupSnoozedDay === today) return; // already said "not now" today
+
+      const when = new Date(settings.lastChangeAt).toLocaleDateString(undefined, {
+        weekday: 'long', month: 'short', day: 'numeric'
+      });
+      backupText.textContent = `You changed your images on ${when}. Save a backup?`;
+      backupBanner.hidden = false;
+    }
+
+    backupNow.addEventListener('click', () => {
+      const name = downloadBackup();
+      backupBanner.hidden = true;
+      message.textContent = `Backup saved as ${name}.`;
+    });
+
+    backupLater.addEventListener('click', () => {
+      settings.backupSnoozedDay = dayKey(Date.now());
+      saveSettings();
+      backupBanner.hidden = true;
+    });
+
+    /* =========================================================
+       Start-up
+       ========================================================= */
     window.addEventListener('resize', () => {
+      applyLook();
       const item = currentImage();
       if (item) showImageInfo(item);
     });
 
-    library = readLibrary();
-    renderLinks();
-
-    if (library.length) {
-      const initial = library[Math.floor(Math.random() * library.length)];
-      setCurrentImage(initial);
-    } else {
-      setCurrentImage(null);
+    function pickInitial() {
+      const pinned = library.find(item => item.id === settings.pinnedId);
+      return pinned || pickRandom();
     }
+
+    applyLook();
+    library = readLibrary();
+    if (settings.pinnedId && !library.some(item => item.id === settings.pinnedId)) {
+      settings.pinnedId = null;
+    }
+    renderLinks();
+    setCurrentImage(pickInitial());
+    checkBackupReminder();
   </script>
 </body>
 </html>
