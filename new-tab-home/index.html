@@ -3,10 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0d1117" />
   <title>Random Painting Background</title>
   <style>
     :root {
-      --panel-bg: rgba(15, 16, 20, 0.62);
+      --panel-bg: rgba(15, 16, 20, 0.88);
       --panel-border: rgba(255, 255, 255, 0.12);
       --text: #edf2ff;
       --muted: #d4d9eb;
@@ -28,13 +29,10 @@
 
     body {
       min-height: 100vh;
-      display: grid;
-      place-items: center;
-      padding: 24px;
       background-size: cover;
       background-position: center center;
       background-repeat: no-repeat;
-      transition: background-image 0.6s ease, filter 0.3s ease;
+      transition: background-image 0.6s ease;
       position: relative;
       overflow: hidden;
     }
@@ -43,58 +41,96 @@
       content: "";
       position: absolute;
       inset: 0;
-      background: linear-gradient(135deg, rgba(10, 12, 18, 0.52), rgba(10, 12, 18, 0.22));
-      backdrop-filter: blur(2px);
+      background: linear-gradient(135deg, rgba(10, 12, 18, 0.24), rgba(10, 12, 18, 0.08));
+      pointer-events: none;
       z-index: 0;
     }
 
+    .menu-toggle {
+      position: fixed;
+      z-index: 3;
+      top: 16px;
+      right: 16px;
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      padding: 0;
+      border: 1px solid transparent;
+      border-radius: 12px;
+      background: rgba(15, 16, 20, 0.12);
+      color: rgba(255, 255, 255, 0.7);
+      font: 22px/1 system-ui, sans-serif;
+      cursor: pointer;
+      opacity: 0.2;
+      transition: opacity 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+    }
+
+    .menu-toggle:hover,
+    .menu-toggle:focus-visible,
+    .menu-toggle[aria-expanded="true"] {
+      opacity: 0.9;
+      border-color: var(--panel-border);
+      background: rgba(15, 16, 20, 0.72);
+    }
+
+    .menu-toggle:focus-visible,
+    button:focus-visible,
+    input:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 3px;
+    }
+
     .panel {
-      position: relative;
-      z-index: 1;
-      width: min(720px, 100%);
+      position: fixed;
+      z-index: 2;
+      top: 50%;
+      left: 50%;
+      width: min(720px, calc(100% - 32px));
+      max-height: calc(100vh - 40px);
       padding: 22px 22px 18px;
+      overflow: auto;
       border: 1px solid var(--panel-border);
       border-radius: 20px;
       background: var(--panel-bg);
       box-shadow: 0 20px 60px var(--shadow);
-      backdrop-filter: blur(10px);
+      backdrop-filter: blur(14px);
+      opacity: 0;
+      visibility: hidden;
+      transform: translate(-50%, calc(-50% + 8px));
+      transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
+    }
+
+    .panel.open {
+      opacity: 1;
+      visibility: visible;
+      transform: translate(-50%, -50%);
+    }
+
+    .panel-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
     }
 
     h1 {
-      margin: 0 0 10px;
-      font-size: clamp(2rem, 3vw, 3rem);
+      margin: 0 0 8px;
+      font-size: clamp(1.7rem, 3vw, 2.4rem);
       line-height: 1.1;
       letter-spacing: -0.06em;
     }
 
     p {
-      margin: 0 0 18px;
+      margin: 0;
       color: var(--muted);
-      font-size: 1rem;
+      font-size: 0.95rem;
     }
-
-    .controls {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto auto;
-      gap: 10px;
-      margin-bottom: 14px;
-    }
-
-    input {
-      width: 100%;
-      height: 42px;
-      padding: 0 12px;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 12px;
-      background: rgba(255, 255, 255, 0.04);
-      color: var(--text);
-      font: inherit;
-    }
-
-    input::placeholder { color: rgba(237, 242, 255, 0.6); }
 
     button {
-      height: 42px;
+      min-height: 42px;
+      padding: 0 14px;
       border: 1px solid rgba(255, 255, 255, 0.12);
       border-radius: 12px;
       background: rgba(255, 255, 255, 0.06);
@@ -111,11 +147,37 @@
       transform: translateY(-1px);
     }
 
+    .close-menu {
+      flex: 0 0 auto;
+      min-height: 36px;
+      padding: 0 11px;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    input {
+      width: 100%;
+      height: 42px;
+      padding: 0 12px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      font: inherit;
+    }
+
+    input::placeholder { color: rgba(237, 242, 255, 0.6); }
+
     .list-wrap {
       margin-top: 12px;
       border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 12px;
-      background: rgba(255, 255, 255, 0.02);
+      background: rgba(255, 255, 255, 0.03);
       overflow: hidden;
     }
 
@@ -137,7 +199,7 @@
       width: 100%;
       padding: 8px 10px;
       border-radius: 10px;
-      background: rgba(255, 255, 255, 0.04);
+      background: rgba(255, 255, 255, 0.05);
       color: var(--text);
     }
 
@@ -153,7 +215,9 @@
     .remove-btn {
       flex: 0 0 auto;
       width: 34px;
+      min-height: 30px;
       height: 30px;
+      padding: 0;
       border-radius: 8px;
       background: rgba(255, 255, 255, 0.04);
       border-color: rgba(255, 255, 255, 0.1);
@@ -171,25 +235,30 @@
       font-size: 0.84rem;
     }
 
-    .footer strong {
-      color: var(--accent-strong);
-    }
+    .footer strong { color: var(--accent-strong); }
 
     @media (max-width: 620px) {
-      .controls {
-        grid-template-columns: 1fr;
-      }
+      .controls { grid-template-columns: 1fr; }
+      .panel { padding: 18px 16px 14px; }
+      .menu-toggle { top: 10px; right: 10px; }
+    }
 
-      .panel {
-        padding: 18px 16px 14px;
-      }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition-duration: 0.01ms !important; }
     }
   </style>
 </head>
 <body>
-  <div class="panel">
-    <h1>Random painting</h1>
-    <p>Saved image URLs are stored in the browser and chosen at random for the background.</p>
+  <button class="menu-toggle" id="menuToggle" type="button" aria-controls="settingsPanel" aria-expanded="false" aria-label="Open image settings" title="Image settings">☰</button>
+
+  <main class="panel" id="settingsPanel" aria-labelledby="pageTitle" aria-hidden="true" inert>
+    <div class="panel-heading">
+      <div>
+        <h1 id="pageTitle">Random painting</h1>
+        <p>Saved image URLs are stored in this browser and chosen at random for the background.</p>
+      </div>
+      <button class="close-menu" id="closeMenu" type="button" aria-label="Close image settings">Close</button>
+    </div>
 
     <div class="controls">
       <input id="imageUrl" type="url" placeholder="Paste image URL here" aria-label="Image URL" />
@@ -205,7 +274,7 @@
       <span>Stored URLs: <strong id="count">0</strong></span>
       <button id="reset" type="button">Reset</button>
     </div>
-  </div>
+  </main>
 
   <script>
     const STORAGE_KEY = 'new-tab-painting-links';
@@ -213,10 +282,12 @@
       'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?auto=format&fit=crop&w=1600&q=80',
       'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=80',
       'https://images.unsplash.com/photo-1493246507139-91e8fad9978e?auto=format&fit=crop&w=1600&q=80',
-      'https://images.unsplash.com/photo-1515405295579-ba7b45403062?auto=format&fit=crop&w=1600&q=80',
-      'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=80'
+      'https://images.unsplash.com/photo-1515405295579-ba7b45403062?auto=format&fit=crop&w=1600&q=80'
     ];
 
+    const menuToggle = document.getElementById('menuToggle');
+    const settingsPanel = document.getElementById('settingsPanel');
+    const closeMenuButton = document.getElementById('closeMenu');
     const imageUrlInput = document.getElementById('imageUrl');
     const addUrlButton = document.getElementById('addUrl');
     const shuffleButton = document.getElementById('shuffle');
@@ -224,14 +295,36 @@
     const linksList = document.getElementById('links');
     const countEl = document.getElementById('count');
 
+    function setMenuOpen(open) {
+      settingsPanel.classList.toggle('open', open);
+      settingsPanel.setAttribute('aria-hidden', String(!open));
+      settingsPanel.inert = !open;
+      menuToggle.setAttribute('aria-expanded', String(open));
+      menuToggle.setAttribute('aria-label', open ? 'Close image settings' : 'Open image settings');
+      if (open) imageUrlInput.focus();
+      else menuToggle.focus();
+    }
+
+    menuToggle.addEventListener('click', () => setMenuOpen(!settingsPanel.classList.contains('open')));
+    closeMenuButton.addEventListener('click', () => setMenuOpen(false));
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && settingsPanel.classList.contains('open')) setMenuOpen(false);
+    });
+    document.addEventListener('click', event => {
+      if (settingsPanel.classList.contains('open') && !settingsPanel.contains(event.target) && !menuToggle.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    });
+
     function safeReadLinks() {
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (!raw) return [...FALLBACK_LINKS];
         const parsed = JSON.parse(raw);
-        if (!Array.isArray(parsed) || parsed.length === 0) return [...FALLBACK_LINKS];
-        return parsed.filter(Boolean).map(item => String(item).trim()).filter(Boolean);
-      } catch (error) {
+        if (!Array.isArray(parsed)) return [...FALLBACK_LINKS];
+        const links = parsed.map(item => String(item).trim()).filter(Boolean);
+        return links.length ? links : [...FALLBACK_LINKS];
+      } catch {
         return [...FALLBACK_LINKS];
       }
     }
@@ -240,7 +333,7 @@
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
       } catch (error) {
-        console.warn('Could not save list:', error);
+        console.warn('Could not save image URLs:', error);
       }
     }
 
@@ -255,7 +348,7 @@
 
     function renderLinks() {
       const links = safeReadLinks();
-      linksList.innerHTML = '';
+      linksList.replaceChildren();
 
       links.forEach((link, index) => {
         const item = document.createElement('li');
@@ -263,25 +356,21 @@
         text.className = 'url-text';
         text.textContent = link;
 
-        const removeBtn = document.createElement('button');
-        removeBtn.type = 'button';
-        removeBtn.className = 'remove-btn';
-        removeBtn.textContent = '×';
-        removeBtn.title = 'Remove this image';
-        removeBtn.addEventListener('click', () => {
+        const removeButton = document.createElement('button');
+        removeButton.type = 'button';
+        removeButton.className = 'remove-btn';
+        removeButton.textContent = '×';
+        removeButton.title = 'Remove this image';
+        removeButton.setAttribute('aria-label', `Remove image ${index + 1}`);
+        removeButton.addEventListener('click', () => {
           const next = safeReadLinks();
           next.splice(index, 1);
-          if (next.length === 0) {
-            saveLinks([...FALLBACK_LINKS]);
-          } else {
-            saveLinks(next);
-          }
+          saveLinks(next.length ? next : [...FALLBACK_LINKS]);
           renderLinks();
           applyBackground(pickRandomLink());
         });
 
-        item.appendChild(text);
-        item.appendChild(removeBtn);
+        item.append(text, removeButton);
         linksList.appendChild(item);
       });
 
@@ -292,15 +381,26 @@
       const raw = imageUrlInput.value.trim();
       if (!raw) return;
 
+      let parsedUrl;
+      try {
+        parsedUrl = new URL(raw);
+      } catch {
+        imageUrlInput.setCustomValidity('Enter a valid image URL.');
+        imageUrlInput.reportValidity();
+        return;
+      }
+      if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+        imageUrlInput.setCustomValidity('Use an HTTP or HTTPS image URL.');
+        imageUrlInput.reportValidity();
+        return;
+      }
+      imageUrlInput.setCustomValidity('');
+
       const next = safeReadLinks();
-      if (!next.includes(raw)) next.push(raw);
+      if (!next.includes(parsedUrl.href)) next.push(parsedUrl.href);
       saveLinks(next);
       imageUrlInput.value = '';
       renderLinks();
-      applyBackground(pickRandomLink());
-    }
-
-    function shuffleBackground() {
       applyBackground(pickRandomLink());
     }
 
@@ -311,9 +411,10 @@
     }
 
     addUrlButton.addEventListener('click', addLink);
-    shuffleButton.addEventListener('click', shuffleBackground);
+    shuffleButton.addEventListener('click', () => applyBackground(pickRandomLink()));
     resetButton.addEventListener('click', resetLinks);
-    imageUrlInput.addEventListener('keydown', (event) => {
+    imageUrlInput.addEventListener('input', () => imageUrlInput.setCustomValidity(''));
+    imageUrlInput.addEventListener('keydown', event => {
       if (event.key === 'Enter') {
         event.preventDefault();
         addLink();
