@@ -214,7 +214,7 @@ th { color: var(--muted); font-weight: 600; font-size: 12px; position: sticky; t
 .tl > span { min-width: 3px; cursor: pointer; transition: filter .15s; }
 .tl > span:hover, .tl > span:focus { filter: brightness(1.15); outline: 2px solid var(--text); outline-offset: -2px; }
 .tl-ends { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-top: 6px; }
-.tl-tip { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; font-size: 14px; min-height: 20px; }
+.tl-tip { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; font-size: 14px; height: 170px; overflow-y: auto; }   /* fixed size so the card does not jump between short and long notes */
 .tl-list { margin: 12px 0 0; padding: 0; list-style: none; font-size: 14px; display: grid; gap: 4px; }
 .tl-list li { display: flex; gap: 8px; align-items: baseline; }
 .tl-list time { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 44px; }

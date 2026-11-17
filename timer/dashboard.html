@@ -398,13 +398,8 @@
       return '<span tabindex="0" class="' + (b.note ? 'hasnote' : '') + '" data-i="' + i + '" style="flex:' + (b.end - b.start) + ' 1 0;background:var(' + META[b.act].color + ')" title="' +
         esc(META[b.act].label + ' · ' + clock(b.start) + '–' + clock(b.end) + ' · ' + dur(Math.round((b.end - b.start) / 1000))) + '"></span>';
     }).join('');
-    var list = blocks.map(function (b, i) {
-      var sec = Math.round((b.end - b.start) / 1000);
-      return '<li><time>' + clock(b.start) + '</time>' + dot(b.act) + META[b.act].icon + ' ' + META[b.act].label + ' · ' + dur(sec) + (b.live ? ' · running' : '') + (b.project ? ' ' + ptag(b.project) : '') +
-        (b.note ? noteHtml(b.note, 'l:' + b.act + ':' + b.orig) : '') + '</li>';
-    }).join('');
     $('tl').innerHTML = '<div class="tl" role="img" aria-label="Timeline of the day">' + bar + '</div><div class="tl-ends"><span>' + clock(t0) + '</span><span>' +
-      (tlDay === todayK ? 'now ' : '') + clock(t1) + '</span></div><div class="tl-tip" id="tlTip">Tap a block for details.</div><ul class="tl-list">' + list + '</ul>';
+      (tlDay === todayK ? 'now ' : '') + clock(t1) + '</span></div><div class="tl-tip" id="tlTip"><span class="muted">Tap a block for details.</span></div>';
     var tip = $('tlTip');
     var showBlock = function (b) {
       tip.innerHTML = dot(b.act) + META[b.act].icon + ' <strong>' + META[b.act].label + '</strong> · ' + clock(b.start) + '–' + clock(b.end) + ' · ' +

@@ -39,7 +39,7 @@
     '<h3>Bottom row</h3>' +
     '<ul>' +
     '<li><b>Export all data / Import backup</b> – saves or restores everything in one file named with the date and time: timer data, outreach (names, notes, To-reach-out list, follow-ups), alarms and the capsule\'s linked-sites list (needs the capsule script to have run once). Importing replaces what is saved in this browser.</li>' +
-    '<li><b>📋 Outreach lists</b> – a popup with three tabs: <b>Follow-ups</b>, <b>To reach out</b> and <b>Finished</b>. In To reach out you can add a creator (name and optional link) and press <i>Outreached ✓</i> when you contact them; that counts +1 and starts follow-ups.</li>' +
+    '<li><b>📋 Outreach lists</b> – a popup with three tabs: <b>Follow-ups</b>, <b>To reach out</b> and <b>Finished</b>. In To reach out you can add a creator (name and optional link; the form is pre-filled with the YouTube channel you last visited, and pasting a channel link fills the name) and press <i>Outreached ✓</i> when you contact them; that counts +1 and starts follow-ups.</li>' +
     '<li><b>Send day summary</b> – queues today\'s summary as a note for Url Notes (needs the userscript; otherwise it copies the text).</li>' +
     '<li><b>Outreach counter</b> – <b>+1</b> adds an outreach, <b>−</b> removes one, <b>Goal</b> changes the daily goal. After +1 a small box lets you type the creator\'s <b>name</b> and a <b>note</b> (Enter saves both), and tick <i>remind me to follow up</i>. Notes can also be edited in the dashboard\'s outreach log, are searchable there and are in the CSV and the backup.</li>' +
     '<li><b>Follow-up bar</b> – when a follow-up is due, a slim bar appears above the cards. Follow-ups are due 2 days after the outreach, then 2 days after each follow-up. Press <b>Followed up</b> (the 3rd one finishes it), <b>Replied</b> or <b>Stop</b>. Following up does not change your score.</li>' +
@@ -106,7 +106,7 @@
     '<h3>Switch timer when I open a site</h3>' +
     '<ul>' +
     '<li>Press the <b>+</b> on the capsule while you are on a site and pick a timer (for example Claude → Workflow). The whole website is linked (the list is copied into the timer page, so Export / Import keeps it); the + turns green when a site is linked, and the same menu lets you change or remove it and shows all linked sites.</li>' +
-    '<li>When you open a linked site and a different timer is running, the capsule asks <i>Switch to Workflow now?</i> with <b>Switch</b> and <b>Not now</b>. Switch changes the timer on the timer page; if the timer page is not open, it opens in a new tab and switches. After <i>Not now</i>, that site does not ask again for 30 minutes.</li>' +
+    '<li>When you open a linked site and a different timer is running, the capsule asks <i>Switch to Workflow now?</i> with <b>Switch</b> and <b>Not now</b>. Switch changes the timer on the timer page; if the timer page is not open, it opens in a new tab and switches. The question disappears by itself after 5 seconds. After <i>Not now</i>, that site does not ask again for 30 minutes.</li>' +
     '</ul>' +
     '<h3>Notes to Url Notes</h3>' +
     '<ul>' +
