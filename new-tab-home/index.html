@@ -7,13 +7,13 @@
   <title>Random Painting Background</title>
   <style>
     :root {
-      --panel-bg: rgba(15, 16, 20, 0.9);
-      --panel-border: rgba(255, 255, 255, 0.12);
+      --panel-bg: rgba(15, 16, 20, 0.92);
+      --panel-border: rgba(255, 255, 255, 0.14);
       --text: #edf2ff;
       --muted: #d4d9eb;
       --accent: #9bc4ff;
       --accent-strong: #cfe6ff;
-      --shadow: rgba(0, 0, 0, 0.46);
+      --shadow: rgba(0, 0, 0, 0.48);
     }
 
     * { box-sizing: border-box; }
@@ -76,7 +76,7 @@
       z-index: 2;
       top: 50%;
       left: 50%;
-      width: min(720px, calc(100% - 32px));
+      width: min(760px, calc(100% - 32px));
       max-height: calc(100vh - 40px);
       max-height: calc(100dvh - 40px);
       padding: 22px;
@@ -156,12 +156,12 @@
 
     .controls {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto auto;
+      grid-template-columns: minmax(0, 1fr) auto;
       gap: 10px;
       margin-bottom: 14px;
     }
 
-    input {
+    input[type="url"] {
       width: 100%;
       min-width: 0;
       height: 42px;
@@ -233,11 +233,12 @@
       font-size: 0.78rem;
     }
 
-    .image-info {
+    .image-info,
+    .message {
       min-height: 1.4em;
       margin: 0 0 10px;
       color: rgba(237, 242, 255, 0.72);
-      font-size: 0.8rem;
+      font-size: 0.82rem;
       overflow-wrap: anywhere;
     }
 
@@ -251,7 +252,7 @@
     #links {
       display: grid;
       gap: 8px;
-      max-height: 220px;
+      max-height: 300px;
       margin: 0;
       padding: 8px;
       overflow-y: auto;
@@ -260,21 +261,65 @@
     }
 
     #links li {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
+      display: grid;
+      grid-template-columns: 104px minmax(0, 1fr) auto;
+      align-items: center;
       gap: 12px;
       min-width: 0;
-      padding: 8px 10px;
-      border-radius: 10px;
+      padding: 8px;
+      border: 1px solid transparent;
+      border-radius: 12px;
       background: rgba(255, 255, 255, 0.05);
     }
 
-    .url-text {
-      flex: 1 1 auto;
+    #links li.selected {
+      border-color: rgba(155, 196, 255, 0.7);
+      background: rgba(155, 196, 255, 0.11);
+    }
+
+    .image-choice {
+      display: block;
       min-width: 0;
+      padding: 0;
+      overflow: hidden;
+      border: 0;
+      border-radius: 8px;
+      background: #0d1117;
+      cursor: pointer;
+    }
+
+    .image-choice:hover {
+      border: 0;
+      background: #0d1117;
+      transform: none;
+    }
+
+    .image-choice img {
+      display: block;
+      width: 104px;
+      height: 68px;
+      object-fit: cover;
+      background: #0d1117;
+    }
+
+    .image-details {
+      min-width: 0;
+    }
+
+    .image-name {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--text);
+      font-size: 0.88rem;
+      font-weight: 650;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .image-url {
+      display: block;
       color: var(--muted);
-      font-size: 0.9rem;
+      font-size: 0.76rem;
       overflow-wrap: anywhere;
       word-break: break-word;
     }
@@ -282,8 +327,8 @@
     .remove-btn {
       flex: 0 0 34px;
       width: 34px;
-      min-height: 30px;
-      height: 30px;
+      min-height: 34px;
+      height: 34px;
       padding: 0;
       border-radius: 8px;
       background: rgba(255, 255, 255, 0.04);
@@ -293,37 +338,43 @@
     }
 
     .empty-list {
-      padding: 12px;
+      padding: 14px;
       color: var(--muted);
       font-size: 0.9rem;
-      overflow-wrap: anywhere;
     }
+
+    .empty-list[hidden] { display: none; }
 
     .footer {
       display: flex;
       align-items: center;
-      justify-content: space-between;
       gap: 12px;
-      margin-top: 14px;
+      margin-top: 12px;
       color: rgba(237, 242, 255, 0.8);
       font-size: 0.84rem;
     }
 
     .footer strong { color: var(--accent-strong); }
 
-    .message {
-      min-height: 1.3em;
-      margin-top: 10px;
-      color: var(--muted);
-      font-size: 0.84rem;
-      overflow-wrap: anywhere;
-    }
-
     @media (max-width: 620px) {
       .panel { padding: 18px 16px 14px; }
-      .controls { grid-template-columns: 1fr 1fr; }
-      .controls input { grid-column: 1 / -1; }
+      .controls { grid-template-columns: 1fr auto; }
       .menu-toggle { top: 10px; right: 10px; }
+    }
+
+    @media (max-width: 440px) {
+      #links li {
+        grid-template-columns: 76px minmax(0, 1fr) auto;
+        gap: 9px;
+      }
+
+      .image-choice img {
+        width: 76px;
+        height: 58px;
+      }
+
+      .image-name { font-size: 0.82rem; }
+      .image-url { font-size: 0.7rem; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -346,15 +397,14 @@
     <div class="panel-heading">
       <div>
         <h1 id="pageTitle">Random painting</h1>
-        <p>Only images you add are saved and used as backgrounds.</p>
+        <p>On page load, one saved image is chosen and stays until you select another.</p>
       </div>
       <button class="close-menu" id="closeMenu" type="button" aria-label="Close image settings">Close</button>
     </div>
 
     <form class="controls" id="addForm">
       <input id="imageUrl" type="url" placeholder="Paste an image or Wikimedia link" aria-label="Image URL" required />
-      <button id="addUrl" type="submit">Add</button>
-      <button id="shuffle" type="button">Shuffle</button>
+      <button id="addButton" type="submit">Add</button>
     </form>
 
     <div class="options">
@@ -364,6 +414,9 @@
         <option value="stretch">Stretch (may distort)</option>
         <option value="contain">Fit whole image (may show bars)</option>
       </select>
+
+      <label for="qualitySelect">Image quality</label>
+      <select id="qualitySelect" aria-label="Image quality"></select>
     </div>
 
     <div class="position-control" id="positionControl" hidden>
@@ -383,19 +436,25 @@
     </div>
 
     <div class="footer">
-      <span>Stored URLs: <strong id="count">0</strong></span>
+      <span>Saved images: <strong id="count">0</strong></span>
     </div>
     <p class="message" id="message" role="status"></p>
   </main>
 
   <script>
-    const STORAGE_KEY = 'new-tab-painting-links-v2';
-    const OLD_STORAGE_KEY = 'new-tab-painting-links';
-    const WIKIMEDIA_THUMB_WIDTH = 1280;
+    const STORAGE_KEY = 'new-tab-painting-library-v3';
+    const OLD_STORAGE_KEYS = [
+      'new-tab-painting-links-v2',
+      'new-tab-painting-links'
+    ];
 
-    // Filter the stock defaults used by earlier versions while preserving
-    // image URLs the user added.
-    const PREVIOUS_STOCK_URLS = [
+    // Wikimedia usually provides these widths, but the API's actual returned
+    // renditions can vary. The page lists only variants Wikimedia returns.
+    const WIKIMEDIA_WIDTHS = [500, 720, 1280, 1920, 3840];
+
+    // These are the old built-in defaults. Remove them when migrating so the
+    // page only uses images the user added.
+    const OLD_STOCK_URLS = [
       'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?auto=format&fit=crop&w=1600&q=80',
       'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=80',
       'https://images.unsplash.com/photo-1493246507139-91e8fad9978e?auto=format&fit=crop&w=1600&q=80',
@@ -407,20 +466,20 @@
     const closeMenuButton = document.getElementById('closeMenu');
     const addForm = document.getElementById('addForm');
     const imageUrlInput = document.getElementById('imageUrl');
-    const addButton = document.getElementById('addUrl');
-    const shuffleButton = document.getElementById('shuffle');
-    const linksList = document.getElementById('links');
-    const emptyList = document.getElementById('emptyList');
-    const countEl = document.getElementById('count');
+    const addButton = document.getElementById('addButton');
     const fitMode = document.getElementById('fitMode');
+    const qualitySelect = document.getElementById('qualitySelect');
     const positionControl = document.getElementById('positionControl');
     const verticalPosition = document.getElementById('verticalPosition');
     const positionValue = document.getElementById('positionValue');
     const imageInfo = document.getElementById('imageInfo');
     const message = document.getElementById('message');
+    const linksList = document.getElementById('links');
+    const emptyList = document.getElementById('emptyList');
+    const countEl = document.getElementById('count');
 
     let library = [];
-    let currentImage = null;
+    let currentImageId = null;
     let imageInfoRequest = 0;
 
     function setMenuOpen(open) {
@@ -456,56 +515,131 @@
       }
     });
 
+    function makeId() {
+      if (globalThis.crypto?.randomUUID) return crypto.randomUUID();
+      return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    }
+
+    function fileKey(url) {
+      try {
+        const parsed = new URL(url);
+        const host = parsed.hostname.toLowerCase();
+
+        if (
+          host === 'commons.wikimedia.org' ||
+          host.endsWith('.wikipedia.org') ||
+          host === 'upload.wikimedia.org' ||
+          host === 'thumb.wikimedia.org'
+        ) {
+          const fileName = getWikiFileName(url);
+          if (fileName) return `wiki:${fileName.replaceAll('_', ' ').toLowerCase()}`;
+        }
+
+        parsed.hash = '';
+        return `url:${parsed.href}`;
+      } catch {
+        return `url:${String(url).trim()}`;
+      }
+    }
+
+    function isOldStockUrl(url) {
+      return OLD_STOCK_URLS.some(stock => fileKey(stock) === fileKey(url));
+    }
+
+    function normalizeVariant(variant) {
+      if (typeof variant === 'string') {
+        return { url: variant, width: null, height: null, label: 'Image' };
+      }
+
+      if (!variant || typeof variant !== 'object' || !variant.url) return null;
+
+      return {
+        url: String(variant.url),
+        width: Number(variant.width) || null,
+        height: Number(variant.height) || null,
+        label: String(variant.label || '')
+      };
+    }
+
     function normalizeRecord(item) {
       if (typeof item === 'string') {
         const url = item.trim();
-        if (!url) return null;
-        return { url, sourceUrl: url, fit: 'cover', y: 50 };
+        if (!url || isOldStockUrl(url)) return null;
+        return {
+          id: makeId(),
+          sourceUrl: url,
+          url,
+          fit: 'cover',
+          y: 50,
+          variants: [{ url, width: null, height: null, label: 'Original' }]
+        };
       }
 
       if (!item || typeof item !== 'object') return null;
 
+      const sourceUrl = String(item.sourceUrl || item.url || '').trim();
       const url = String(item.url || '').trim();
-      if (!url) return null;
+      if (!sourceUrl || !url || isOldStockUrl(sourceUrl) || isOldStockUrl(url)) return null;
+
+      let variants = Array.isArray(item.variants)
+        ? item.variants.map(normalizeVariant).filter(Boolean)
+        : [];
+
+      if (!variants.some(variant => variant.url === url)) {
+        variants.unshift({
+          url,
+          width: Number(item.width) || null,
+          height: Number(item.height) || null,
+          label: 'Saved image'
+        });
+      }
 
       return {
+        id: String(item.id || makeId()),
+        sourceUrl,
         url,
-        sourceUrl: String(item.sourceUrl || item.url || url).trim(),
         fit: ['cover', 'stretch', 'contain'].includes(item.fit) ? item.fit : 'cover',
         y: Number.isFinite(Number(item.y))
           ? Math.max(0, Math.min(100, Number(item.y)))
           : 50,
-        width: Number(item.width) || null,
-        height: Number(item.height) || null,
+        variants,
         note: String(item.note || '')
       };
     }
 
-    function isPreviousStockItem(item) {
-      return PREVIOUS_STOCK_URLS.includes(item.url) ||
-        PREVIOUS_STOCK_URLS.includes(item.sourceUrl);
-    }
-
     function readLibrary() {
       try {
-        let saved = localStorage.getItem(STORAGE_KEY);
-
-        if (saved === null) {
-          saved = localStorage.getItem(OLD_STORAGE_KEY);
+        const currentSaved = localStorage.getItem(STORAGE_KEY);
+        if (currentSaved !== null) {
+          const parsed = JSON.parse(currentSaved);
+          return Array.isArray(parsed) ? parsed.map(normalizeRecord).filter(Boolean) : [];
         }
 
-        if (saved === null) return [];
+        for (const oldKey of OLD_STORAGE_KEYS) {
+          const oldSaved = localStorage.getItem(oldKey);
+          if (oldSaved === null) continue;
 
-        const parsed = JSON.parse(saved);
-        const records = Array.isArray(parsed)
-          ? parsed.map(normalizeRecord).filter(Boolean)
-          : [];
+          const parsed = JSON.parse(oldSaved);
+          const migrated = Array.isArray(parsed)
+            ? parsed.map(normalizeRecord).filter(Boolean)
+            : [];
 
-        // Remove stock images from the prior built-in defaults; keep custom URLs.
-        return records.filter(item => !isPreviousStockItem(item));
-      } catch {
-        return [];
+          // Remove any duplicate URLs while migrating.
+          const unique = [];
+          for (const item of migrated) {
+            if (!unique.some(saved => fileKey(saved.sourceUrl) === fileKey(item.sourceUrl))) {
+              unique.push(item);
+            }
+          }
+
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(unique));
+          return unique;
+        }
+      } catch (error) {
+        console.warn('Could not read saved image list:', error);
       }
+
+      return [];
     }
 
     function saveLibrary() {
@@ -513,172 +647,213 @@
         localStorage.setItem(STORAGE_KEY, JSON.stringify(library));
         return true;
       } catch (error) {
-        console.warn('Could not save image settings:', error);
+        console.warn('Could not save image list:', error);
         return false;
       }
     }
 
-    function imageKey(item) {
-      return item?.sourceUrl || item?.url || '';
-    }
-
-    function setImageFit(mode) {
-      if (!currentImage) return;
-
-      currentImage.fit = ['cover', 'stretch', 'contain'].includes(mode)
-        ? mode
-        : 'cover';
-
-      fitMode.value = currentImage.fit;
-      positionControl.hidden = currentImage.fit !== 'cover';
-
-      updateBackgroundStyle();
-      saveCurrentPreset();
-      showImageInfo(currentImage);
-    }
-
-    function updateBackgroundStyle() {
-      if (!currentImage) return;
-
-      const y = Math.max(0, Math.min(100, Number(currentImage.y) || 0));
-      verticalPosition.value = String(y);
-      positionValue.value = String(y);
-
-      // Slider 0 aligns the image bottom; slider 100 aligns its top.
-      const cssY = 100 - y;
-      const imageSize = currentImage.fit === 'stretch'
-        ? '100% 100%'
-        : currentImage.fit;
-
-      document.body.style.backgroundImage =
-        `linear-gradient(rgba(10, 12, 18, 0.16), rgba(10, 12, 18, 0.16)), url("${escapeCssUrl(currentImage.url)}")`;
-      document.body.style.backgroundSize = `100% 100%, ${imageSize}`;
-      document.body.style.backgroundPosition = `center center, center ${cssY}%`;
-      document.body.style.backgroundColor = '#0d1117';
+    function currentImage() {
+      return library.find(item => item.id === currentImageId) || null;
     }
 
     function escapeCssUrl(url) {
       return url.replace(/["\\\n\r]/g, character => encodeURIComponent(character));
     }
 
-    function saveCurrentPreset() {
-      if (!currentImage) return;
-      const index = library.findIndex(item => imageKey(item) === imageKey(currentImage));
-
-      if (index >= 0) {
-        library[index] = currentImage;
-        saveLibrary();
+    function applyImageStyle(item) {
+      if (!item) {
+        document.body.style.backgroundImage = 'none';
+        document.body.style.backgroundSize = '';
+        document.body.style.backgroundPosition = '';
+        return;
       }
+
+      const imageSize = item.fit === 'stretch' ? '100% 100%' : item.fit;
+      const cssY = 100 - item.y;
+
+      document.body.style.backgroundImage =
+        `linear-gradient(rgba(10, 12, 18, 0.16), rgba(10, 12, 18, 0.16)), url("${escapeCssUrl(item.url)}")`;
+      document.body.style.backgroundSize = `100% 100%, ${imageSize}`;
+      document.body.style.backgroundPosition = `center center, center ${cssY}%`;
+      document.body.style.backgroundColor = '#0d1117';
     }
 
-    fitMode.addEventListener('change', () => setImageFit(fitMode.value));
+    function updateQualityOptions(item) {
+      qualitySelect.replaceChildren();
 
-    verticalPosition.addEventListener('input', () => {
-      if (!currentImage) return;
+      if (!item) {
+        qualitySelect.add(new Option('No image selected', ''));
+        qualitySelect.disabled = true;
+        return;
+      }
 
-      currentImage.y = Number(verticalPosition.value);
-      updateBackgroundStyle();
+      qualitySelect.disabled = false;
+      item.variants.forEach((variant, index) => {
+        const label = variant.label ||
+          (variant.width && variant.height
+            ? `${variant.width} × ${variant.height}`
+            : index === 0 ? 'Original / saved image' : `Image ${index + 1}`);
+
+        const option = new Option(label, variant.url);
+        qualitySelect.add(option);
+      });
+
+      qualitySelect.value = item.url;
+    }
+
+    function setCurrentImage(item) {
+      if (!item) {
+        currentImageId = null;
+        fitMode.value = 'cover';
+        positionControl.hidden = true;
+        verticalPosition.value = '50';
+        positionValue.value = '50';
+        updateQualityOptions(null);
+        applyImageStyle(null);
+        imageInfo.textContent = '';
+        return;
+      }
+
+      currentImageId = item.id;
+      fitMode.value = item.fit;
+      verticalPosition.value = String(item.y);
+      positionValue.value = String(item.y);
+      positionControl.hidden = item.fit !== 'cover';
+
+      updateQualityOptions(item);
+      applyImageStyle(item);
+      showImageInfo(item);
+      renderLinks();
+    }
+
+    function saveCurrentPreset() {
+      const item = currentImage();
+      if (item) saveLibrary();
+    }
+
+    fitMode.addEventListener('change', () => {
+      const item = currentImage();
+      if (!item) return;
+
+      item.fit = fitMode.value;
+      positionControl.hidden = item.fit !== 'cover';
+      applyImageStyle(item);
       saveCurrentPreset();
-      showImageInfo(currentImage);
+      showImageInfo(item);
     });
 
-    function chooseRandomImage() {
-      if (!library.length) return null;
-      if (library.length === 1) return library[0];
+    verticalPosition.addEventListener('input', () => {
+      const item = currentImage();
+      if (!item) return;
 
-      const alternatives = currentImage
-        ? library.filter(item => imageKey(item) !== imageKey(currentImage))
-        : library;
+      item.y = Number(verticalPosition.value);
+      positionValue.value = String(item.y);
+      applyImageStyle(item);
+      saveCurrentPreset();
+      showImageInfo(item);
+    });
 
-      const choices = alternatives.length ? alternatives : library;
-      return choices[Math.floor(Math.random() * choices.length)];
-    }
+    qualitySelect.addEventListener('change', () => {
+      const item = currentImage();
+      if (!item) return;
+
+      const variant = item.variants.find(candidate => candidate.url === qualitySelect.value);
+      if (!variant) return;
+
+      item.url = variant.url;
+      applyImageStyle(item);
+      saveCurrentPreset();
+      showImageInfo(item);
+      renderLinks();
+      message.textContent = `Image quality set to ${variant.label}.`;
+    });
 
     function showImageInfo(item) {
       const requestId = ++imageInfoRequest;
       const viewportText = `Screen ${window.innerWidth} × ${window.innerHeight}`;
 
-      if (item.width && item.height) {
-        showDimensions(item, viewportText);
+      const variant = item.variants.find(candidate => candidate.url === item.url);
+      if (variant?.width && variant?.height) {
+        showDimensions(item, variant.width, variant.height, viewportText);
         return;
       }
 
       const image = new Image();
-
       image.onload = () => {
         if (requestId !== imageInfoRequest) return;
-
-        item.width = image.naturalWidth;
-        item.height = image.naturalHeight;
+        if (variant) {
+          variant.width = image.naturalWidth;
+          variant.height = image.naturalHeight;
+        }
         saveCurrentPreset();
-        showDimensions(item, viewportText);
+        showDimensions(item, image.naturalWidth, image.naturalHeight, viewportText);
       };
-
       image.onerror = () => {
         if (requestId === imageInfoRequest) {
           imageInfo.textContent = `${viewportText} · Could not read this image’s dimensions`;
         }
       };
-
       image.src = item.url;
       imageInfo.textContent = `${viewportText} · Checking image dimensions…`;
     }
 
-    function showDimensions(item, viewportText) {
-      let detail = `${viewportText} · Image ${item.width} × ${item.height}`;
+    function showDimensions(item, width, height, viewportText) {
+      let detail = `${viewportText} · Image ${width} × ${height}`;
 
       if (item.fit === 'cover') {
         const scale = Math.max(
-          window.innerWidth / item.width,
-          window.innerHeight / item.height
+          window.innerWidth / width,
+          window.innerHeight / height
         );
-        const renderedWidth = item.width * scale;
-        const renderedHeight = item.height * scale;
+        const renderedWidth = width * scale;
+        const renderedHeight = height * scale;
         const cropX = Math.max(0, Math.round((renderedWidth - window.innerWidth) / 2));
         const totalCropY = Math.max(0, Math.round(renderedHeight - window.innerHeight));
-        const croppedFromBottom = Math.round(totalCropY * item.y / 100);
-        const croppedFromTop = totalCropY - croppedFromBottom;
-
-        detail += ` · Approx. crop: ${cropX}px horizontally; ${croppedFromTop}px top, ${croppedFromBottom}px bottom`;
+        const cropBottom = Math.round(totalCropY * item.y / 100);
+        const cropTop = totalCropY - cropBottom;
+        detail += ` · Approx. crop: ${cropX}px horizontally; ${cropTop}px top, ${cropBottom}px bottom`;
       } else if (item.fit === 'stretch') {
         detail += ' · Stretch fills the screen and may distort the image';
       } else {
         detail += ' · Fit shows the whole image; bars may appear';
       }
 
-      if (item.note) detail += ` · ${item.note}`;
       imageInfo.textContent = detail;
-    }
-
-    function applyImage(item) {
-      if (!item) {
-        currentImage = null;
-        document.body.style.backgroundImage = 'none';
-        document.body.style.backgroundSize = '';
-        document.body.style.backgroundPosition = '';
-        imageInfo.textContent = '';
-        positionControl.hidden = true;
-        return;
-      }
-
-      currentImage = item;
-      fitMode.value = item.fit;
-      positionControl.hidden = item.fit !== 'cover';
-
-      updateBackgroundStyle();
-      saveCurrentPreset();
-      showImageInfo(item);
     }
 
     function renderLinks() {
       linksList.replaceChildren();
       emptyList.hidden = library.length > 0;
+      countEl.textContent = String(library.length);
 
       library.forEach((item, index) => {
         const row = document.createElement('li');
-        const text = document.createElement('span');
-        text.className = 'url-text';
-        text.textContent = item.url;
+        if (item.id === currentImageId) row.classList.add('selected');
+
+        const selectButton = document.createElement('button');
+        selectButton.type = 'button';
+        selectButton.className = 'image-choice';
+        selectButton.setAttribute('aria-label', `Set image ${index + 1} as background`);
+
+        const thumbnail = document.createElement('img');
+        thumbnail.src = item.url;
+        thumbnail.alt = '';
+        thumbnail.loading = 'lazy';
+        thumbnail.decoding = 'async';
+        selectButton.appendChild(thumbnail);
+
+        const details = document.createElement('div');
+        details.className = 'image-details';
+
+        const name = document.createElement('span');
+        name.className = 'image-name';
+        name.textContent = getDisplayName(item.sourceUrl);
+
+        const url = document.createElement('span');
+        url.className = 'image-url';
+        url.textContent = item.sourceUrl;
+
+        details.append(name, url);
 
         const removeButton = document.createElement('button');
         removeButton.type = 'button';
@@ -687,20 +862,27 @@
         removeButton.title = 'Remove this image';
         removeButton.setAttribute('aria-label', `Remove image ${index + 1}`);
 
+        selectButton.addEventListener('click', () => {
+          setCurrentImage(item);
+          message.textContent = 'Background image selected.';
+        });
+
         removeButton.addEventListener('click', event => {
-          // Keep the settings menu open after removing an image.
+          // Removing or selecting an image leaves the menu open.
           event.stopPropagation();
 
-          const removedImage = library[index];
-          const wasCurrentImage = currentImage &&
-            imageKey(currentImage) === imageKey(removedImage);
-
-          library.splice(index, 1);
+          const wasCurrent = item.id === currentImageId;
+          library = library.filter(saved => saved.id !== item.id);
           saveLibrary();
           renderLinks();
 
-          if (wasCurrentImage) {
-            applyImage(chooseRandomImage());
+          if (wasCurrent) {
+            // Choose one image once after removing the active one; if none remain,
+            // leave the background empty rather than restoring stock images.
+            const next = library.length
+              ? library[Math.floor(Math.random() * library.length)]
+              : null;
+            setCurrentImage(next);
           }
 
           message.textContent = library.length
@@ -708,26 +890,42 @@
             : 'Image removed. No images are saved.';
         });
 
-        row.append(text, removeButton);
+        row.append(selectButton, details, removeButton);
         linksList.appendChild(row);
       });
+    }
 
-      countEl.textContent = String(library.length);
+    function getDisplayName(url) {
+      try {
+        const parsed = new URL(url);
+        const fileName = getWikiFileName(url);
+        if (fileName) return fileName;
+
+        const lastPart = parsed.pathname.split('/').filter(Boolean).pop();
+        return lastPart ? decodeURIComponent(lastPart) : parsed.hostname;
+      } catch {
+        return url;
+      }
     }
 
     function getWikiFileName(inputUrl) {
-      const parsed = new URL(inputUrl);
+      let parsed;
+      try {
+        parsed = new URL(inputUrl);
+      } catch {
+        return null;
+      }
+
       const host = parsed.hostname.toLowerCase();
 
       if (host === 'commons.wikimedia.org' || host.endsWith('.wikipedia.org')) {
         const title = parsed.searchParams.get('title');
-
         if (title && /^File:/i.test(title)) {
           return title.replace(/^File:/i, '').replaceAll('_', ' ');
         }
 
         for (const candidate of [parsed.hash, parsed.pathname]) {
-          const match = candidate.match(/(?:media\/)?File:([^?#]+)/i);
+          const match = candidate.match(/File:([^?#]+)/i);
           if (match) {
             try {
               return decodeURIComponent(match[1]).replaceAll('_', ' ');
@@ -743,60 +941,16 @@
         if (!parts.length) return null;
 
         let fileName = parts[parts.length - 1];
-
         try {
           fileName = decodeURIComponent(fileName);
         } catch {
-          // Keep the original URL-encoded name if decoding fails.
+          // Leave the encoded filename as-is if decoding fails.
         }
 
-        // Thumbnail URLs end in a size prefix, for example 1280px-Image.jpg.
-        fileName = fileName.replace(/^\d+px-/, '');
-        return fileName.replaceAll('_', ' ');
+        return fileName.replace(/^\d+px-/, '').replaceAll('_', ' ');
       }
 
       return null;
-    }
-
-    async function optimizeWikimediaImage(inputUrl) {
-      const fileName = getWikiFileName(inputUrl);
-      if (!fileName) return null;
-
-      const apiUrl = new URL('https://commons.wikimedia.org/w/api.php');
-      apiUrl.search = new URLSearchParams({
-        action: 'query',
-        format: 'json',
-        origin: '*',
-        prop: 'imageinfo',
-        titles: `File:${fileName}`,
-        iiprop: 'url|size',
-        iiurlwidth: String(WIKIMEDIA_THUMB_WIDTH)
-      }).toString();
-
-      const response = await fetch(apiUrl);
-      if (!response.ok) throw new Error('Wikimedia image lookup failed.');
-
-      const data = await response.json();
-      const page = Object.values(data.query?.pages || {})[0];
-      const info = page?.imageinfo?.[0];
-
-      if (!info) throw new Error('Wikimedia did not return image information.');
-
-      const url = info.thumburl || info.url;
-      if (!url) throw new Error('Wikimedia did not return an image URL.');
-
-      const width = info.thumbwidth || info.width;
-      const height = info.thumbheight || info.height;
-
-      return {
-        url,
-        sourceUrl: inputUrl,
-        fit: 'cover',
-        y: 50,
-        width,
-        height,
-        note: `Using ${width} × ${height} Wikimedia image for faster loading`
-      };
     }
 
     function isDirectImageUrl(url) {
@@ -808,38 +962,118 @@
       }
     }
 
+    function makeWikiApiUrl(fileName, width = null) {
+      const apiUrl = new URL('https://commons.wikimedia.org/w/api.php');
+      const params = {
+        action: 'query',
+        format: 'json',
+        origin: '*',
+        prop: 'imageinfo',
+        titles: `File:${fileName}`,
+        iiprop: 'url|size'
+      };
+
+      if (width) params.iiurlwidth = String(width);
+      apiUrl.search = new URLSearchParams(params).toString();
+      return apiUrl;
+    }
+
+    async function queryWikiImage(fileName, width = null) {
+      const response = await fetch(makeWikiApiUrl(fileName, width));
+      if (!response.ok) throw new Error('Wikimedia image lookup failed.');
+
+      const data = await response.json();
+      const page = Object.values(data.query?.pages || {})[0];
+      const info = page?.imageinfo?.[0];
+      if (!info) throw new Error('Wikimedia did not return this file.');
+
+      const isThumbnail = Boolean(width && info.thumburl);
+      return {
+        url: isThumbnail ? info.thumburl : info.url,
+        width: isThumbnail ? info.thumbwidth : info.width,
+        height: isThumbnail ? info.thumbheight : info.height,
+        requestedWidth: width
+      };
+    }
+
+    async function getWikimediaVariants(sourceUrl) {
+      const fileName = getWikiFileName(sourceUrl);
+      if (!fileName) return null;
+
+      const original = await queryWikiImage(fileName);
+      if (!original.url) throw new Error('Wikimedia did not return the original image.');
+
+      const results = await Promise.allSettled(
+        WIKIMEDIA_WIDTHS.map(width => queryWikiImage(fileName, width))
+      );
+
+      const variants = [{
+        url: original.url,
+        width: original.width,
+        height: original.height,
+        label: `Original (${original.width} × ${original.height})`
+      }];
+
+      for (const result of results) {
+        if (result.status !== 'fulfilled' || !result.value.url) continue;
+
+        const candidate = result.value;
+        const existing = variants.find(variant =>
+          variant.url === candidate.url ||
+          (variant.width === candidate.width && variant.height === candidate.height)
+        );
+
+        if (existing) continue;
+
+        variants.push({
+          url: candidate.url,
+          width: candidate.width,
+          height: candidate.height,
+          label: `${candidate.width} × ${candidate.height}`
+        });
+      }
+
+      // Sort thumbnails from smallest to largest, with Original at the end.
+      const thumbnailVariants = variants
+        .filter(variant => variant.url !== original.url)
+        .sort((a, b) => (a.width || 0) - (b.width || 0));
+
+      return [
+        ...thumbnailVariants,
+        {
+          url: original.url,
+          width: original.width,
+          height: original.height,
+          label: `Original (${original.width} × ${original.height})`
+        }
+      ];
+    }
+
     addForm.addEventListener('submit', async event => {
       event.preventDefault();
       message.textContent = '';
 
-      let parsedUrl;
+      let parsed;
       try {
-        parsedUrl = new URL(imageUrlInput.value.trim());
+        parsed = new URL(imageUrlInput.value.trim());
       } catch {
         imageUrlInput.setCustomValidity('Enter a valid image or Wikimedia URL.');
         imageUrlInput.reportValidity();
         return;
       }
 
-      if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
         imageUrlInput.setCustomValidity('Use an HTTP or HTTPS URL.');
         imageUrlInput.reportValidity();
         return;
       }
 
       imageUrlInput.setCustomValidity('');
-      const enteredUrl = parsedUrl.href;
+      const sourceUrl = parsed.href;
+      const duplicateKey = fileKey(sourceUrl);
 
-      // Reuse the saved rendition and its fit/position preset if this URL was
-      // already added; no Wikimedia lookup or image-size analysis is needed.
-      const savedRecord = library.find(item =>
-        item.sourceUrl === enteredUrl || item.url === enteredUrl
-      );
-
-      if (savedRecord) {
-        applyImage(savedRecord);
-        message.textContent = 'Using the saved image and its saved position preset.';
-        imageUrlInput.value = '';
+      if (library.some(item => fileKey(item.sourceUrl) === duplicateKey)) {
+        message.textContent = 'That image is already in your list.';
         return;
       }
 
@@ -847,34 +1081,60 @@
       addButton.textContent = 'Checking…';
 
       try {
-        let record = null;
+        let variants = null;
 
         try {
-          record = await optimizeWikimediaImage(enteredUrl);
+          variants = await getWikimediaVariants(sourceUrl);
         } catch (error) {
-          console.warn('Wikimedia image lookup failed:', error);
+          console.warn('Could not fetch Wikimedia image qualities:', error);
         }
 
-        if (!record && isDirectImageUrl(enteredUrl)) {
-          record = {
-            url: enteredUrl,
-            sourceUrl: enteredUrl,
-            fit: 'cover',
-            y: 50,
-            note: ''
-          };
+        if (!variants && isDirectImageUrl(sourceUrl)) {
+          variants = [{
+            url: sourceUrl,
+            width: null,
+            height: null,
+            label: 'Linked image'
+          }];
         }
 
-        if (!record) {
-          throw new Error('Could not identify an image from that link. Try a direct image URL or a Wikimedia File page.');
+        if (!variants?.length) {
+          throw new Error('Could not find an image for that link. Try a direct image URL or a Wikimedia File page.');
+        }
+
+        // Prefer a small rendition for speed. Pick the largest available variant
+        // up to 720px wide; if none is at or below 720px, use the smallest one.
+        const thumbnails = variants.filter(variant => variant.url !== variants.at(-1).url);
+        const speedChoice =
+          [...thumbnails].filter(variant => variant.width && variant.width <= 720).pop() ||
+          [...thumbnails].sort((a, b) => (a.width || Infinity) - (b.width || Infinity))[0] ||
+          variants.at(-1);
+
+        const record = {
+          id: makeId(),
+          sourceUrl,
+          url: speedChoice.url,
+          fit: 'cover',
+          y: 50,
+          variants,
+          note: variants.length > 1
+            ? `Selected ${speedChoice.label} by default for faster loading`
+            : ''
+        };
+
+        // Check again after the async Wikimedia requests in case the same image
+        // was added in another tab while this request was running.
+        if (library.some(item => fileKey(item.sourceUrl) === duplicateKey)) {
+          message.textContent = 'That image is already in your list.';
+          return;
         }
 
         library.push(record);
         saveLibrary();
-        renderLinks();
         imageUrlInput.value = '';
-        applyImage(record);
-        message.textContent = record.note || 'Image saved.';
+        renderLinks();
+        setCurrentImage(record);
+        message.textContent = record.note || 'Image added.';
       } catch (error) {
         message.textContent = error.message || 'Could not add that image.';
       } finally {
@@ -885,30 +1145,23 @@
 
     imageUrlInput.addEventListener('input', () => imageUrlInput.setCustomValidity(''));
 
-    shuffleButton.addEventListener('click', () => {
-      const nextImage = chooseRandomImage();
-
-      if (!nextImage) {
-        message.textContent = 'No images to shuffle. Add an image URL first.';
-        return;
-      }
-
-      applyImage(nextImage);
-      message.textContent = '';
-    });
-
     window.addEventListener('resize', () => {
-      if (currentImage) showImageInfo(currentImage);
+      const item = currentImage();
+      if (item) showImageInfo(item);
     });
 
     library = readLibrary();
-    renderLinks();
 
+    // Pick exactly one image when the page loads. It is not changed again
+    // automatically; clicking a thumbnail is how you select another one.
     if (library.length) {
-      applyImage(chooseRandomImage());
+      const initialImage = library[Math.floor(Math.random() * library.length)];
+      setCurrentImage(initialImage);
     } else {
-      applyImage(null);
+      setCurrentImage(null);
     }
+
+    renderLinks();
   </script>
 </body>
 </html>
