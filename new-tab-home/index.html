@@ -7,7 +7,7 @@
   <title>Random Painting Background</title>
   <style>
     :root {
-      --panel-bg: rgba(15, 16, 20, 0.88);
+      --panel-bg: rgba(15, 16, 20, 0.9);
       --panel-border: rgba(255, 255, 255, 0.12);
       --text: #edf2ff;
       --muted: #d4d9eb;
@@ -19,31 +19,25 @@
     * { box-sizing: border-box; }
 
     html, body {
-      margin: 0;
       width: 100%;
       min-height: 100%;
+      margin: 0;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       color: var(--text);
       background: #0d1117;
     }
 
     body {
-      min-height: 100vh;
-      background-size: cover;
-      background-position: center center;
-      background-repeat: no-repeat;
-      transition: background-image 0.6s ease;
       position: relative;
+      min-height: 100vh;
+      min-height: 100dvh;
       overflow: hidden;
-    }
-
-    body::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(135deg, rgba(10, 12, 18, 0.24), rgba(10, 12, 18, 0.08));
-      pointer-events: none;
-      z-index: 0;
+      background-color: #0d1117;
+      background-image: linear-gradient(rgba(10, 12, 18, 0.16), rgba(10, 12, 18, 0.16));
+      background-position: center;
+      background-repeat: no-repeat;
+      background-size: cover;
+      transition: background-image 0.4s ease;
     }
 
     .menu-toggle {
@@ -59,7 +53,7 @@
       border: 1px solid transparent;
       border-radius: 12px;
       background: rgba(15, 16, 20, 0.12);
-      color: rgba(255, 255, 255, 0.7);
+      color: rgba(255, 255, 255, 0.75);
       font: 22px/1 system-ui, sans-serif;
       cursor: pointer;
       opacity: 0.2;
@@ -69,14 +63,14 @@
     .menu-toggle:hover,
     .menu-toggle:focus-visible,
     .menu-toggle[aria-expanded="true"] {
-      opacity: 0.9;
+      opacity: 0.95;
       border-color: var(--panel-border);
-      background: rgba(15, 16, 20, 0.72);
+      background: rgba(15, 16, 20, 0.78);
     }
 
-    .menu-toggle:focus-visible,
     button:focus-visible,
-    input:focus-visible {
+    input:focus-visible,
+    select:focus-visible {
       outline: 2px solid var(--accent);
       outline-offset: 3px;
     }
@@ -88,8 +82,10 @@
       left: 50%;
       width: min(720px, calc(100% - 32px));
       max-height: calc(100vh - 40px);
-      padding: 22px 22px 18px;
-      overflow: auto;
+      max-height: calc(100dvh - 40px);
+      padding: 22px;
+      overflow-x: hidden;
+      overflow-y: auto;
       border: 1px solid var(--panel-border);
       border-radius: 20px;
       background: var(--panel-bg);
@@ -128,7 +124,7 @@
       font-size: 0.95rem;
     }
 
-    button {
+    button, select {
       min-height: 42px;
       padding: 0 14px;
       border: 1px solid rgba(255, 255, 255, 0.12);
@@ -147,6 +143,9 @@
       transform: translateY(-1px);
     }
 
+    select { cursor: pointer; }
+    select option { background: #171a20; color: var(--text); }
+
     .close-menu {
       flex: 0 0 auto;
       min-height: 36px;
@@ -162,6 +161,7 @@
 
     input {
       width: 100%;
+      min-width: 0;
       height: 42px;
       padding: 0 12px;
       border: 1px solid rgba(255, 255, 255, 0.12);
@@ -173,47 +173,71 @@
 
     input::placeholder { color: rgba(237, 242, 255, 0.6); }
 
+    .options {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .options label { font-weight: 600; }
+
+    .options select {
+      min-height: 38px;
+      padding: 0 10px;
+    }
+
+    .image-info {
+      min-height: 1.4em;
+      margin: 0 0 10px;
+      color: rgba(237, 242, 255, 0.72);
+      font-size: 0.8rem;
+      overflow-wrap: anywhere;
+    }
+
     .list-wrap {
       margin-top: 12px;
       border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 12px;
       background: rgba(255, 255, 255, 0.03);
-      overflow: hidden;
     }
 
     #links {
-      list-style: none;
-      margin: 0;
-      padding: 8px;
       display: grid;
       gap: 8px;
       max-height: 220px;
-      overflow: auto;
+      margin: 0;
+      padding: 8px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      list-style: none;
     }
 
     #links li {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: space-between;
       gap: 12px;
-      width: 100%;
+      min-width: 0;
       padding: 8px 10px;
       border-radius: 10px;
       background: rgba(255, 255, 255, 0.05);
-      color: var(--text);
     }
 
     .url-text {
+      flex: 1 1 auto;
       min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      font-size: 0.92rem;
       color: var(--muted);
+      font-size: 0.9rem;
+      overflow-wrap: anywhere;
+      word-break: break-word;
     }
 
     .remove-btn {
-      flex: 0 0 auto;
+      flex: 0 0 34px;
       width: 34px;
       min-height: 30px;
       height: 30px;
@@ -226,20 +250,28 @@
     }
 
     .footer {
-      margin-top: 14px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
+      margin-top: 14px;
       color: rgba(237, 242, 255, 0.8);
       font-size: 0.84rem;
     }
 
     .footer strong { color: var(--accent-strong); }
 
+    .message {
+      min-height: 1.3em;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 0.84rem;
+    }
+
     @media (max-width: 620px) {
-      .controls { grid-template-columns: 1fr; }
       .panel { padding: 18px 16px 14px; }
+      .controls { grid-template-columns: 1fr 1fr; }
+      .controls input { grid-column: 1 / -1; }
       .menu-toggle { top: 10px; right: 10px; }
     }
 
@@ -249,22 +281,41 @@
   </style>
 </head>
 <body>
-  <button class="menu-toggle" id="menuToggle" type="button" aria-controls="settingsPanel" aria-expanded="false" aria-label="Open image settings" title="Image settings">☰</button>
+  <button
+    class="menu-toggle"
+    id="menuToggle"
+    type="button"
+    aria-controls="settingsPanel"
+    aria-expanded="false"
+    aria-label="Open image settings"
+    title="Image settings"
+  >☰</button>
 
   <main class="panel" id="settingsPanel" aria-labelledby="pageTitle" aria-hidden="true" inert>
     <div class="panel-heading">
       <div>
         <h1 id="pageTitle">Random painting</h1>
-        <p>Saved image URLs are stored in this browser and chosen at random for the background.</p>
+        <p>Save image URLs in this browser and choose one at random for your background.</p>
       </div>
       <button class="close-menu" id="closeMenu" type="button" aria-label="Close image settings">Close</button>
     </div>
 
-    <div class="controls">
-      <input id="imageUrl" type="url" placeholder="Paste image URL here" aria-label="Image URL" />
-      <button id="addUrl" type="button">Add</button>
+    <form class="controls" id="addForm">
+      <input id="imageUrl" type="url" placeholder="Paste an image or Wikimedia link" aria-label="Image URL" required />
+      <button id="addUrl" type="submit">Add</button>
       <button id="shuffle" type="button">Shuffle</button>
+    </form>
+
+    <div class="options">
+      <label for="fitMode">Image fit</label>
+      <select id="fitMode">
+        <option value="cover">Fill screen (crop center)</option>
+        <option value="stretch">Stretch (may distort)</option>
+        <option value="contain">Fit whole image (may show bars)</option>
+      </select>
     </div>
+
+    <p class="image-info" id="imageInfo" aria-live="polite"></p>
 
     <div class="list-wrap">
       <ul id="links" aria-live="polite"></ul>
@@ -274,10 +325,14 @@
       <span>Stored URLs: <strong id="count">0</strong></span>
       <button id="reset" type="button">Reset</button>
     </div>
+    <p class="message" id="message" role="status"></p>
   </main>
 
   <script>
     const STORAGE_KEY = 'new-tab-painting-links';
+    const FIT_STORAGE_KEY = 'new-tab-painting-fit';
+    const WIKIMEDIA_THUMB_WIDTH = 1280;
+
     const FALLBACK_LINKS = [
       'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?auto=format&fit=crop&w=1600&q=80',
       'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=80',
@@ -288,12 +343,17 @@
     const menuToggle = document.getElementById('menuToggle');
     const settingsPanel = document.getElementById('settingsPanel');
     const closeMenuButton = document.getElementById('closeMenu');
+    const addForm = document.getElementById('addForm');
     const imageUrlInput = document.getElementById('imageUrl');
-    const addUrlButton = document.getElementById('addUrl');
     const shuffleButton = document.getElementById('shuffle');
     const resetButton = document.getElementById('reset');
     const linksList = document.getElementById('links');
     const countEl = document.getElementById('count');
+    const fitMode = document.getElementById('fitMode');
+    const imageInfo = document.getElementById('imageInfo');
+    const message = document.getElementById('message');
+
+    let currentImageUrl = '';
 
     function setMenuOpen(open) {
       settingsPanel.classList.toggle('open', open);
@@ -301,53 +361,144 @@
       settingsPanel.inert = !open;
       menuToggle.setAttribute('aria-expanded', String(open));
       menuToggle.setAttribute('aria-label', open ? 'Close image settings' : 'Open image settings');
+
       if (open) imageUrlInput.focus();
       else menuToggle.focus();
     }
 
-    menuToggle.addEventListener('click', () => setMenuOpen(!settingsPanel.classList.contains('open')));
-    closeMenuButton.addEventListener('click', () => setMenuOpen(false));
-    document.addEventListener('keydown', event => {
-      if (event.key === 'Escape' && settingsPanel.classList.contains('open')) setMenuOpen(false);
+    menuToggle.addEventListener('click', () => {
+      setMenuOpen(!settingsPanel.classList.contains('open'));
     });
-    document.addEventListener('click', event => {
-      if (settingsPanel.classList.contains('open') && !settingsPanel.contains(event.target) && !menuToggle.contains(event.target)) {
+
+    closeMenuButton.addEventListener('click', () => setMenuOpen(false));
+
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && settingsPanel.classList.contains('open')) {
         setMenuOpen(false);
       }
     });
 
-    function safeReadLinks() {
+    document.addEventListener('click', event => {
+      if (
+        settingsPanel.classList.contains('open') &&
+        !settingsPanel.contains(event.target) &&
+        !menuToggle.contains(event.target)
+      ) {
+        setMenuOpen(false);
+      }
+    });
+
+    function normalizeSavedItems(value) {
+      if (!Array.isArray(value)) return [];
+      return value
+        .map(item => typeof item === 'string' ? item.trim() : String(item?.url || '').trim())
+        .filter(Boolean);
+    }
+
+    function readLinks() {
       try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return [...FALLBACK_LINKS];
-        const parsed = JSON.parse(raw);
-        if (!Array.isArray(parsed)) return [...FALLBACK_LINKS];
-        const links = parsed.map(item => String(item).trim()).filter(Boolean);
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (!saved) return [...FALLBACK_LINKS];
+        const links = normalizeSavedItems(JSON.parse(saved));
         return links.length ? links : [...FALLBACK_LINKS];
       } catch {
         return [...FALLBACK_LINKS];
       }
     }
 
-    function saveLinks(list) {
+    function saveLinks(links) {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(links));
+        return true;
       } catch (error) {
         console.warn('Could not save image URLs:', error);
+        return false;
       }
     }
 
+    function getFitMode() {
+      try {
+        const saved = localStorage.getItem(FIT_STORAGE_KEY);
+        return ['cover', 'stretch', 'contain'].includes(saved) ? saved : 'cover';
+      } catch {
+        return 'cover';
+      }
+    }
+
+    function applyFitMode(mode) {
+      const validMode = ['cover', 'stretch', 'contain'].includes(mode) ? mode : 'cover';
+      fitMode.value = validMode;
+      document.body.style.backgroundSize =
+        validMode === 'stretch' ? '100% 100%' : validMode;
+      document.body.style.backgroundColor = '#0d1117';
+
+      try {
+        localStorage.setItem(FIT_STORAGE_KEY, validMode);
+      } catch {
+        // The fit control still works if browser storage is unavailable.
+      }
+
+      if (currentImageUrl) showImageInfo(currentImageUrl);
+    }
+
+    fitMode.addEventListener('change', () => applyFitMode(fitMode.value));
+
     function pickRandomLink() {
-      const links = safeReadLinks();
-      return links[Math.floor(Math.random() * links.length)] || FALLBACK_LINKS[0];
+      const links = readLinks();
+      let next = links[Math.floor(Math.random() * links.length)] || FALLBACK_LINKS[0];
+
+      if (links.length > 1 && next === currentImageUrl) {
+        const alternatives = links.filter(link => link !== currentImageUrl);
+        next = alternatives[Math.floor(Math.random() * alternatives.length)];
+      }
+
+      return next;
+    }
+
+    function showImageInfo(url) {
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const viewportText = `Screen ${viewportWidth} × ${viewportHeight}`;
+
+      const image = new Image();
+      image.onload = () => {
+        const imageWidth = image.naturalWidth;
+        const imageHeight = image.naturalHeight;
+        let detail = `${viewportText} · Image ${imageWidth} × ${imageHeight}`;
+
+        if (fitMode.value === 'cover') {
+          const scale = Math.max(viewportWidth / imageWidth, viewportHeight / imageHeight);
+          const renderedWidth = imageWidth * scale;
+          const renderedHeight = imageHeight * scale;
+          const cropX = Math.max(0, Math.round((renderedWidth - viewportWidth) / 2));
+          const cropY = Math.max(0, Math.round((renderedHeight - viewportHeight) / 2));
+          detail += ` · Fill mode crops about ${cropX}px horizontally and ${cropY}px vertically`;
+        } else if (fitMode.value === 'stretch') {
+          detail += ' · Stretch mode fills the screen and may distort the image';
+        } else {
+          detail += ' · Fit mode shows the whole image; bars may appear';
+        }
+
+        imageInfo.textContent = detail;
+      };
+
+      image.onerror = () => {
+        imageInfo.textContent = `${viewportText} · Could not read this image’s dimensions`;
+      };
+
+      image.src = url;
+      imageInfo.textContent = `${viewportText} · Checking image dimensions…`;
     }
 
     function applyBackground(url) {
-      document.body.style.backgroundImage = `url("${url}")`;
+      currentImageUrl = url;
+      document.body.style.backgroundImage =
+        `linear-gradient(rgba(10, 12, 18, 0.16), rgba(10, 12, 18, 0.16)), url("${url.replaceAll('"', '%22')}")`;
+      showImageInfo(url);
     }
 
     function renderLinks() {
-      const links = safeReadLinks();
+      const links = readLinks();
       linksList.replaceChildren();
 
       links.forEach((link, index) => {
@@ -362,12 +513,19 @@
         removeButton.textContent = '×';
         removeButton.title = 'Remove this image';
         removeButton.setAttribute('aria-label', `Remove image ${index + 1}`);
-        removeButton.addEventListener('click', () => {
-          const next = safeReadLinks();
+
+        removeButton.addEventListener('click', event => {
+          // Keep the settings panel open while the list is updated.
+          event.stopPropagation();
+          const next = readLinks();
           next.splice(index, 1);
           saveLinks(next.length ? next : [...FALLBACK_LINKS]);
           renderLinks();
-          applyBackground(pickRandomLink());
+
+          if (!next.includes(currentImageUrl)) {
+            applyBackground(pickRandomLink());
+          }
+          message.textContent = 'Image removed.';
         });
 
         item.append(text, removeButton);
@@ -377,50 +535,147 @@
       countEl.textContent = String(links.length);
     }
 
-    function addLink() {
-      const raw = imageUrlInput.value.trim();
-      if (!raw) return;
+    function getWikimediaFileName(url) {
+      const parsed = new URL(url);
+      const isWikimedia =
+        parsed.hostname === 'upload.wikimedia.org' ||
+        parsed.hostname === 'commons.wikimedia.org' ||
+        parsed.hostname.endsWith('.wikipedia.org');
 
-      let parsedUrl;
+      if (!isWikimedia) return null;
+
+      if (parsed.hostname === 'commons.wikimedia.org') {
+        const title = parsed.searchParams.get('title');
+        if (title && title.startsWith('File:')) return title.slice(5);
+        const match = parsed.pathname.match(/\/wiki\/File:(.+)$/);
+        if (match) return decodeURIComponent(match[1]);
+      }
+
+      if (parsed.hostname === 'upload.wikimedia.org') {
+        const parts = parsed.pathname.split('/').filter(Boolean);
+        const fileName = parts[parts.length - 1];
+        if (fileName) return decodeURIComponent(fileName);
+      }
+
+      return null;
+    }
+
+    async function getOptimizedWikimediaImage(inputUrl) {
+      let fileName;
+
       try {
-        parsedUrl = new URL(raw);
+        fileName = getWikimediaFileName(inputUrl);
+      } catch {
+        return { url: inputUrl, note: '' };
+      }
+
+      if (!fileName) return { url: inputUrl, note: '' };
+
+      const title = `File:${fileName.replaceAll('_', ' ')}`;
+      const apiUrl = new URL('https://commons.wikimedia.org/w/api.php');
+      apiUrl.search = new URLSearchParams({
+        action: 'query',
+        format: 'json',
+        origin: '*',
+        prop: 'imageinfo',
+        titles: title,
+        iiprop: 'url|size',
+        iiurlwidth: String(WIKIMEDIA_THUMB_WIDTH)
+      }).toString();
+
+      const response = await fetch(apiUrl);
+      if (!response.ok) throw new Error('Wikimedia image lookup failed.');
+
+      const data = await response.json();
+      const page = Object.values(data.query?.pages || {})[0];
+      const image = page?.imageinfo?.[0];
+      if (!image) throw new Error('No image information was returned.');
+
+      const optimizedUrl = image.thumburl || image.url;
+      const originalSize = `${image.width} × ${image.height}`;
+      const savedSize = image.thumbwidth && image.thumbheight
+        ? `${image.thumbwidth} × ${image.thumbheight}`
+        : 'original size';
+
+      return {
+        url: optimizedUrl,
+        note: `Wikimedia image: original ${originalSize}; saved ${savedSize} for faster loading.`
+      };
+    }
+
+    addForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      message.textContent = '';
+
+      let inputUrl;
+      try {
+        inputUrl = new URL(imageUrlInput.value.trim());
       } catch {
         imageUrlInput.setCustomValidity('Enter a valid image URL.');
         imageUrlInput.reportValidity();
         return;
       }
-      if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+
+      if (!['http:', 'https:'].includes(inputUrl.protocol)) {
         imageUrlInput.setCustomValidity('Use an HTTP or HTTPS image URL.');
         imageUrlInput.reportValidity();
         return;
       }
+
       imageUrlInput.setCustomValidity('');
+      const enteredUrl = inputUrl.href;
+      const addButton = document.getElementById('addUrl');
+      addButton.disabled = true;
+      addButton.textContent = 'Checking…';
 
-      const next = safeReadLinks();
-      if (!next.includes(parsedUrl.href)) next.push(parsedUrl.href);
-      saveLinks(next);
-      imageUrlInput.value = '';
-      renderLinks();
-      applyBackground(pickRandomLink());
-    }
+      try {
+        const result = await getOptimizedWikimediaImage(enteredUrl);
+        const links = readLinks();
 
-    function resetLinks() {
-      saveLinks([...FALLBACK_LINKS]);
-      renderLinks();
-      applyBackground(pickRandomLink());
-    }
+        if (!links.includes(result.url)) links.push(result.url);
 
-    addUrlButton.addEventListener('click', addLink);
-    shuffleButton.addEventListener('click', () => applyBackground(pickRandomLink()));
-    resetButton.addEventListener('click', resetLinks);
-    imageUrlInput.addEventListener('input', () => imageUrlInput.setCustomValidity(''));
-    imageUrlInput.addEventListener('keydown', event => {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        addLink();
+        if (!saveLinks(links)) {
+          message.textContent = 'The URL was added for this session, but browser storage is unavailable.';
+        } else {
+          message.textContent = result.note || 'Image URL saved.';
+        }
+
+        imageUrlInput.value = '';
+        renderLinks();
+        applyBackground(result.url);
+      } catch (error) {
+        const links = readLinks();
+        if (!links.includes(enteredUrl)) links.push(enteredUrl);
+        saveLinks(links);
+        imageUrlInput.value = '';
+        renderLinks();
+        applyBackground(enteredUrl);
+        message.textContent = 'Could not retrieve Wikimedia size details; saved the link you entered instead.';
+      } finally {
+        addButton.disabled = false;
+        addButton.textContent = 'Add';
       }
     });
 
+    imageUrlInput.addEventListener('input', () => imageUrlInput.setCustomValidity(''));
+
+    shuffleButton.addEventListener('click', () => {
+      applyBackground(pickRandomLink());
+      message.textContent = '';
+    });
+
+    resetButton.addEventListener('click', () => {
+      saveLinks([...FALLBACK_LINKS]);
+      renderLinks();
+      applyBackground(pickRandomLink());
+      message.textContent = 'The default image list has been restored.';
+    });
+
+    window.addEventListener('resize', () => {
+      if (currentImageUrl) showImageInfo(currentImageUrl);
+    });
+
+    applyFitMode(getFitMode());
     renderLinks();
     applyBackground(pickRandomLink());
   </script>
