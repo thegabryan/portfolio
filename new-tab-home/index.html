@@ -279,6 +279,7 @@
 
     .image-choice {
       display: block;
+      width: 104px;
       min-width: 0;
       padding: 0;
       overflow: hidden;
@@ -368,6 +369,10 @@
         gap: 9px;
       }
 
+      .image-choice {
+        width: 76px;
+      }
+
       .image-choice img {
         width: 76px;
         height: 58px;
@@ -397,7 +402,7 @@
     <div class="panel-heading">
       <div>
         <h1 id="pageTitle">Random painting</h1>
-        <p>On page load, one saved image is chosen and stays until you select another.</p>
+        <p>On page load, one image is chosen randomly and stays until you choose another.</p>
       </div>
       <button class="close-menu" id="closeMenu" type="button" aria-label="Close image settings">Close</button>
     </div>
@@ -415,8 +420,8 @@
         <option value="contain">Fit whole image (may show bars)</option>
       </select>
 
-      <label for="qualitySelect">Image quality</label>
-      <select id="qualitySelect" aria-label="Image quality"></select>
+      <label for="qualitySelect">Quality</label>
+      <select id="qualitySelect" aria-label="Image quality" disabled></select>
     </div>
 
     <div class="position-control" id="positionControl" hidden>
@@ -448,12 +453,8 @@
       'new-tab-painting-links'
     ];
 
-    // Wikimedia usually provides these widths, but the API's actual returned
-    // renditions can vary. The page lists only variants Wikimedia returns.
     const WIKIMEDIA_WIDTHS = [500, 720, 1280, 1920, 3840];
 
-    // These are the old built-in defaults. Remove them when migrating so the
-    // page only uses images the user added.
     const OLD_STOCK_URLS = [
       'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?auto=format&fit=crop&w=1600&q=80',
       'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=80',
@@ -535,7 +536,6 @@
           if (fileName) return `wiki:${fileName.replaceAll('_', ' ').toLowerCase()}`;
         }
 
-        parsed.hash = '';
         return `url:${parsed.href}`;
       } catch {
         return `url:${String(url).trim()}`;
@@ -624,7 +624,6 @@
             ? parsed.map(normalizeRecord).filter(Boolean)
             : [];
 
-          // Remove any duplicate URLs while migrating.
           const unique = [];
           for (const item of migrated) {
             if (!unique.some(saved => fileKey(saved.sourceUrl) === fileKey(item.sourceUrl))) {
@@ -682,12 +681,13 @@
       qualitySelect.replaceChildren();
 
       if (!item) {
-        qualitySelect.add(new Option('No image selected', ''));
         qualitySelect.disabled = true;
+        qualitySelect.add(new Option('No image selected', ''));
         return;
       }
 
       qualitySelect.disabled = false;
+
       item.variants.forEach((variant, index) => {
         const label = variant.label ||
           (variant.width && variant.height
@@ -757,15 +757,15 @@
       const item = currentImage();
       if (!item) return;
 
-      const variant = item.variants.find(candidate => candidate.url === qualitySelect.value);
-      if (!variant) return;
+      const matchingVariant = item.variants.find(candidate => candidate.url === qualitySelect.value);
+      if (!matchingVariant) return;
 
-      item.url = variant.url;
+      item.url = matchingVariant.url;
       applyImageStyle(item);
       saveCurrentPreset();
       showImageInfo(item);
       renderLinks();
-      message.textContent = `Image quality set to ${variant.label}.`;
+      message.textContent = `Image quality set to ${matchingVariant.label}.`;
     });
 
     function showImageInfo(item) {
@@ -779,6 +779,7 @@
       }
 
       const image = new Image();
+
       image.onload = () => {
         if (requestId !== imageInfoRequest) return;
         if (variant) {
@@ -801,16 +802,14 @@
       let detail = `${viewportText} · Image ${width} × ${height}`;
 
       if (item.fit === 'cover') {
-        const scale = Math.max(
-          window.innerWidth / width,
-          window.innerHeight / height
-        );
+        const scale = Math.max(window.innerWidth / width, window.innerHeight / height);
         const renderedWidth = width * scale;
         const renderedHeight = height * scale;
         const cropX = Math.max(0, Math.round((renderedWidth - window.innerWidth) / 2));
         const totalCropY = Math.max(0, Math.round(renderedHeight - window.innerHeight));
         const cropBottom = Math.round(totalCropY * item.y / 100);
         const cropTop = totalCropY - cropBottom;
+
         detail += ` · Approx. crop: ${cropX}px horizontally; ${cropTop}px top, ${cropBottom}px bottom`;
       } else if (item.fit === 'stretch') {
         detail += ' · Stretch fills the screen and may distort the image';
@@ -868,17 +867,16 @@
         });
 
         removeButton.addEventListener('click', event => {
-          // Removing or selecting an image leaves the menu open.
           event.stopPropagation();
 
+          const removedImage = item;
           const wasCurrent = item.id === currentImageId;
+
           library = library.filter(saved => saved.id !== item.id);
           saveLibrary();
           renderLinks();
 
           if (wasCurrent) {
-            // Choose one image once after removing the active one; if none remain,
-            // leave the background empty rather than restoring stock images.
             const next = library.length
               ? library[Math.floor(Math.random() * library.length)]
               : null;
@@ -944,7 +942,7 @@
         try {
           fileName = decodeURIComponent(fileName);
         } catch {
-          // Leave the encoded filename as-is if decoding fails.
+          // Leave as-is if decode fails.
         }
 
         return fileName.replace(/^\d+px-/, '').replaceAll('_', ' ');
@@ -987,12 +985,11 @@
       const info = page?.imageinfo?.[0];
       if (!info) throw new Error('Wikimedia did not return this file.');
 
-      const isThumbnail = Boolean(width && info.thumburl);
+      const isThumb = Boolean(width && info.thumburl);
       return {
-        url: isThumbnail ? info.thumburl : info.url,
-        width: isThumbnail ? info.thumbwidth : info.width,
-        height: isThumbnail ? info.thumbheight : info.height,
-        requestedWidth: width
+        url: isThumb ? info.thumburl : info.url,
+        width: isThumb ? info.thumbwidth : info.width,
+        height: isThumb ? info.thumbheight : info.height
       };
     }
 
@@ -1003,10 +1000,6 @@
       const original = await queryWikiImage(fileName);
       if (!original.url) throw new Error('Wikimedia did not return the original image.');
 
-      const results = await Promise.allSettled(
-        WIKIMEDIA_WIDTHS.map(width => queryWikiImage(fileName, width))
-      );
-
       const variants = [{
         url: original.url,
         width: original.width,
@@ -1014,16 +1007,20 @@
         label: `Original (${original.width} × ${original.height})`
       }];
 
+      const results = await Promise.allSettled(
+        WIKIMEDIA_WIDTHS.map(width => queryWikiImage(fileName, width))
+      );
+
       for (const result of results) {
         if (result.status !== 'fulfilled' || !result.value.url) continue;
 
         const candidate = result.value;
-        const existing = variants.find(variant =>
+        if (variants.some(variant =>
           variant.url === candidate.url ||
           (variant.width === candidate.width && variant.height === candidate.height)
-        );
-
-        if (existing) continue;
+        )) {
+          continue;
+        }
 
         variants.push({
           url: candidate.url,
@@ -1033,20 +1030,18 @@
         });
       }
 
-      // Sort thumbnails from smallest to largest, with Original at the end.
-      const thumbnailVariants = variants
-        .filter(variant => variant.url !== original.url)
-        .sort((a, b) => (a.width || 0) - (b.width || 0));
+      variants.sort((a, b) => (a.width || 0) - (b.width || 0));
+      const originalEntry = variants.find(candidate =>
+        candidate.label.startsWith('Original')
+      );
 
-      return [
-        ...thumbnailVariants,
-        {
-          url: original.url,
-          width: original.width,
-          height: original.height,
-          label: `Original (${original.width} × ${original.height})`
-        }
-      ];
+      if (originalEntry) {
+        const index = variants.indexOf(originalEntry);
+        variants.splice(index, 1);
+        variants.push(originalEntry);
+      }
+
+      return variants;
     }
 
     addForm.addEventListener('submit', async event => {
@@ -1070,9 +1065,9 @@
 
       imageUrlInput.setCustomValidity('');
       const sourceUrl = parsed.href;
-      const duplicateKey = fileKey(sourceUrl);
+      const key = fileKey(sourceUrl);
 
-      if (library.some(item => fileKey(item.sourceUrl) === duplicateKey)) {
+      if (library.some(item => fileKey(item.sourceUrl) === key)) {
         message.textContent = 'That image is already in your list.';
         return;
       }
@@ -1098,36 +1093,25 @@
           }];
         }
 
-        if (!variants?.length) {
-          throw new Error('Could not find an image for that link. Try a direct image URL or a Wikimedia File page.');
+        if (!variants || !variants.length) {
+          throw new Error('Could not find an image file from that link. Try a direct image URL or a Wikimedia File page.');
         }
 
-        // Prefer a small rendition for speed. Pick the largest available variant
-        // up to 720px wide; if none is at or below 720px, use the smallest one.
-        const thumbnails = variants.filter(variant => variant.url !== variants.at(-1).url);
-        const speedChoice =
-          [...thumbnails].filter(variant => variant.width && variant.width <= 720).pop() ||
-          [...thumbnails].sort((a, b) => (a.width || Infinity) - (b.width || Infinity))[0] ||
-          variants.at(-1);
+        const fastVariant = [...variants]
+          .filter(variant => variant.width && variant.width <= 720)
+          .pop() || variants[0];
 
         const record = {
           id: makeId(),
           sourceUrl,
-          url: speedChoice.url,
+          url: fastVariant.url,
           fit: 'cover',
           y: 50,
           variants,
           note: variants.length > 1
-            ? `Selected ${speedChoice.label} by default for faster loading`
+            ? `Defaulting to ${fastVariant.label} for faster loading`
             : ''
         };
-
-        // Check again after the async Wikimedia requests in case the same image
-        // was added in another tab while this request was running.
-        if (library.some(item => fileKey(item.sourceUrl) === duplicateKey)) {
-          message.textContent = 'That image is already in your list.';
-          return;
-        }
 
         library.push(record);
         saveLibrary();
@@ -1151,17 +1135,14 @@
     });
 
     library = readLibrary();
+    renderLinks();
 
-    // Pick exactly one image when the page loads. It is not changed again
-    // automatically; clicking a thumbnail is how you select another one.
     if (library.length) {
-      const initialImage = library[Math.floor(Math.random() * library.length)];
-      setCurrentImage(initialImage);
+      const initial = library[Math.floor(Math.random() * library.length)];
+      setCurrentImage(initial);
     } else {
       setCurrentImage(null);
     }
-
-    renderLinks();
   </script>
 </body>
 </html>
