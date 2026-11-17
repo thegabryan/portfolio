@@ -506,14 +506,16 @@
       }
     });
 
+    // Close only when the click really lands outside the menu.
+    // composedPath() is captured at dispatch time, so it stays correct even when
+    // a handler re-renders the list and detaches the clicked element.
     document.addEventListener('click', event => {
-      if (
-        settingsPanel.classList.contains('open') &&
-        !settingsPanel.contains(event.target) &&
-        !menuToggle.contains(event.target)
-      ) {
-        setMenuOpen(false);
-      }
+      if (!settingsPanel.classList.contains('open')) return;
+
+      const path = event.composedPath();
+      if (path.includes(settingsPanel) || path.includes(menuToggle)) return;
+
+      setMenuOpen(false);
     });
 
     function makeId() {
