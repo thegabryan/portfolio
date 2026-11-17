@@ -1,32 +1,86 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Random Painting</title>
 <style>
-  html, body { margin: 0; height: 100%; background: #111; }
-  img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: #000;
+    overflow: hidden;
+  }
+  img {
+    width: 100vw;
+    height: 100vh;
+    object-fit: contain;
+    display: block;
+  }
+  #info {
+    position: fixed;
+    left: 12px;
+    bottom: 12px;
+    color: white;
+    font: 14px system-ui, sans-serif;
+    text-shadow: 0 1px 3px black;
+    max-width: 90%;
+  }
 </style>
 </head>
 <body>
 <img id="art" alt="Random painting">
-<script>
-const api = "https://api.artic.edu/api/v1/artworks/search";
-const params = "?q=painting&query[term][is_public_domain]=true&fields=id,title,image_id,artist_title&limit=1&page=";
+<div id="info">Loading…</div>
 
-async function load() {
-  const page = Math.floor(Math.random() * 500) + 1;
-  const r = await fetch(api + params + page);
-  const data = await r.json();
-  const item = data.data?.[0];
-  if (item?.image_id) {
-    document.getElementById("art").src =
-      `https://www.artic.edu/iiif/2/${item.image_id}/full/1686,/0/default.jpg`;
-  } else {
-    load();
+<script>
+const API = "https://api.artic.edu/api/v1/artworks/search";
+const FIELDS = "id,title,artist_title,image_id,is_public_domain";
+const img = document.getElementById("art");
+const info = document.getElementById("info");
+
+function imageUrl(imageId) {
+  return `https://www.artic.edu/iiif/2/${imageId}/full/1686,/0/default.jpg`;
+}
+
+async function loadPainting() {
+  info.textContent = "Loading…";
+
+  const page = Math.floor(Math.random() * 300) + 1;
+  const url =
+    `${API}?q=painting` +
+    `&query[term][is_public_domain]=true` +
+    `&fields=${FIELDS}` +
+    `&limit=20&page=${page}`;
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`API error ${response.status}`);
+
+    const data = await response.json();
+    const works = (data.data || []).filter(work => work.image_id);
+
+    if (!works.length) {
+      info.textContent = "No painting found—press F5 to try again.";
+      return;
+    }
+
+    const work = works[Math.floor(Math.random() * works.length)];
+    img.src = imageUrl(work.image_id);
+
+    img.onload = () => {
+      info.textContent = work.title + (work.artist_title ? ` — ${work.artist_title}` : "");
+    };
+
+    img.onerror = () => {
+      info.textContent = "Image failed to load—press F5 to try again.";
+    };
+  } catch (error) {
+    info.textContent = "Could not load artwork. Check your internet connection.";
+    console.error(error);
   }
 }
-load();
+
+loadPainting();
 </script>
 </body>
 </html>
