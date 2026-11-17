@@ -206,7 +206,7 @@
       nb.title = !t ? 'Nothing to attach a note to yet' : t.live ? 'Note for the run that is going now' : 'Note for the last run of this timer';
     });
     var shown = S.active === 'work' ? workRem : T[S.active];
-    document.title = META[S.active].icon + ' ' + hms(shown) + ' · ' + META[S.active].label;
+    TSA.setTitle(META[S.active].icon + ' ' + hms(shown) + ' · ' + META[S.active].label);
     TSA.setFavicon(S.active);
     renderOutreach(now);
     renderFollow();
@@ -302,7 +302,7 @@
     if (S.active === act) { if (act === 'paused') return; res = TSA.switchTo('paused'); }   // clicking a running card only stops it
     else { if (act === 'work') TSA.alarmStop(); res = TSA.switchTo(act); }
     S = TSA.get(); renderAll();
-    if (res && res.closed && TSA.NOTE_ACTS.indexOf(res.closed.act) >= 0 && res.closed.end - res.closed.start >= 1000) openNote({ act: res.closed.act, start: res.closed.start, end: res.closed.end, live: false, note: res.closed.note || '' }, true);
+    /* no note box on switching: notes are added only with the Note button (or Enter) */
   });
 
   /* ---------- outreach counter ---------- */
@@ -430,22 +430,10 @@
     $('lstBody').innerHTML = html;
     if ($('tdName')) {
       if (lstTab === 'todo') { $('tdName').value = vals.tdName; $('tdUrl').value = vals.tdUrl; }
-      if (!$('tdName').value && !$('tdUrl').value && ytHint && !ytHintUsed(ytHint)) { $('tdName').value = ytHint.name; $('tdUrl').value = ytHint.url; $('tdName').title = 'Filled from the YouTube channel you last visited'; }
     }
     if (keep && $(keep.id)) { var el = $(keep.id); el.focus(); try { el.setSelectionRange(keep.a, keep.b); } catch (e) {} }
   }
-  var lastLstHtml = '', lastLstTab = '', ytHint = null, autoName = '';
-  function ytHintUsed(h) {
-    var k = (h.url || '').toLowerCase();
-    return TSA.todoList().concat(TSA.followList()).some(function (x) { return (x.url || '').toLowerCase() === k; });
-  }
-  window.addEventListener('message', function (e) {
-    var m = e.data;
-    if (e.origin !== location.origin || !m || m.channel !== 'timer-bridge' || m.from !== 'userscript' || m.type !== 'channel-hint') return;
-    ytHint = m.url ? { name: String(m.name || '').slice(0, 120), url: String(m.url).slice(0, 300) } : null;
-    lastLstHtml = '';   // let the open form pick it up
-    if ($('lstDlg').open) paintLists();
-  });
+  var lastLstHtml = '', lastLstTab = '';
   (function () {
     var b = document.createElement('button'); b.type = 'button'; b.className = 'ghost'; b.id = 'lstBtn'; b.textContent = '📋 Outreach lists';
     $('tools').appendChild(b);
@@ -466,11 +454,6 @@
     $('lstDlg').addEventListener('submit', function (e) {
       if (e.target.id !== 'todoForm') return; e.preventDefault();
       if (TSA.addTodo($('tdName').value, $('tdUrl').value)) { $('tdName').value = ''; $('tdUrl').value = ''; S = TSA.get(); renderFollow(); }
-    });
-    $('lstDlg').addEventListener('input', function (e) {   // a pasted channel link fills the name from its @handle
-      if (e.target.id !== 'tdUrl' || ($('tdName').value && $('tdName').value !== autoName)) return;   // never overwrite a name you typed
-      var m = /youtube\.com\/@([^\/?#\s]+)/i.exec(e.target.value);
-      if (m) { try { autoName = decodeURIComponent(m[1]); } catch (x) { autoName = m[1]; } $('tdName').value = autoName; }
     });
     /* channels sent by the YouTube userscript */
     window.addEventListener('message', function (e) {
@@ -499,6 +482,10 @@
     if (S.active !== act) refs[act].btn.click();
     return true;
   }
+  window.addEventListener('message', function (e) {   // "Stop" pressed on the capsule of another site
+    var d = e.data;
+    if (e.origin === location.origin && d && d.channel === 'timer-bridge' && d.from === 'userscript' && d.type === 'alarm-stop') TSA.alarmStop();
+  });
   (function () {
     var m = /[?&]switch=([a-z]+)/.exec(location.search);
     if (m) { switchTo(m[1]); try { history.replaceState(null, '', location.pathname + location.hash); } catch (e) {} }

@@ -814,9 +814,15 @@
     setTimeout(function () { beep(880, .18, .5); }, 500);
     setTimeout(function () { beep(1175, .4, .5); }, 750);
   }
+  /* The ringing alarm is also shown on screen: favicon blinks between the timer icon and a bell, the tab title blinks
+     '⏰ ALARM', and a heartbeat in localStorage ('tsa2_ring') lets the capsule userscript on other sites turn red. */
+  var RING_KEY = 'tsa2_ring', ringText = '';
+  function writeRing() { try { root.localStorage.setItem(RING_KEY, JSON.stringify({ text: ringText, at: Date.now() })); } catch (e) {} }
+  function clearRing() { try { root.localStorage.removeItem(RING_KEY); } catch (e) {} }
   function alarmStart(text) {
     alarmStop(); alarmPattern();
-    alarmTimer = setInterval(alarmPattern, 1600);
+    ringText = text || '⏰ Time’s up — point added!'; writeRing(); startFlash(0);
+    alarmTimer = setInterval(function () { alarmPattern(); writeRing(); }, 1600);
     if (!alarmBox) {
       alarmBox = root.document.createElement('div');
       alarmBox.className = 'alarm'; alarmBox.hidden = true;
@@ -828,15 +834,40 @@
     alarmBox.hidden = false;
   }
   function alarmStop() {
-    if (alarmTimer) { clearInterval(alarmTimer); alarmTimer = null; }
+    if (alarmTimer) { clearInterval(alarmTimer); alarmTimer = null; clearRing(); stopFlash(); }
     if (alarmBox) alarmBox.hidden = true;
   }
+  /* Blinking favicon + title. ms = 0 keeps going until stopFlash (alarms); a number stops by itself (short beeps). */
+  var flashTimer = null, flashEnd = null, flashPhase = 0, baseTitle = '', baseAct = 'paused';
+  function startFlash(ms) {
+    if (!root.document) return;
+    if (!flashTimer) {
+      baseTitle = root.document.title;
+      flashTimer = setInterval(function () {
+        flashPhase ^= 1;
+        putIcon(flashPhase ? '🔔' : META[baseAct].icon);
+        root.document.title = flashPhase ? (alarmTimer ? '⏰ ALARM' : '🔔 ' + baseTitle) : baseTitle;
+      }, 500);
+    }
+    if (flashEnd) { clearTimeout(flashEnd); flashEnd = null; }
+    if (ms && !alarmTimer) flashEnd = setTimeout(stopFlash, ms);   // a ringing alarm never times out
+  }
+  function stopFlash() {
+    if (flashEnd) { clearTimeout(flashEnd); flashEnd = null; }
+    if (!flashTimer) return;
+    clearInterval(flashTimer); flashTimer = null; flashPhase = 0;
+    root.document.title = baseTitle; putIcon(META[baseAct].icon);
+  }
+  /* Called by the page whenever it sets the tab title, so the blink never fights with the clock in it. */
+  function setTitle(t) { baseTitle = t; if (!flashTimer || !flashPhase) root.document.title = t; }
   /* A short two-tone beep for the idle nudge. */
   function nudgeBeep() {
     if (!audioReady()) return;
+    startFlash(8000);
     beep(660, 0.14, 0.4); setTimeout(function () { beep(880, 0.18, 0.4); }, 190);
   }
   function reminderBeep() {
+    startFlash(8000);
     beep(784, .16, .4);
     setTimeout(function () { beep(784, .16, .4); }, 220);
   }
@@ -854,9 +885,15 @@
 
   var lastFav = null;
   function setFavicon(act) {
-    if (!root.document || lastFav === act || !META[act]) return;
-    lastFav = act;
-    var svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>" + META[act].icon + '</text></svg>';
+    if (!root.document || !META[act]) return;
+    baseAct = act;
+    if (flashTimer && flashPhase) return;      // the bell is showing; the blink puts the right icon back
+    putIcon(META[act].icon);
+  }
+  function putIcon(emoji) {
+    if (!root.document || lastFav === emoji) return;
+    lastFav = emoji;
+    var svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>" + emoji + '</text></svg>';
     var d = root.document, old = d.querySelector('link[rel~="icon"]');
     var l = d.createElement('link');
     l.rel = 'icon'; l.href = 'data:image/svg+xml,' + encodeURIComponent(svg);
@@ -1026,7 +1063,7 @@
     todayTotals: todayTotals, todayPoints: todayPoints, analyze: analyze,
     exportAll: exportAll, importText: importText,
     audio: audio, audioReady: audioReady, beep: beep, nudgeBeep: nudgeBeep, alarmStart: alarmStart, alarmStop: alarmStop,
-    setFavicon: setFavicon, engine: engine, initTheme: initTheme, mountDataTools: mountDataTools, mountCsvTools: mountCsvTools, csvExport: csvExport, maybeAutoBackup: maybeAutoBackup, setAutoBackup: setAutoBackup, setGoalSec: setGoalSec, GOALS: GOALS,
+    setFavicon: setFavicon, setTitle: setTitle, startFlash: startFlash, engine: engine, initTheme: initTheme, mountDataTools: mountDataTools, mountCsvTools: mountCsvTools, csvExport: csvExport, maybeAutoBackup: maybeAutoBackup, setAutoBackup: setAutoBackup, setGoalSec: setGoalSec, GOALS: GOALS,
     dailySummary: dailySummary, sendSummary: sendSummary,
     KEY: KEY, CHRONO_KEY: CHRONO_KEY
   };
