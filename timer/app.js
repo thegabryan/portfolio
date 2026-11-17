@@ -841,6 +841,7 @@
   var flashTimer = null, flashEnd = null, flashPhase = 0, baseTitle = '', baseAct = 'paused';
   function startFlash(ms) {
     if (!root.document) return;
+    if (flashQuick) { clearInterval(flashTimer); flashTimer = null; flashQuick = false; flashPhase = 0; putIcon(META[baseAct].icon); root.document.title = baseTitle; }   // an alarm takes over from a quick blink
     if (!flashTimer) {
       baseTitle = root.document.title;
       flashTimer = setInterval(function () {
@@ -852,10 +853,23 @@
     if (flashEnd) { clearTimeout(flashEnd); flashEnd = null; }
     if (ms && !alarmTimer) flashEnd = setTimeout(stopFlash, ms);   // a ringing alarm never times out
   }
+  /* Beeps (10-minute beep, idle nudge, auto-restart): just two quick blinks, 200 ms apart. */
+  var flashQuick = false;
+  function quickBlink() {
+    if (!root.document || alarmTimer || flashTimer) return;
+    baseTitle = root.document.title; flashQuick = true;
+    var steps = [1, 0, 1, 0], i = 0;
+    flashTimer = setInterval(function () {
+      if (i >= steps.length) { stopFlash(); return; }
+      flashPhase = steps[i++];
+      putIcon(flashPhase ? '🔔' : META[baseAct].icon);
+      root.document.title = flashPhase ? '🔔 ' + baseTitle : baseTitle;
+    }, 200);
+  }
   function stopFlash() {
     if (flashEnd) { clearTimeout(flashEnd); flashEnd = null; }
     if (!flashTimer) return;
-    clearInterval(flashTimer); flashTimer = null; flashPhase = 0;
+    clearInterval(flashTimer); flashTimer = null; flashPhase = 0; flashQuick = false;
     root.document.title = baseTitle; putIcon(META[baseAct].icon);
   }
   /* Called by the page whenever it sets the tab title, so the blink never fights with the clock in it. */
@@ -863,11 +877,11 @@
   /* A short two-tone beep for the idle nudge. */
   function nudgeBeep() {
     if (!audioReady()) return;
-    startFlash(8000);
+    quickBlink();
     beep(660, 0.14, 0.4); setTimeout(function () { beep(880, 0.18, 0.4); }, 190);
   }
   function reminderBeep() {
-    startFlash(8000);
+    quickBlink();
     beep(784, .16, .4);
     setTimeout(function () { beep(784, .16, .4); }, 220);
   }
@@ -936,7 +950,7 @@
     setInterval(function () {
       var now = Date.now(), r = tick(now), lead = isLeader(now);
       if (r && r.rounds) {
-        if (lead) { if (r.auto) beep(1000, .22, .4); else alarmStart(); }
+        if (lead) { if (r.auto) { beep(1000, .22, .4); quickBlink(); } else alarmStart(); }
         onEvent('round');
       } else if (r && r.refreshed) onEvent('refresh');
       var iv = S.settings.beepMinutes * 60000;
@@ -1063,7 +1077,7 @@
     todayTotals: todayTotals, todayPoints: todayPoints, analyze: analyze,
     exportAll: exportAll, importText: importText,
     audio: audio, audioReady: audioReady, beep: beep, nudgeBeep: nudgeBeep, alarmStart: alarmStart, alarmStop: alarmStop,
-    setFavicon: setFavicon, setTitle: setTitle, startFlash: startFlash, engine: engine, initTheme: initTheme, mountDataTools: mountDataTools, mountCsvTools: mountCsvTools, csvExport: csvExport, maybeAutoBackup: maybeAutoBackup, setAutoBackup: setAutoBackup, setGoalSec: setGoalSec, GOALS: GOALS,
+    setFavicon: setFavicon, setTitle: setTitle, startFlash: startFlash, quickBlink: quickBlink, engine: engine, initTheme: initTheme, mountDataTools: mountDataTools, mountCsvTools: mountCsvTools, csvExport: csvExport, maybeAutoBackup: maybeAutoBackup, setAutoBackup: setAutoBackup, setGoalSec: setGoalSec, GOALS: GOALS,
     dailySummary: dailySummary, sendSummary: sendSummary,
     KEY: KEY, CHRONO_KEY: CHRONO_KEY
   };

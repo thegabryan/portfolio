@@ -25,7 +25,7 @@
     '</ul>' +
     '<h3>Alarms</h3>' +
     '<p>The top bar (on every page) has three small buttons in this order: <b>theme</b> (🌓 auto, ☀️ light, 🌙 dark – click to cycle), <b>?</b> (this guide) and <b>⏰</b> (alarms). The ⏰ button shows the time of the next alarm, e.g. <i>⏰ 17:50</i>; hover it to see all alarms. Click it to open the alarm list. Pick a time on the 24-hour clock, an optional label, and <i>Once</i> or <i>Every day</i>, then press Add. When the time comes a loud repeating alarm rings with a <b>Stop alarm</b> banner. Alarms ring while any page of this site is open; one missed by more than 15 minutes only shows a notice. Alarms are included in Export / Import.</p>' +
-    '<p>While an alarm rings (the Work round, a clock alarm, the Claude reset) the tab\'s icon blinks between the timer icon and 🔔 and the tab title blinks <i>⏰ ALARM</i>. The 10-minute beeps and the idle nudge blink the same way for 8 seconds. On other sites the capsule turns red and pulses with a <b>Stop</b> button that stops the alarm on the timer page.</p>' +
+    '<p>While an alarm rings (the Work round, a clock alarm, the Claude reset) the tab\'s icon blinks between the timer icon and 🔔 and the tab title blinks <i>⏰ ALARM</i>. The 10-minute beeps, the idle nudge and the auto-restart beep only blink twice, quickly. On other sites the capsule turns red and pulses with a <b>Stop</b> button that stops the alarm on the timer page.</p>' +
     '<h3>Daily goals</h3>' +
     '<p>Click <b>Goal</b> on a card to set a daily goal: Work and Workout are goals to <i>reach</i>, Paused is a <i>maximum</i>. A progress bar shows how you are doing today.</p>' +
     '<h3>Settings bar</h3>' +
