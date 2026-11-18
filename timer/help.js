@@ -21,10 +21,11 @@
     '<li>The small <b>📝 Note</b> button on every card adds a note to the running session, or to that timer\'s most recent session if it is stopped. If a note exists it opens for editing; clearing the text removes it.</li>' +
     '<li>Work and Workflow also have a <b>Project</b> field (it starts empty for every new run and suggests earlier projects as you type). Projects show up in the dashboard and in tags sent to Url Notes.</li>' +
     '<li>The note box starts as one line. <b>Enter</b> saves; <b>Shift+Enter</b> adds a new line (the box grows to several lines, and Enter still saves). Every line you start writing gets the time you started it, like <code>16:12 · text</code> (24 h). Lines already in a note keep what they have, and an existing note opens with the cursor at the end so you can add to it. Notes can be up to 1000 characters.</li>' +
-    '<li>A note box also opens when you stop Work or switch away from it.</li>' +
+    '<li>The note box never opens by itself when you switch timers – use the <b>Note</b> button (or Enter) when you want to add one.</li>' +
     '</ul>' +
     '<h3>Alarms</h3>' +
     '<p>The top bar (on every page) has three small buttons in this order: <b>theme</b> (🌓 auto, ☀️ light, 🌙 dark – click to cycle), <b>?</b> (this guide) and <b>⏰</b> (alarms). The ⏰ button shows the time of the next alarm, e.g. <i>⏰ 17:50</i>; hover it to see all alarms. Click it to open the alarm list. Pick a time on the 24-hour clock, an optional label, and <i>Once</i> or <i>Every day</i>, then press Add. When the time comes a loud repeating alarm rings with a <b>Stop alarm</b> banner. Alarms ring while any page of this site is open; one missed by more than 15 minutes only shows a notice. Alarms are included in Export / Import.</p>' +
+    '<p>While an alarm rings (the Work round, a clock alarm, the Claude reset) the tab\'s icon blinks between the timer icon and 🔔 and the tab title blinks <i>⏰ ALARM</i>. The 10-minute beeps and the idle nudge blink the same way for 8 seconds. On other sites the capsule turns red and pulses with a <b>Stop</b> button that stops the alarm on the timer page.</p>' +
     '<h3>Daily goals</h3>' +
     '<p>Click <b>Goal</b> on a card to set a daily goal: Work and Workout are goals to <i>reach</i>, Paused is a <i>maximum</i>. A progress bar shows how you are doing today.</p>' +
     '<h3>Settings bar</h3>' +
@@ -39,7 +40,7 @@
     '<h3>Bottom row</h3>' +
     '<ul>' +
     '<li><b>Export all data / Import backup</b> – saves or restores everything in one file named with the date and time: timer data, outreach (names, notes, To-reach-out list, follow-ups), alarms and the capsule\'s linked-sites list (needs the capsule script to have run once). Importing replaces what is saved in this browser.</li>' +
-    '<li><b>📋 Outreach lists</b> – a popup with three tabs: <b>Follow-ups</b>, <b>To reach out</b> and <b>Finished</b>. In To reach out you can add a creator (name and optional link; the form is pre-filled with the YouTube channel you last visited, and pasting a channel link fills the name) and press <i>Outreached ✓</i> when you contact them; that counts +1 and starts follow-ups.</li>' +
+    '<li><b>📋 Outreach lists</b> – a popup with three tabs: <b>Follow-ups</b>, <b>To reach out</b> and <b>Finished</b>. In To reach out you can add a creator (name and optional link, typed by you) and press <i>Outreached ✓</i> when you contact them; that counts +1 and starts follow-ups.</li>' +
     '<li><b>Send day summary</b> – queues today\'s summary as a note for Url Notes (needs the userscript; otherwise it copies the text).</li>' +
     '<li><b>Outreach counter</b> – <b>+1</b> adds an outreach, <b>−</b> removes one, <b>Goal</b> changes the daily goal. After +1 a small box lets you type the creator\'s <b>name</b> and a <b>note</b> (Enter saves both), and tick <i>remind me to follow up</i>. Notes can also be edited in the dashboard\'s outreach log, are searchable there and are in the CSV and the backup.</li>' +
     '<li><b>Follow-up bar</b> – when a follow-up is due, a slim bar appears above the cards. Follow-ups are due 2 days after the outreach, then 2 days after each follow-up. Press <b>Followed up</b> (the 3rd one finishes it), <b>Replied</b> or <b>Stop</b>. Following up does not change your score.</li>' +

@@ -1,0 +1,4119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="url-notes-maker" content="3">
+<title>Url Notes Maker</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%9D%3C/text%3E%3C/svg%3E">
+<style>
+:root {
+  --bg: #ffffff;
+  --fg: #1d1d1f;
+  --muted: #86868b;
+  --line: #e7e7ec;
+  --card: #fafafc;
+  --accent: #3b6cf6;
+  --accent-fg: #ffffff;
+  --mark: #ffe58a;
+  --tag-bg: #e8eefe;
+  --tag-fg: #2a4fc7;
+  --danger: #d23b3b;
+  --pin: #f5a623;
+  --shadow: 0 8px 30px rgba(0,0,0,.15);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #131316; --fg: #ececf0; --muted: #8e8e96; --line: #2a2a31; --card: #1a1a1f;
+    --accent: #6b8cff; --accent-fg: #0b0b0f; --mark: #6b5a10; --tag-bg: #232c4a; --tag-fg: #a9bcff;
+    --danger: #ff6b6b; --pin: #ffbf47; --shadow: 0 8px 30px rgba(0,0,0,.6);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #131316; --fg: #ececf0; --muted: #8e8e96; --line: #2a2a31; --card: #1a1a1f;
+  --accent: #6b8cff; --accent-fg: #0b0b0f; --mark: #6b5a10; --tag-bg: #232c4a; --tag-fg: #a9bcff;
+  --danger: #ff6b6b; --pin: #ffbf47; --shadow: 0 8px 30px rgba(0,0,0,.6);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  padding: 24px 20px 80px;
+}
+.wrap { max-width: 820px; margin: 0 auto; }
+[hidden] { display: none !important; }
+
+header.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+header.top h1 { font-size: 22px; margin: 0; letter-spacing: -.01em; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+button, select { font: inherit; color: inherit; cursor: pointer; }
+.btn {
+  border: 1px solid var(--line); background: var(--card); border-radius: 8px;
+  padding: 7px 12px; font-size: 14px;
+}
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
+.btn.danger { color: var(--danger); }
+.btn.attention { border-color: var(--pin); background: color-mix(in srgb, var(--pin) 20%, var(--card)); }
+
+/* composer */
+.composer { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 16px; }
+.composer textarea {
+  flex: 1; min-height: 52px; max-height: 40vh; resize: none; padding: 12px 14px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--fg);
+  font: inherit; font-size: 17px; line-height: 1.5; outline: none;
+}
+.composer textarea:focus { border-color: var(--accent); }
+.composer .btn { padding: 13px 18px; }
+
+/* toolbar */
+.toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+.toolbar input[type="search"] {
+  flex: 1; min-width: 180px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--card); color: var(--fg); font: inherit; font-size: 15px; outline: none;
+}
+.toolbar input[type="search"]:focus { border-color: var(--accent); }
+.toolbar select.btn { padding: 8px 10px; }
+
+details.menu { position: relative; }
+details.menu summary { list-style: none; }
+details.menu summary::-webkit-details-marker { display: none; }
+details.menu .pop {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; min-width: 230px;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); padding: 6px;
+  display: flex; flex-direction: column;
+}
+details.menu .pop button {
+  text-align: left; border: 0; background: none; padding: 8px 10px; border-radius: 6px; font-size: 14px;
+}
+details.menu .pop button:hover { background: var(--card); }
+details.menu .pop hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; width: 100%; }
+
+/* tabs + tags */
+.tabs { display: flex; gap: 6px; margin-bottom: 10px; align-items: center; flex-wrap: wrap; }
+.tab { border: 0; background: none; padding: 6px 10px; border-radius: 999px; font-size: 14px; color: var(--muted); }
+.tab[aria-pressed="true"] { background: var(--tag-bg); color: var(--tag-fg); font-weight: 600; }
+.spacer { flex: 1; }
+.status { font-size: 13px; color: var(--muted); }
+
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.tags:empty { display: none; }
+.chip {
+  border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 3px 10px; font-size: 13px;
+}
+.chip small { color: var(--muted); margin-left: 4px; }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.chip[aria-pressed="true"] small { color: inherit; opacity: .8; }
+
+/* list */
+.section-label { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 18px 0 8px; }
+.message {
+  border: 1px solid var(--line); background: var(--card); border-radius: 12px;
+  padding: 12px 14px 8px; margin-bottom: 12px;
+}
+.message.pinned { border-left: 4px solid var(--pin); }
+.message.hl-card { border-left: 4px solid var(--mark); }
+.meta { font-size: 12.5px; color: var(--muted); margin-bottom: 4px; }
+.meta a { color: var(--muted); }
+.badge {
+  display: inline-block; padding: 0 7px; border-radius: 999px; background: var(--mark); color: var(--fg);
+  font-size: 12px; font-weight: 600;
+}
+.body, textarea.edit {
+  width: 100%; font: inherit; font-size: 19px; line-height: 1.5; color: var(--fg);
+  white-space: pre-wrap; overflow-wrap: anywhere; padding: 4px 6px; margin: 0 -6px; border-radius: 6px;
+}
+.body { cursor: text; min-height: 32px; }
+.body:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+textarea.edit {
+  display: block; resize: none; border: 1px solid var(--accent); background: var(--bg); outline: none; min-height: 60px;
+}
+.body a { color: var(--accent); }
+.body mark, .hl-quote mark, .hl-note mark { background: var(--mark); color: inherit; border-radius: 3px; padding: 0 1px; }
+.tag {
+  background: var(--tag-bg); color: var(--tag-fg); border-radius: 6px; padding: 0 5px; cursor: pointer;
+}
+.todo-box { width: 1.05em; height: 1.05em; margin: 0 .35em 0 0; vertical-align: -.1em; cursor: pointer; accent-color: var(--accent); }
+.todo-text.done { text-decoration: line-through; color: var(--muted); }
+
+/* note action buttons: big, always visible */
+.actions { display: flex; gap: 6px; margin: 8px 0 4px; flex-wrap: wrap; }
+.icon {
+  border: 1px solid var(--line); background: var(--bg); color: var(--fg);
+  min-width: 40px; height: 38px; padding: 0 11px; border-radius: 9px;
+  font-size: 19px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+}
+.icon:hover:not(:disabled) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--bg)); }
+.icon:disabled { opacity: .35; cursor: default; }
+.icon.on { border-color: var(--pin); background: color-mix(in srgb, var(--pin) 25%, var(--bg)); }
+.icon.edit-icon { font-size: 22px; font-weight: 700; }
+.icon.arrow { font-size: 22px; font-weight: 800; }
+.icon.danger { border-color: color-mix(in srgb, var(--danger) 55%, var(--line)); background: color-mix(in srgb, var(--danger) 10%, var(--bg)); }
+.icon.danger:hover:not(:disabled) { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 22%, var(--bg)); }
+.icon.text { font-size: 14px; font-weight: 600; }
+a.icon { text-decoration: none; }
+
+.empty { color: var(--muted); font-size: 17px; padding: 30px 4px; line-height: 1.6; }
+.note-hint { font-size: 13px; color: var(--muted); margin: 0 0 10px; }
+.more-wrap { text-align: center; margin: 16px 0; }
+
+/* toast */
+#toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px);
+  background: var(--fg); color: var(--bg); padding: 10px 14px; border-radius: 10px; font-size: 14px;
+  display: flex; gap: 14px; align-items: center; opacity: 0; pointer-events: none; transition: .2s; z-index: 50;
+  max-width: calc(100vw - 32px);
+}
+#toast.show { opacity: 1; transform: translateX(-50%); pointer-events: auto; }
+#toast button { border: 0; background: none; color: var(--accent); font-weight: 700; padding: 0; }
+:root:not([data-theme]) #toast button { color: #8fb0ff; }
+
+/* help dialog */
+dialog {
+  border: 1px solid var(--line); border-radius: 14px; padding: 0; background: var(--bg); color: var(--fg);
+  width: min(680px, calc(100vw - 24px)); max-height: 88vh; box-shadow: var(--shadow);
+}
+dialog::backdrop { background: rgba(0,0,0,.45); }
+.dlg-head { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px 0; }
+.dlg-head h2 { margin: 0; font-size: 20px; }
+.dlg-body { padding: 8px 20px 20px; font-size: 15px; line-height: 1.6; overflow: auto; max-height: calc(88vh - 70px); }
+.dlg-body h3 { font-size: 15px; margin: 18px 0 4px; }
+.dlg-body code, .dlg-body kbd {
+  background: var(--card); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.dlg-body table { border-collapse: collapse; width: 100%; font-size: 14px; }
+.dlg-body td { border-bottom: 1px solid var(--line); padding: 4px 6px; }
+.dlg-body ul { margin: 4px 0; padding-left: 20px; }
+.bookmarklet {
+  display: inline-block; padding: 8px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-fg);
+  text-decoration: none; font-weight: 600; cursor: grab;
+}
+
+/* userscript link + highlights view */
+.link-status { font-size: 13px; color: var(--muted); }
+.hl-page { margin-bottom: 22px; }
+.hl-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; margin: 0 2px 8px; }
+.hl-site { font-weight: 700; color: var(--fg); text-decoration: none; }
+.hl-site:hover { color: var(--accent); }
+.hl-path { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.hl-quote {
+  margin: 0 0 8px; padding: 6px 10px; font-size: 16px; line-height: 1.5; color: var(--muted);
+  border-left: 3px solid var(--mark); background: color-mix(in srgb, var(--mark) 18%, transparent);
+  border-radius: 4px; white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.hl-note { font-size: 18px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* script section inside the help dialog */
+.help-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+#codeDetails { margin: 8px 0 12px; }
+#codeDetails summary { cursor: pointer; color: var(--accent); font-size: 14px; }
+.code-view {
+  margin: 8px 0 0; padding: 12px; max-height: 320px; overflow: auto;
+  background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+  font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre; tab-size: 2;
+}
+.dlg-body ol { margin: 4px 0; padding-left: 22px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <h1>📝 Url Notes Maker</h1>
+    <div class="row">
+      <span class="link-status" id="linkStatus" hidden title="Make Highlights & Notes userscript detected">🔗 Userscript linked</span>
+      <button class="btn" id="backupBadge" hidden></button>
+      <button class="btn" id="helpBtn" title="How to use (?)">How to use</button>
+      <button class="btn" id="themeBtn" title="Theme: auto"></button>
+    </div>
+  </header>
+
+  <section class="composer">
+    <textarea id="composer" rows="1" placeholder="Write a note…  (Ctrl+Enter to save, #tags and - [ ] tasks work)"></textarea>
+    <button class="btn primary" id="addBtn">Add</button>
+  </section>
+
+  <div class="toolbar">
+    <input type="search" id="search" placeholder="Search…  ( / )   e.g. tag:idea  is:pinned  from:youtube" autocomplete="off">
+    <select class="btn" id="sort" title="Sort order" aria-label="Sort order">
+      <option value="manual">Manual order</option>
+      <option value="newest">Newest first</option>
+      <option value="oldest">Oldest first</option>
+      <option value="edited">Recently edited</option>
+    </select>
+    <details class="menu" id="backupMenu">
+      <summary class="btn">Backup ▾</summary>
+      <div class="pop">
+        <button id="expJson">Export JSON (re-importable)</button>
+        <button id="expTxt">Export TXT (readable)</button>
+        <button id="expCsv">Export CSV (spreadsheet)</button>
+        <hr>
+        <button id="impBtn">Import JSON…</button>
+        <hr>
+        <button id="bkChoose">Auto-backup to a file…</button>
+        <button id="bkNow" hidden>Back up now</button>
+        <button id="bkStop" hidden>Stop auto-backup</button>
+      </div>
+    </details>
+  </div>
+
+  <div class="tabs">
+    <button class="tab" id="tabAll" aria-pressed="false">All</button>
+    <button class="tab" id="tabNotes" aria-pressed="true">Notes</button>
+    <button class="tab" id="tabTimer" aria-pressed="false">⏱ Timer</button>
+    <button class="tab" id="tabHl" aria-pressed="false">Highlights</button>
+    <button class="tab" id="tabTrash" aria-pressed="false">Trash</button>
+    <span class="spacer"></span>
+    <span class="status" id="status"></span>
+  </div>
+
+  <div class="tags" id="tags"></div>
+
+  <div id="messages"></div>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+<input type="file" id="importFile" accept=".json,application/json" hidden>
+
+<dialog id="help">
+  <div class="dlg-head">
+    <h2>How to use</h2>
+    <button class="btn" id="helpClose">Close</button>
+  </div>
+  <div class="dlg-body">
+    <p>Save a note by typing it into the browser's address bar. Everything is stored in this browser only (<code>localStorage</code>) — nothing is sent anywhere.</p>
+
+    <h3>1. Add a note from the URL bar</h3>
+    <p>Add <code>?q=</code> (or <code>?text=</code>) followed by your note:</p>
+    <p><code id="ex1"></code><br><a id="try1" href="#">Try it</a></p>
+    <p>Tip: set this page as a custom search engine in your browser (use <code>%s</code> where the note goes) and a note is just a keyword + text away. A note added this way always opens the <b>Notes</b> tab.</p>
+
+    <h3>1b. Notes that become alarms</h3>
+    <p>If a note contains the word <b>alarm</b>, an alarm is also created on your timer site (gabryan.com/timer) and the note is kept as written. A short message with <b>Undo</b> confirms it. Plain words work, so speech-to-text is fine:</p>
+    <ul>
+      <li><code>set an alarm for five thirty pm to call Alice</code></li>
+      <li><code>alarm in twenty minutes check the oven</code></li>
+      <li><code>alarm tomorrow at seven</code> · <code>alarm friday at 10 am meeting</code> · <code>alarm every day at nine am take vitamins</code></li>
+      <li><code>alarm at noon</code> · <code>alarm half past five</code></li>
+      <li><code>alarm five minutes from now</code> · <code>alarm after ten minutes</code> · <code>alarm in a couple of minutes</code> · <code>set a twenty minute alarm</code></li>
+      <li><code>alarm in two and a half hours</code> · <code>alarm an hour from now</code> · <code>alarm two days from now at nine am</code> · <code>alarm in a week</code></li>
+      <li><code>alarm tomorrow morning at eight thirty</code> · <code>alarm friday afternoon at three</code> · <code>alarm tonight at ten thirty</code></li>
+    </ul>
+    <p>If there is no time I can understand, a small box asks for it. The alarm rings while any page of your timer site is open (a missed one shows a notice when you open it).</p>
+
+    <h3>2. Special characters in the URL</h3>
+    <table>
+      <tr><td>new line</td><td><code>%0A</code></td></tr>
+      <tr><td><code>#</code> (for tags)</td><td><code>%23</code> &nbsp;— a raw # starts the URL fragment and is lost</td></tr>
+      <tr><td><code>&amp;</code></td><td><code>%26</code></td></tr>
+      <tr><td><code>+</code></td><td><code>%2B</code> &nbsp;— a raw + becomes a space</td></tr>
+      <tr><td><code>%</code></td><td><code>%25</code></td></tr>
+    </table>
+    <p>Example with a tag and two lines: <code id="ex2"></code> <a id="try2" href="#">Try it</a></p>
+
+    <h3>3. One-click bookmarklet</h3>
+    <p>Drag this to your bookmarks bar. On any page, click it to save the page title + link (plus any text you selected) as a note:</p>
+    <p><a class="bookmarklet" id="bm" href="#">📝 Save to Notes</a></p>
+    <p style="color:var(--muted);font-size:13px">Some sites block bookmarklets with strict security policies.</p>
+
+    <h3>4. In the app</h3>
+    <ul>
+      <li><b>Tabs:</b> <i>All</i> mixes your notes and highlights by time (pinned notes stay on top), <i>Notes</i>, <i>Highlights</i> and <i>Trash</i>. The tab you were on is remembered.</li>
+      <li><b>Click a note</b> to edit it — it saves automatically. <kbd>Esc</kbd> or click away to finish.</li>
+      <li><b>Pin</b> 📌 keeps important notes on top. <b>↑ ↓</b> reorder (only with "Manual order" and no search/filter active).</li>
+      <li><b>Tags:</b> write <code>#idea</code> anywhere in a note; click a tag to filter. Links become clickable.</li>
+      <li><b>Checklists:</b> start lines with <code>- [ ] </code> and tick them right on the note. The card shows how many are done.</li>
+      <li><b>Delete</b> 🗑️ moves a note to the Trash (Undo appears right away). Trash is emptied after 30 days.</li>
+    </ul>
+
+    <h3>5. Search tricks</h3>
+    <p>Every word you type must appear. Extras:</p>
+    <table>
+      <tr><td><code>tag:idea</code></td><td>notes with #idea</td></tr>
+      <tr><td><code>is:pinned</code> &nbsp;<code>is:note</code> &nbsp;<code>is:highlight</code></td><td>only that kind</td></tr>
+      <tr><td><code>is:todo</code> &nbsp;<code>is:open</code></td><td>has a checklist / has unticked items</td></tr>
+      <tr><td><code>has:link</code></td><td>contains a link</td></tr>
+      <tr><td><code>from:youtube</code></td><td>mentions or comes from that site</td></tr>
+      <tr><td><code>after:2026-11-01</code> &nbsp;<code>before:today</code></td><td>by date added (<code>today</code>, <code>yesterday</code> or YYYY-MM-DD)</td></tr>
+      <tr><td><code>"exact phrase"</code></td><td>quotes keep words together</td></tr>
+    </table>
+
+    <h3>6. Backup &amp; import</h3>
+    <ul>
+      <li><b>JSON</b> keeps everything (pins, order, dates, trash). Use it for backups and moving between browsers or devices.</li>
+      <li><b>Daily backup offer:</b> the first time you open this page on a new day, if notes or highlights changed since your last backup, a bar offers <i>Download backup</i> (<code>url-notes-DATE_TIME.json</code>, saved in your browser's download folder). It never downloads by itself.</li>
+      <li><b>TXT</b> and <b>CSV</b> are export-only, for reading or opening in a spreadsheet.</li>
+      <li><b>Import</b> merges: notes you already have are skipped, nothing is overwritten.</li>
+      <li><b>Auto-backup</b> (Chrome / Edge): pick a file once and the site rewrites it whenever your notes change. After restarting the browser, click <i>💾 Resume backup</i> once to allow it again. If this browser ever has no notes but the file does, it offers to restore instead of overwriting the file.</li>
+    </ul>
+
+    <h3 id="scriptHelp">7. Companion script for Tampermonkey: Make Highlights &amp; Notes</h3>
+    <p>An optional, free userscript that works on <b>every website</b>: select text, attach a note, and the text stays highlighted whenever you come back to that page. It also connects to this site, so highlights and quick notes from any page end up here. Everything stays in your browser; nothing is uploaded.</p>
+
+    <p><b>How to install</b></p>
+    <ol>
+      <li>Install the <b>Tampermonkey</b> extension from your browser's extension store (Chrome, Edge, Firefox and Safari are supported). Newer versions of Chrome and Edge may ask you to switch on <i>Allow user scripts</i> (or <i>Developer mode</i>) in the extension's details page.</li>
+      <li>Click <b>Copy script</b> below. The copy is already set to this site's address.</li>
+      <li>Click the Tampermonkey icon, choose <b>Create a new script…</b>, select everything in the editor, paste, and press <kbd>Ctrl</kbd>+<kbd>S</kbd>.</li>
+      <li>Reload this page. When it works you'll see <b>🔗 Userscript linked</b> at the top.</li>
+    </ol>
+    <p class="help-actions">
+      <button class="btn primary" id="copyScript">Copy script</button>
+      <button class="btn" id="downloadScript">Download .user.js</button>
+    </p>
+    <details id="codeDetails">
+      <summary>Show the code (worth a read before you install anything)</summary>
+      <pre class="code-view" id="codeView" tabindex="0"></pre>
+    </details>
+
+    <p><b>Using it</b></p>
+    <ul>
+      <li><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd> opens the panel (select text first to add a note to it). Its <i>Sort by</i> menu lists a page's notes by date added or in the order they appear on the page. The <i>All notes</i> button lists everything you saved, across pages, with search and JSON import/export.</li>
+      <li>Highlights need a recent browser (it uses the CSS Custom Highlights feature). It also works on single-page sites like YouTube.</li>
+    </ul>
+
+    <p><b>What it adds to this site</b> (the script v2.5 or newer):</p>
+    <ul>
+      <li><b>Send to this site:</b> on any page press <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>N</kbd> (or use the script's <i>Send to site</i> button / Tampermonkey menu). The selected quote, your note, the page link and a tag for the site's domain are queued, and arrive here the next time this page is open (instantly if it's open already). On YouTube the link opens the video at the moment you sent it.</li>
+      <li><b>⏱ Timer tab:</b> notes and day summaries sent by your timer site (through the userscript), grouped by day, with a chip per timer (Work, Workflow, …) and one for summaries. They are kept out of the Notes tab but still appear in All; search and tags work as usual.</li>
+      <li><b>Highlights tab:</b> a read-only, searchable view of everything you highlighted with the script, grouped by page. <i>Open page</i> jumps to the highlighted text when the browser supports it. Edit highlights on the page itself.</li>
+      <li>The script's <b>All notes</b> panel can show these notes too (Highlights / Site notes / Both), refreshed whenever this page is open.</li>
+      <li>The JSON export also includes your highlights (when linked), so the script's own Import can read the same file.</li>
+    </ul>
+
+    <h3>Shortcuts</h3>
+    <table>
+      <tr><td><kbd>/</kbd></td><td>Search</td></tr>
+      <tr><td><kbd>n</kbd></td><td>New note</td></tr>
+      <tr><td><kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd></td><td>Save the new note (or finish editing)</td></tr>
+      <tr><td><kbd>?</kbd></td><td>Open this help</td></tr>
+    </table>
+  </div>
+</dialog>
+
+<!-- Full source of the companion userscript. Shown and copied from the help dialog. -->
+<script type="text/plain" id="userscriptSrc">// ==UserScript==
+// @name         Make Highlights & Notes
+// @namespace    local.make-highlights-notes
+// @version      2.6
+// @description  Highlight selected text, attach notes, and browse, search, import, and export notes across pages. Works on single-page apps like YouTube. Can send notes to your Url Notes site.
+// @match        *://*/*
+// @run-at       document-idle
+// @noframes
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @grant        GM_addValueChangeListener
+// @grant        GM_registerMenuCommand
+// ==/UserScript==
+
+(() => {
+  'use strict';
+
+  if (window.__makeHighlightsNotesInstalled) return;
+  window.__makeHighlightsNotesInstalled = true;
+
+  if (!window.CSS?.highlights || !window.Highlight) {
+    console.error('Highlights & Notes: this browser does not support CSS Custom Highlights.');
+    return;
+  }
+
+  if (typeof GM_getValue !== 'function' || typeof GM_setValue !== 'function') {
+    console.error('Highlights & Notes: Tampermonkey storage is unavailable. Check the @grant settings.');
+    return;
+  }
+
+  // Your Url Notes site. The bridge only runs on these origins + path, so no
+  // other website can read your notes. Edit here if the site ever moves.
+  const SITE = {
+    origins: ['https://gabryan.com', 'https://www.gabryan.com'],
+    path: '/notes'
+  };
+  const DEFAULT_SITE_URL = 'https://gabryan.com/notes/';
+  const MAX_QUOTE_LENGTH = 2000;
+  const ALL_NOTES_PAGE = 40;   // rows drawn at once in the All notes panel (keeps it light)
+
+  const isNotesSite =
+    SITE.origins.includes(location.origin) &&
+    (location.pathname === SITE.path || location.pathname.startsWith(`${SITE.path}/`));
+
+  // Each page gets its own key. On YouTube watch pages the video id is part of
+  // the key, because every video shares the same /watch path.
+  function computePageKey() {
+    let key = `${location.origin}${location.pathname}`;
+
+    try {
+      const url = new URL(location.href);
+      const isYouTube = /(^|\.)youtube\.com$/.test(url.hostname);
+      const videoId = url.searchParams.get('v');
+
+      if (isYouTube && url.pathname === '/watch' && videoId) {
+        key += `?v=${videoId}`;
+      }
+    } catch {
+      // Fall back to origin + pathname.
+    }
+
+    return key;
+  }
+
+  let pageUrl = computePageKey();
+  const storeKey = 'make-highlights-notes:shared-store:v1';
+  const outboxKey = 'make-highlights-notes:outbox:v1';
+  const snapshotKey = 'make-highlights-notes:site-snapshot:v1';
+  const filterKey = 'make-highlights-notes:all-notes-filter:v1';
+  const panelSortKey = 'make-highlights-notes:panel-sort:v1';
+
+  const annotations = [];
+  let pendingRange = null;
+  let restoreTimer = null;
+  let interfaceActive = false;
+
+  // All notes panel: which notes to show ('both' | 'highlights' | 'site'),
+  // a cached search index, and how many rows are drawn.
+  let allNotesFilter = 'both';
+  let allIndex = null;
+  let allNotesLimit = ALL_NOTES_PAGE;
+
+  // Main panel: how this page's notes are listed ('oldest' | 'newest' | 'page').
+  // 'oldest' is the original behavior.
+  let panelSort = 'oldest';
+  let renderedOrder = [];
+
+  try {
+    const savedSort = GM_getValue(panelSortKey, 'oldest');
+    if (['oldest', 'newest', 'page'].includes(savedSort)) panelSort = savedSort;
+  } catch {
+    // Keep the default.
+  }
+
+  try {
+    const savedFilter = GM_getValue(filterKey, 'both');
+    if (['both', 'highlights', 'site'].includes(savedFilter)) allNotesFilter = savedFilter;
+  } catch {
+    // Keep the default.
+  }
+
+  function invalidateAllIndex() {
+    allIndex = null;
+  }
+
+  function readStore() {
+    try {
+      const store = GM_getValue(storeKey, {});
+      return store && typeof store === 'object' && !Array.isArray(store)
+        ? store
+        : {};
+    } catch (error) {
+      console.warn('Highlights & Notes: could not read shared notes.', error);
+      return {};
+    }
+  }
+
+  function writeStore(store) {
+    try {
+      GM_setValue(storeKey, store);
+    } catch (error) {
+      console.warn('Highlights & Notes: could not save shared notes.', error);
+    }
+    invalidateAllIndex();
+  }
+
+  function readList(key) {
+    try {
+      const value = GM_getValue(key, []);
+      return Array.isArray(value) ? value : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function writeValue(key, value) {
+    try {
+      GM_setValue(key, value);
+    } catch (error) {
+      console.warn('Highlights & Notes: could not save data.', error);
+    }
+    invalidateAllIndex();
+  }
+
+  function readSnapshot() {
+    try {
+      const snapshot = GM_getValue(snapshotKey, null);
+      return snapshot && typeof snapshot === 'object' && Array.isArray(snapshot.notes)
+        ? snapshot
+        : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function normalizeAnnotations(saved) {
+    if (!Array.isArray(saved)) return [];
+
+    return saved.map(item => ({
+      text: String(item?.text || ''),
+      note: String(item?.note || ''),
+      prefix: String(item?.prefix || ''),
+      suffix: String(item?.suffix || ''),
+      createdAt: typeof item?.createdAt === 'string' ? item.createdAt : '',
+      updatedAt: typeof item?.updatedAt === 'string' ? item.updatedAt : '',
+      range: null
+    })).filter(item => item.text && item.note);
+  }
+
+  function annotationIdentity(item) {
+    return JSON.stringify([
+      item.text,
+      item.note,
+      item.prefix,
+      item.suffix
+    ]);
+  }
+
+  function mergeAnnotations(existing, incoming) {
+    const merged = [];
+    const identities = new Set();
+
+    for (const item of [...existing, ...incoming]) {
+      const identity = annotationIdentity(item);
+      if (identities.has(identity)) continue;
+
+      identities.add(identity);
+      merged.push(item);
+    }
+
+    return merged;
+  }
+
+  function loadAnnotationsForPage() {
+    annotations.length = 0;
+
+    try {
+      const store = readStore();
+
+      if (Array.isArray(store[pageUrl])) {
+        annotations.push(...normalizeAnnotations(store[pageUrl]));
+        return;
+      }
+
+      let legacySaved = [];
+
+      try {
+        legacySaved = JSON.parse(
+          localStorage.getItem(`make-highlights-notes:${pageUrl}`) || '[]'
+        );
+      } catch {
+        // Ignore invalid or unavailable legacy localStorage data.
+      }
+
+      const migrated = normalizeAnnotations(legacySaved);
+      if (migrated.length) {
+        annotations.push(...migrated);
+        store[pageUrl] = migrated.map(({
+          text, note, prefix, suffix, createdAt, updatedAt
+        }) => ({
+          text,
+          note,
+          prefix,
+          suffix,
+          createdAt,
+          updatedAt
+        }));
+        writeStore(store);
+      }
+    } catch (error) {
+      console.warn('Highlights & Notes: could not load saved annotations.', error);
+    }
+  }
+
+  loadAnnotationsForPage();
+
+  const highlight = new Highlight();
+  CSS.highlights.set('make-highlights-notes', highlight);
+
+  const highlightStyle = document.createElement('style');
+  highlightStyle.textContent = `
+    ::highlight(make-highlights-notes) {
+      background-color: #ffe66d;
+      color: #111;
+    }
+  `;
+  (document.head || document.documentElement).appendChild(highlightStyle);
+
+  const host = document.createElement('div');
+  host.style.cssText = `
+    position: fixed;
+    inset: 0;
+    z-index: 2147483647;
+    pointer-events: none;
+    display: none;
+  `;
+  (document.body || document.documentElement).appendChild(host);
+
+  // YouTube listens for single-key shortcuts (k, f, m, j, l...) on the document.
+  // Events from inside a shadow root are retargeted to the host, so YouTube
+  // cannot tell we are typing in an input. Stop keys from leaving our UI.
+  for (const type of ['keydown', 'keyup', 'keypress']) {
+    host.addEventListener(type, event => event.stopPropagation());
+  }
+
+  const shadow = host.attachShadow({ mode: 'open' });
+
+  const uiStyle = document.createElement('style');
+  uiStyle.textContent = `
+    * { box-sizing: border-box; }
+
+    #panel,
+    #all-notes {
+      position: fixed;
+      top: 12px;
+      width: 340px;
+      max-height: 65vh;
+      overflow: auto;
+      padding: 12px;
+      color: #222;
+      background: #fff;
+      border: 1px solid #bbb;
+      border-radius: 10px;
+      box-shadow: 0 3px 16px rgba(0,0,0,.2);
+      font: 14px/1.4 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      pointer-events: auto;
+    }
+
+    #panel {
+      right: 12px;
+      display: block;
+    }
+
+    #all-notes {
+      left: 12px;
+      display: none;
+      width: min(400px, calc(100vw - 24px));
+    }
+
+    #panel-header,
+    #all-notes-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    #panel h3,
+    #all-notes h3 {
+      flex: 1;
+      margin: 0;
+      font-size: 16px;
+    }
+
+    #pill {
+      display: none;
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      align-items: center;
+      gap: 8px;
+      padding: 12px;
+      background: #fff;
+      border: 1px solid #bbb;
+      border-radius: 10px;
+      box-shadow: 0 3px 16px rgba(0,0,0,.2);
+      pointer-events: auto;
+      font: 13px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    #hint {
+      color: #666;
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+
+    .sort-row {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      margin: 10px 0 0;
+      color: #555;
+      font-size: 12px;
+    }
+
+    .sort-row select {
+      flex: 1;
+      min-width: 0;
+      padding: 5px 6px;
+      color: #222;
+      background: #fff;
+      border: 1px solid #bbb;
+      border-radius: 5px;
+      cursor: pointer;
+      font: 13px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .item {
+      margin-top: 9px;
+      padding: 10px;
+      background: #f0f7ff;
+      border: 1px solid #d5e7f7;
+      border-left: 3px solid #6ba5d7;
+      border-radius: 8px;
+    }
+
+    .quote {
+      color: #3d5265;
+      font-size: 12px;
+      margin-bottom: 8px;
+      padding: 6px 8px;
+      background: #e5f0fa;
+      border-radius: 5px;
+    }
+
+    .note {
+      color: #222;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      margin-bottom: 4px;
+    }
+
+    .timestamp {
+      display: block;
+      margin: 5px 0;
+      color: #666;
+      font-size: 11px;
+    }
+
+    .clamped {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      overflow: hidden;
+    }
+
+    .more-button {
+      display: none;
+      margin: 2px 0 5px;
+      padding: 2px 0;
+      color: #28699e;
+      background: transparent;
+      border: 0;
+      cursor: pointer;
+      font: 12px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button {
+      border: 0;
+      border-radius: 5px;
+      padding: 6px 9px;
+      cursor: pointer;
+      font: 13px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    #add,
+    #add-pill {
+      background: #ffe66d;
+      color: #222;
+    }
+
+    #add {
+      margin-right: 8px;
+    }
+
+    #add.flash-red,
+    #add-pill.flash-red {
+      background: #ff5a5a;
+      color: #fff;
+      animation: note-flash 0.35s ease;
+    }
+
+    @keyframes note-flash {
+      0%   { background: #ff5a5a; transform: scale(1); }
+      50%  { background: #ff7b7b; transform: scale(1.04); }
+      100% { background: #ffe66d; transform: scale(1); }
+    }
+
+    .small {
+      margin: 6px 5px 0 0;
+      background: #e3edf6;
+      color: #263b4d;
+    }
+
+    #empty,
+    #all-notes-empty {
+      color: #666;
+      font-size: 13px;
+    }
+
+    .icon-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 30px;
+      min-height: 30px;
+      padding: 4px 8px;
+      color: #333;
+      background: #eee;
+      touch-action: none;
+      user-select: none;
+    }
+
+    .grab-handle {
+      cursor: grab;
+      font-size: 17px;
+      line-height: 1;
+      letter-spacing: -2px;
+    }
+
+    .grab-handle:active {
+      cursor: grabbing;
+    }
+
+    .toggle-button {
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .all-notes-entry {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-top: 8px;
+      padding: 9px;
+      color: #263b4d;
+      background: #f0f7ff;
+      border: 1px solid #d5e7f7;
+      border-radius: 7px;
+      text-decoration: none;
+      overflow-wrap: anywhere;
+    }
+
+    .all-notes-entry:hover {
+      background: #e5f0fa;
+    }
+
+    .site-favicon {
+      flex: 0 0 20px;
+      width: 20px;
+      height: 20px;
+      object-fit: contain;
+    }
+
+    .site-details {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .site-path {
+      display: block;
+      margin-top: 2px;
+      color: #526579;
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+
+    .all-notes-count {
+      display: block;
+      margin-top: 3px;
+      color: #666;
+      font-size: 12px;
+    }
+
+    .site-heading {
+      margin: 12px 0 2px;
+      color: #263b4d;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    .site-pending {
+      margin-top: 8px;
+      padding: 8px 10px;
+      color: #7a5200;
+      background: #fff6dc;
+      border: 1px solid #f0dca0;
+      border-radius: 7px;
+      font-size: 12px;
+    }
+
+    #all-notes-filter {
+      display: flex;
+      gap: 6px;
+      margin: 4px 0 8px;
+    }
+
+    .filter-button {
+      flex: 1;
+      margin: 0;
+      padding: 6px 4px;
+      color: #263b4d;
+      background: #e3edf6;
+      border: 1px solid transparent;
+    }
+
+    .filter-button.active {
+      color: #222;
+      background: #ffe66d;
+      border-color: #d9c24a;
+      font-weight: 600;
+    }
+
+    .site-icon {
+      flex: 0 0 20px;
+      width: 20px;
+      font-size: 16px;
+      line-height: 20px;
+      text-align: center;
+    }
+
+    .show-more {
+      margin: 10px 0 0;
+    }
+
+    .site-note-text {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 3;
+      line-clamp: 3;
+      overflow: hidden;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    #all-notes-search {
+      display: block;
+      width: 100%;
+      margin: 6px 0 10px;
+      padding: 8px;
+      border: 1px solid #bbb;
+      border-radius: 6px;
+      font: inherit;
+    }
+
+    #all-notes-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 6px 0 10px;
+    }
+
+    #all-notes-actions .small {
+      margin: 0;
+    }
+  `;
+  shadow.appendChild(uiStyle);
+
+  // Small confirmation message that works even when the main interface is closed.
+  const toastHost = document.createElement('div');
+  toastHost.style.cssText = `
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    transform: translateX(-50%);
+    z-index: 2147483647;
+    pointer-events: none;
+  `;
+  const toastShadow = toastHost.attachShadow({ mode: 'open' });
+  const toastStyle = document.createElement('style');
+  toastStyle.textContent = `
+    .toast {
+      padding: 9px 14px;
+      color: #fff;
+      background: #222;
+      border-radius: 8px;
+      box-shadow: 0 3px 16px rgba(0,0,0,.3);
+      font: 13px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      opacity: 0;
+      transition: opacity .2s;
+    }
+    .toast.show { opacity: 1; }
+  `;
+  const toastEl = document.createElement('div');
+  toastEl.className = 'toast';
+  toastShadow.append(toastStyle, toastEl);
+  (document.body || document.documentElement).appendChild(toastHost);
+
+  let toastTimer = null;
+
+  function showToast(message) {
+    toastEl.textContent = message;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2600);
+  }
+
+  const panel = document.createElement('aside');
+  panel.id = 'panel';
+
+  const panelHeader = document.createElement('div');
+  panelHeader.id = 'panel-header';
+
+  const panelGrab = document.createElement('button');
+  panelGrab.className = 'icon-button grab-handle';
+  panelGrab.type = 'button';
+  panelGrab.textContent = '⠿';
+  panelGrab.title = 'Drag panel';
+  panelGrab.setAttribute('aria-label', 'Drag panel');
+
+  const hideButton = document.createElement('button');
+  hideButton.className = 'icon-button toggle-button';
+  hideButton.type = 'button';
+  hideButton.textContent = '−';
+  hideButton.title = 'Minimize panel';
+  hideButton.setAttribute('aria-label', 'Minimize panel');
+
+  const heading = document.createElement('h3');
+  heading.textContent = 'Highlights & notes';
+
+  panelHeader.append(panelGrab, hideButton, heading);
+  panel.appendChild(panelHeader);
+
+  const hint = document.createElement('div');
+  hint.id = 'hint';
+  hint.textContent = 'Select text on the page to annotate it (Alt+Shift+H). Alt+Shift+N sends a note to your notes site.';
+  panel.appendChild(hint);
+
+  const panelAddButton = document.createElement('button');
+  panelAddButton.id = 'add';
+  panelAddButton.type = 'button';
+  panelAddButton.textContent = 'Add note';
+  panelAddButton.title = 'Add a note to the current selection';
+  panelAddButton.setAttribute('aria-label', 'Add a note to the current selection');
+
+  const openAllNotesButton = document.createElement('button');
+  openAllNotesButton.className = 'small';
+  openAllNotesButton.type = 'button';
+  openAllNotesButton.textContent = 'All notes';
+  openAllNotesButton.title = 'See pages with saved notes';
+
+  const panelSendButton = document.createElement('button');
+  panelSendButton.className = 'small';
+  panelSendButton.type = 'button';
+  panelSendButton.textContent = 'Send to site';
+  panelSendButton.title = 'Send the selection and a note to your Url Notes site (Alt+Shift+N)';
+  panelSendButton.setAttribute('aria-label', 'Send to Url Notes site');
+
+  panel.append(panelAddButton, openAllNotesButton, panelSendButton);
+
+  // Sort this page's notes by date added, or by where the text sits on the page.
+  const sortRow = document.createElement('label');
+  sortRow.className = 'sort-row';
+
+  const sortLabel = document.createElement('span');
+  sortLabel.textContent = 'Sort by';
+
+  const sortSelect = document.createElement('select');
+  sortSelect.title = 'How to list the notes on this page';
+  sortSelect.setAttribute('aria-label', 'Sort notes on this page');
+
+  for (const [value, label] of [
+    ['oldest', 'Date added · oldest first'],
+    ['newest', 'Date added · newest first'],
+    ['page', 'Order in page']
+  ]) {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = label;
+    sortSelect.appendChild(option);
+  }
+
+  sortSelect.value = panelSort;
+  sortSelect.addEventListener('change', () => {
+    panelSort = ['oldest', 'newest', 'page'].includes(sortSelect.value) ? sortSelect.value : 'oldest';
+
+    try {
+      GM_setValue(panelSortKey, panelSort);
+    } catch {
+      // The choice just will not be remembered.
+    }
+
+    // The order in the page needs fresh positions.
+    if (panelSort === 'page') restoreAnnotations();
+    renderAnnotations();
+  });
+
+  sortRow.append(sortLabel, sortSelect);
+  panel.appendChild(sortRow);
+
+  const itemsEl = document.createElement('div');
+  itemsEl.id = 'items';
+  panel.appendChild(itemsEl);
+
+  const emptyEl = document.createElement('div');
+  emptyEl.id = 'empty';
+  emptyEl.textContent = 'No annotations yet.';
+  panel.appendChild(emptyEl);
+
+  const pill = document.createElement('div');
+  pill.id = 'pill';
+
+  const pillGrab = document.createElement('button');
+  pillGrab.className = 'icon-button grab-handle';
+  pillGrab.type = 'button';
+  pillGrab.textContent = '⠿';
+  pillGrab.title = 'Drag minimized panel';
+  pillGrab.setAttribute('aria-label', 'Drag minimized panel');
+
+  const showButton = document.createElement('button');
+  showButton.className = 'icon-button toggle-button';
+  showButton.type = 'button';
+  showButton.textContent = '▣';
+  showButton.title = 'Show highlights and notes';
+  showButton.setAttribute('aria-label', 'Show highlights and notes');
+
+  const pillAddButton = document.createElement('button');
+  pillAddButton.id = 'add-pill';
+  pillAddButton.type = 'button';
+  pillAddButton.textContent = 'Add note';
+  pillAddButton.title = 'Add a note to the current selection';
+  pillAddButton.setAttribute('aria-label', 'Add a note to the current selection');
+
+  const pillAllNotesButton = document.createElement('button');
+  pillAllNotesButton.className = 'icon-button';
+  pillAllNotesButton.type = 'button';
+  pillAllNotesButton.textContent = 'All';
+  pillAllNotesButton.title = 'See pages with saved notes';
+  pillAllNotesButton.setAttribute('aria-label', 'See pages with saved notes');
+
+  const pillSendButton = document.createElement('button');
+  pillSendButton.className = 'icon-button';
+  pillSendButton.type = 'button';
+  pillSendButton.textContent = 'Send';
+  pillSendButton.title = 'Send the selection and a note to your Url Notes site (Alt+Shift+N)';
+  pillSendButton.setAttribute('aria-label', 'Send to Url Notes site');
+
+  pill.append(pillGrab, showButton, pillAddButton, pillAllNotesButton, pillSendButton);
+
+  const allNotesPanel = document.createElement('aside');
+  allNotesPanel.id = 'all-notes';
+
+  const allNotesHeader = document.createElement('div');
+  allNotesHeader.id = 'all-notes-header';
+
+  const allNotesHeading = document.createElement('h3');
+  allNotesHeading.textContent = 'All notes';
+
+  const closeAllNotesButton = document.createElement('button');
+  closeAllNotesButton.className = 'icon-button';
+  closeAllNotesButton.type = 'button';
+  closeAllNotesButton.textContent = '×';
+  closeAllNotesButton.title = 'Close all notes';
+  closeAllNotesButton.setAttribute('aria-label', 'Close all notes');
+
+  allNotesHeader.append(allNotesHeading, closeAllNotesButton);
+
+  const searchInput = document.createElement('input');
+  searchInput.id = 'all-notes-search';
+  searchInput.type = 'search';
+  searchInput.placeholder = 'Search pages, highlighted text, or notes…';
+  searchInput.setAttribute('aria-label', 'Search all notes');
+
+  // Show only your highlights, only the notes from your Url Notes site, or both.
+  const allNotesFilterBar = document.createElement('div');
+  allNotesFilterBar.id = 'all-notes-filter';
+
+  const filterButtons = {};
+  for (const [name, label] of [['both', 'Both'], ['highlights', 'Highlights'], ['site', 'Site notes']]) {
+    const button = document.createElement('button');
+    button.className = 'filter-button';
+    button.type = 'button';
+    button.textContent = label;
+    button.addEventListener('click', () => {
+      allNotesFilter = name;
+      allNotesLimit = ALL_NOTES_PAGE;
+      try {
+        GM_setValue(filterKey, name);
+      } catch {
+        // The choice just will not be remembered.
+      }
+      renderAllNotes();
+    });
+    filterButtons[name] = button;
+    allNotesFilterBar.appendChild(button);
+  }
+
+  const allNotesActions = document.createElement('div');
+  allNotesActions.id = 'all-notes-actions';
+
+  const exportButton = document.createElement('button');
+  exportButton.className = 'small';
+  exportButton.type = 'button';
+  exportButton.textContent = 'Export JSON';
+
+  const importButton = document.createElement('button');
+  importButton.className = 'small';
+  importButton.type = 'button';
+  importButton.textContent = 'Import JSON';
+
+  const importInput = document.createElement('input');
+  importInput.type = 'file';
+  importInput.accept = 'application/json,.json';
+  importInput.style.display = 'none';
+
+  allNotesActions.append(exportButton, importButton);
+
+  const allNotesList = document.createElement('div');
+  allNotesList.id = 'all-notes-list';
+
+  const allNotesEmpty = document.createElement('div');
+  allNotesEmpty.id = 'all-notes-empty';
+  allNotesEmpty.textContent = 'No saved notes on any pages yet.';
+
+  allNotesPanel.append(
+    allNotesHeader,
+    searchInput,
+    allNotesFilterBar,
+    allNotesActions,
+    importInput,
+    allNotesList,
+    allNotesEmpty
+  );
+
+  shadow.append(panel, pill, allNotesPanel);
+
+  function placeAt(element, left, top) {
+    const rect = element.getBoundingClientRect();
+    const maxLeft = Math.max(0, window.innerWidth - rect.width);
+    const maxTop = Math.max(0, window.innerHeight - rect.height);
+
+    element.style.left = `${Math.max(0, Math.min(left, maxLeft))}px`;
+    element.style.top = `${Math.max(0, Math.min(top, maxTop))}px`;
+    element.style.right = 'auto';
+  }
+
+  function makeDraggable(handle, element) {
+    handle.addEventListener('pointerdown', event => {
+      if (event.button !== 0) return;
+
+      event.preventDefault();
+
+      const rect = element.getBoundingClientRect();
+      const startX = event.clientX;
+      const startY = event.clientY;
+      const startLeft = rect.left;
+      const startTop = rect.top;
+
+      placeAt(element, startLeft, startTop);
+
+      try {
+        handle.setPointerCapture(event.pointerId);
+      } catch {
+        // Pointer capture may not be available in every browser.
+      }
+
+      function onMove(moveEvent) {
+        placeAt(
+          element,
+          startLeft + moveEvent.clientX - startX,
+          startTop + moveEvent.clientY - startY
+        );
+      }
+
+      function onEnd() {
+        handle.removeEventListener('pointermove', onMove);
+        handle.removeEventListener('pointerup', onEnd);
+        handle.removeEventListener('pointercancel', onEnd);
+      }
+
+      handle.addEventListener('pointermove', onMove);
+      handle.addEventListener('pointerup', onEnd);
+      handle.addEventListener('pointercancel', onEnd);
+    });
+  }
+
+  makeDraggable(panelGrab, panel);
+  makeDraggable(pillGrab, pill);
+
+  function hidePanel() {
+    const rect = panel.getBoundingClientRect();
+    placeAt(pill, rect.left, rect.top);
+    panel.style.display = 'none';
+    pill.style.display = 'flex';
+  }
+
+  function showPanel() {
+    const rect = pill.getBoundingClientRect();
+    placeAt(panel, rect.left, rect.top);
+    pill.style.display = 'none';
+    panel.style.display = 'block';
+  }
+
+  hideButton.addEventListener('click', hidePanel);
+  showButton.addEventListener('click', showPanel);
+
+  function serializeAnnotations(list) {
+    return list.map(({
+      text, note, prefix, suffix, createdAt, updatedAt
+    }) => ({
+      text,
+      note,
+      prefix,
+      suffix,
+      createdAt,
+      updatedAt
+    }));
+  }
+
+  function saveAnnotations() {
+    const store = readStore();
+    store[pageUrl] = serializeAnnotations(annotations);
+    writeStore(store);
+  }
+
+  // Cache element visibility during one index build so hidden duplicates of
+  // the same text (common on YouTube) are not matched.
+  function buildTextIndex() {
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    const visibility = new Map();
+    let text = '';
+    let node;
+
+    function isVisible(element) {
+      if (!element) return false;
+      if (visibility.has(element)) return visibility.get(element);
+
+      let visible = true;
+      try {
+        if (typeof element.checkVisibility === 'function') {
+          visible = element.checkVisibility();
+        }
+      } catch {
+        visible = true;
+      }
+
+      visibility.set(element, visible);
+      return visible;
+    }
+
+    while ((node = walker.nextNode())) {
+      if (host.contains(node)) continue;
+
+      const parent = node.parentElement;
+      if (parent && /^(SCRIPT|STYLE|NOSCRIPT|TEXTAREA|INPUT)$/i.test(parent.tagName)) {
+        continue;
+      }
+
+      if (!isVisible(parent)) continue;
+
+      const value = node.nodeValue || '';
+      if (!value) continue;
+
+      nodes.push({
+        node,
+        start: text.length,
+        end: text.length + value.length
+      });
+      text += value;
+    }
+
+    return { text, nodes };
+  }
+
+  function findNodePosition(nodes, offset, isEnd = false) {
+    for (const entry of nodes) {
+      if (offset < entry.end || (isEnd && offset === entry.end)) {
+        return {
+          node: entry.node,
+          offset: Math.max(0, Math.min(offset - entry.start, entry.node.nodeValue.length))
+        };
+      }
+    }
+
+    const last = nodes[nodes.length - 1];
+    if (!last) return null;
+
+    return {
+      node: last.node,
+      offset: last.node.nodeValue.length
+    };
+  }
+
+  function getRangeOffsets(index, range) {
+    let start = 0;
+    let end = 0;
+    let foundStart = false;
+    let foundEnd = false;
+
+    for (const entry of index.nodes) {
+      if (!foundStart && entry.node === range.startContainer) {
+        start = entry.start + range.startOffset;
+        foundStart = true;
+      }
+      if (!foundEnd && entry.node === range.endContainer) {
+        end = entry.start + range.endOffset;
+        foundEnd = true;
+      }
+      if (foundStart && foundEnd) break;
+    }
+
+    return foundStart && foundEnd ? { start, end } : null;
+  }
+
+  function createRangeFromOffsets(nodes, start, end) {
+    const startPoint = findNodePosition(nodes, start);
+    const endPoint = findNodePosition(nodes, end, true);
+    if (!startPoint || !endPoint) return null;
+
+    try {
+      const range = document.createRange();
+      range.setStart(startPoint.node, startPoint.offset);
+      range.setEnd(endPoint.node, endPoint.offset);
+      return range;
+    } catch {
+      return null;
+    }
+  }
+
+  // Re-finds every annotation in the page and repaints the highlights.
+  // It does not rebuild the side panel, so it is safe to run often.
+  function restoreAnnotations() {
+    if (!document.body) return;
+
+    highlight.clear();
+    if (!annotations.length) return;
+
+    const index = buildTextIndex();
+
+    for (const item of annotations) {
+      item.range = null;
+
+      let matchAt = -1;
+      let bestScore = -1;
+      let searchFrom = 0;
+
+      while (searchFrom < index.text.length) {
+        const candidateAt = index.text.indexOf(item.text, searchFrom);
+        if (candidateAt === -1) break;
+
+        const before = index.text.slice(
+          Math.max(0, candidateAt - item.prefix.length),
+          candidateAt
+        );
+        const after = index.text.slice(
+          candidateAt + item.text.length,
+          candidateAt + item.text.length + item.suffix.length
+        );
+
+        let score = 0;
+        if (item.prefix && before.endsWith(item.prefix)) score += item.prefix.length;
+        if (item.suffix && after.startsWith(item.suffix)) score += item.suffix.length;
+
+        if (score > bestScore) {
+          bestScore = score;
+          matchAt = candidateAt;
+        }
+
+        searchFrom = candidateAt + 1;
+      }
+
+      if (matchAt !== -1) {
+        const range = createRangeFromOffsets(
+          index.nodes,
+          matchAt,
+          matchAt + item.text.length
+        );
+
+        if (range && range.toString().trim() === item.text) {
+          item.range = range;
+          highlight.add(range);
+        }
+      }
+    }
+  }
+
+  // YouTube changes the page constantly (player time, recommendations, lazy
+  // comments), so a debounce would never fire. Use a throttle instead.
+  function scheduleRestore() {
+    if (restoreTimer) return;
+
+    restoreTimer = setTimeout(() => {
+      restoreTimer = null;
+      if (handleNavigation()) return;
+
+      if (annotations.length) {
+        restoreAnnotations();
+        refreshPanelOrder();
+      }
+    }, 800);
+  }
+
+  // YouTube is a single-page app: the URL changes without a page load.
+  function handleNavigation() {
+    const key = computePageKey();
+    if (key === pageUrl) return false;
+
+    pageUrl = key;
+    pendingRange = null;
+    loadAnnotationsForPage();
+    restoreAnnotations();
+    renderAnnotations();
+
+    if (allNotesPanel.style.display !== 'none') renderAllNotes();
+    return true;
+  }
+
+  function addExpandableText(parent, text, className) {
+    const textEl = document.createElement('div');
+    textEl.className = `${className} clamped`;
+    textEl.textContent = text;
+
+    const moreButton = document.createElement('button');
+    moreButton.className = 'more-button';
+    moreButton.type = 'button';
+    moreButton.textContent = '… More';
+
+    moreButton.addEventListener('click', () => {
+      const isExpanded = textEl.classList.toggle('expanded');
+      textEl.classList.toggle('clamped', !isExpanded);
+      moreButton.textContent = isExpanded ? 'Less' : '… More';
+    });
+
+    parent.append(textEl, moreButton);
+
+    requestAnimationFrame(() => {
+      const needsMore = text.length > 140 || textEl.scrollHeight > textEl.clientHeight + 1;
+
+      if (needsMore) {
+        moreButton.style.display = 'inline-block';
+      } else {
+        textEl.classList.remove('clamped');
+      }
+    });
+  }
+
+  function formatTimestamp(value) {
+    if (!value) return 'Date unavailable';
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Date unavailable';
+
+    return date.toLocaleString();
+  }
+
+  // Orders the side panel by when notes were added, or by where their text sits
+  // on the page. The stored order is never changed, only how it is listed.
+  function sortedAnnotations() {
+    const entries = annotations.map((item, position) => ({
+      item,
+      position,
+      time: Date.parse(item.createdAt) || 0
+    }));
+
+    if (panelSort === 'page') {
+      entries.sort((a, b) => {
+        const aRange = a.item.range;
+        const bRange = b.item.range;
+
+        // Text that cannot be found on this page goes last.
+        if (Boolean(aRange) !== Boolean(bRange)) return aRange ? -1 : 1;
+
+        if (aRange && bRange) {
+          try {
+            const order = aRange.compareBoundaryPoints(Range.START_TO_START, bRange);
+            if (order) return order;
+          } catch {
+            // Ranges that cannot be compared keep their added order.
+          }
+        }
+
+        return a.position - b.position;
+      });
+    } else if (panelSort === 'newest') {
+      entries.sort((a, b) => b.time - a.time || b.position - a.position);
+    } else {
+      entries.sort((a, b) => a.time - b.time || a.position - b.position);
+    }
+
+    return entries.map(entry => entry.item);
+  }
+
+  // Pages shift while they load (and constantly on sites like YouTube), so the
+  // order in the page can change after the panel was drawn. Redraw only then.
+  function refreshPanelOrder() {
+    if (panelSort !== 'page' || host.style.display === 'none') return;
+
+    const next = sortedAnnotations();
+    const unchanged =
+      next.length === renderedOrder.length &&
+      next.every((item, position) => item === renderedOrder[position]);
+
+    if (!unchanged) renderAnnotations();
+  }
+
+  function renderAnnotations() {
+    while (itemsEl.firstChild) {
+      itemsEl.removeChild(itemsEl.firstChild);
+    }
+
+    emptyEl.style.display = annotations.length ? 'none' : 'block';
+    sortRow.style.display = annotations.length > 1 ? 'flex' : 'none';
+    sortSelect.value = panelSort;
+
+    renderedOrder = sortedAnnotations();
+
+    renderedOrder.forEach(item => {
+      const row = document.createElement('div');
+      row.className = 'item';
+
+      addExpandableText(row, `“${item.text}”`, 'quote');
+      addExpandableText(row, item.note, 'note');
+
+      const timestamp = document.createElement('span');
+      timestamp.className = 'timestamp';
+
+      if (item.updatedAt) {
+        timestamp.textContent =
+          `Created: ${formatTimestamp(item.createdAt)} · Edited: ${formatTimestamp(item.updatedAt)}`;
+      } else {
+        timestamp.textContent = `Created: ${formatTimestamp(item.createdAt)}`;
+      }
+
+      row.appendChild(timestamp);
+
+      const edit = document.createElement('button');
+      edit.className = 'small';
+      edit.textContent = 'Edit note';
+      edit.addEventListener('click', () => {
+        const updated = prompt('Edit your note:', item.note);
+        if (updated !== null && updated.trim()) {
+          item.note = updated.trim();
+          item.updatedAt = new Date().toISOString();
+          saveAnnotations();
+          renderAnnotations();
+          if (allNotesPanel.style.display !== 'none') renderAllNotes();
+        }
+      });
+
+      const copy = document.createElement('button');
+      copy.className = 'small';
+      copy.textContent = '📋';
+      copy.title = 'Copy note';
+      copy.setAttribute('aria-label', 'Copy note');
+      copy.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(item.note);
+        } catch {
+          const temporary = document.createElement('textarea');
+          temporary.value = item.note;
+          temporary.style.position = 'fixed';
+          temporary.style.opacity = '0';
+          document.body.appendChild(temporary);
+          temporary.select();
+
+          try {
+            document.execCommand('copy');
+          } finally {
+            temporary.remove();
+          }
+        }
+
+        copy.textContent = '✅';
+        setTimeout(() => {
+          copy.textContent = '📋';
+        }, 1200);
+      });
+
+      const selectText = document.createElement('button');
+      selectText.className = 'small';
+      selectText.textContent = 'Select text';
+      selectText.addEventListener('click', () => {
+        if (!item.range) {
+          alert('That text could not be found on this page.');
+          return;
+        }
+
+        try {
+          const selection = window.getSelection();
+          if (selection) {
+            selection.removeAllRanges();
+            selection.addRange(item.range);
+          }
+
+          const rect = item.range.getBoundingClientRect();
+          window.scrollTo({
+            top: window.scrollY + rect.top - 120,
+            behavior: 'smooth'
+          });
+        } catch {
+          alert('That text is no longer available on the page.');
+        }
+      });
+
+      const remove = document.createElement('button');
+      remove.className = 'small';
+      remove.textContent = '🗑️';
+      remove.title = 'Delete note';
+      remove.setAttribute('aria-label', 'Delete note');
+      remove.addEventListener('click', () => {
+        const index = annotations.indexOf(item);
+        if (index !== -1) annotations.splice(index, 1);
+        saveAnnotations();
+        restoreAnnotations();
+        renderAnnotations();
+        if (allNotesPanel.style.display !== 'none') renderAllNotes();
+      });
+
+      row.append(edit, copy, selectText, remove);
+      itemsEl.appendChild(row);
+    });
+  }
+
+  function normalizeSearchText(value) {
+    return String(value || '')
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .toLocaleLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, ' ')
+      .trim();
+  }
+
+  // Index of everything the All notes panel can show. It is built once and
+  // reused while you type, so searching stays fast; any change to the stored
+  // data throws it away (see invalidateAllIndex).
+  function buildAllIndex() {
+    if (allIndex) return allIndex;
+
+    const tokensOf = text => new Set(normalizeSearchText(text).split(/\s+/).filter(Boolean));
+
+    const pages = [];
+    for (const [url, saved] of Object.entries(readStore())) {
+      if (!Array.isArray(saved) || saved.length === 0) continue;
+
+      let parsedUrl;
+      try {
+        parsedUrl = new URL(url);
+      } catch {
+        continue;
+      }
+      if (!/^https?:$/.test(parsedUrl.protocol)) continue;
+
+      const items = normalizeAnnotations(saved).map(item => ({
+        item,
+        tokens: tokensOf(`${item.text} ${item.note}`)
+      }));
+      if (!items.length) continue;
+
+      const time = items.reduce((latest, { item }) => {
+        const stamp = Date.parse(item.updatedAt || item.createdAt) || 0;
+        return stamp > latest ? stamp : latest;
+      }, 0);
+
+      pages.push({ kind: 'page', url, parsedUrl, items, time });
+    }
+
+    const snapshot = readSnapshot();
+    const siteNotes = snapshot
+      ? snapshot.notes.map(note => ({
+          kind: 'site',
+          note,
+          tokens: tokensOf(note.text),
+          time: note.created || 0
+        }))
+      : [];
+
+    allIndex = { pages, siteNotes, snapshot };
+    return allIndex;
+  }
+
+  function timeLabel(time) {
+    return time > 0 ? formatTimestamp(new Date(time).toISOString()) : '';
+  }
+
+  function makePageLink(entry) {
+    const { url, parsedUrl, items, matching, time } = entry;
+
+    const link = document.createElement('a');
+    link.className = 'all-notes-entry';
+    link.href = url;
+
+    const favicon = document.createElement('img');
+    favicon.className = 'site-favicon';
+    favicon.alt = '';
+    favicon.loading = 'lazy';
+    favicon.src =
+      `https://www.google.com/s2/favicons?domain=${encodeURIComponent(parsedUrl.hostname)}&sz=32`;
+
+    const details = document.createElement('span');
+    details.className = 'site-details';
+
+    const domain = document.createElement('span');
+    domain.textContent = parsedUrl.host;
+    details.appendChild(domain);
+
+    const path = document.createElement('span');
+    path.className = 'site-path';
+    path.textContent = `${parsedUrl.pathname || '/'}${parsedUrl.search}`;
+    details.appendChild(path);
+
+    const count = document.createElement('span');
+    count.className = 'all-notes-count';
+
+    const noun = n => (n === 1 ? 'note' : 'notes');
+    const amount = matching.length !== items.length
+      ? `${matching.length} matching ${noun(matching.length)} · ${items.length} total`
+      : `${items.length} ${noun(items.length)}`;
+    count.textContent = `🖍️ ${amount}${time ? ` · ${timeLabel(time)}` : ''}`;
+
+    details.appendChild(count);
+    link.append(favicon, details);
+
+    if (url === pageUrl) {
+      link.addEventListener('click', event => {
+        event.preventDefault();
+        window.focus();
+        allNotesPanel.style.display = 'none';
+      });
+    } else {
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+    }
+
+    return link;
+  }
+
+  function makeSiteNoteLink(entry, snapshot) {
+    const { note } = entry;
+
+    const link = document.createElement('a');
+    link.className = 'all-notes-entry';
+    link.href = snapshot?.siteUrl || DEFAULT_SITE_URL;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+
+    const icon = document.createElement('span');
+    icon.className = 'site-icon';
+    icon.textContent = '📝';
+
+    const details = document.createElement('span');
+    details.className = 'site-details';
+
+    const text = document.createElement('span');
+    text.className = 'site-note-text';
+    text.textContent = note.text;
+
+    const when = document.createElement('span');
+    when.className = 'all-notes-count';
+    when.textContent = `${note.pinned ? '📌 ' : ''}Site note${note.created ? ` · ${timeLabel(note.created)}` : ''}`;
+
+    details.append(text, when);
+    link.append(icon, details);
+    return link;
+  }
+
+  function renderAllNotes() {
+    while (allNotesList.firstChild) {
+      allNotesList.removeChild(allNotesList.firstChild);
+    }
+
+    const index = buildAllIndex();
+
+    const searchTerms = normalizeSearchText(searchInput.value)
+      .split(/\s+/)
+      .filter(Boolean);
+    const matches = tokens => searchTerms.every(term => tokens.has(term));
+
+    const highlightTotal = index.pages.reduce((sum, page) => sum + page.items.length, 0);
+    filterButtons.both.textContent = 'Both';
+    filterButtons.highlights.textContent = `Highlights (${highlightTotal})`;
+    filterButtons.site.textContent = `Site notes (${index.siteNotes.length})`;
+
+    for (const [name, button] of Object.entries(filterButtons)) {
+      const active = name === allNotesFilter;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', String(active));
+    }
+
+    const entries = [];
+
+    if (allNotesFilter !== 'site') {
+      for (const page of index.pages) {
+        const matching = searchTerms.length
+          ? page.items.filter(({ tokens }) => matches(tokens))
+          : page.items;
+        if (matching.length) entries.push({ ...page, matching });
+      }
+    }
+
+    if (allNotesFilter !== 'highlights') {
+      for (const entry of index.siteNotes) {
+        if (!searchTerms.length || matches(entry.tokens)) entries.push(entry);
+      }
+    }
+
+    // Newest first. In the site-only view, pinned notes stay on top.
+    entries.sort((a, b) => {
+      if (allNotesFilter === 'site' && a.note.pinned !== b.note.pinned) {
+        return a.note.pinned ? -1 : 1;
+      }
+      return b.time - a.time;
+    });
+
+    if (allNotesFilter !== 'highlights') {
+      const pending = readList(outboxKey).length;
+      if (pending) {
+        const banner = document.createElement('div');
+        banner.className = 'site-pending';
+        banner.textContent =
+          `${pending} ${pending === 1 ? 'note is' : 'notes are'} waiting to be delivered. Open your Url Notes site to sync.`;
+        allNotesList.appendChild(banner);
+      }
+
+      const syncInfo = document.createElement('div');
+      syncInfo.className = 'all-notes-count';
+      syncInfo.textContent = index.snapshot
+        ? `Site notes last synced ${timeLabel(index.snapshot.syncedAt)}`
+        : 'Your Url Notes site has not synced yet. Open it once to see its notes here.';
+      allNotesList.appendChild(syncInfo);
+    }
+
+    allNotesEmpty.style.display = entries.length ? 'none' : 'block';
+    if (searchTerms.length) {
+      allNotesEmpty.textContent = 'No matching notes found.';
+    } else if (allNotesFilter === 'site') {
+      allNotesEmpty.textContent = index.snapshot
+        ? 'No notes on your Url Notes site yet.'
+        : 'No site notes synced yet.';
+    } else if (allNotesFilter === 'highlights') {
+      allNotesEmpty.textContent = 'No saved notes on any pages yet.';
+    } else {
+      allNotesEmpty.textContent = 'No saved notes yet.';
+    }
+
+    for (const entry of entries.slice(0, allNotesLimit)) {
+      allNotesList.appendChild(
+        entry.kind === 'page' ? makePageLink(entry) : makeSiteNoteLink(entry, index.snapshot)
+      );
+    }
+
+    if (entries.length > allNotesLimit) {
+      const more = document.createElement('button');
+      more.className = 'small show-more';
+      more.type = 'button';
+      more.textContent = `Show ${Math.min(ALL_NOTES_PAGE, entries.length - allNotesLimit)} more (${entries.length - allNotesLimit} hidden)`;
+      more.addEventListener('click', () => {
+        allNotesLimit += ALL_NOTES_PAGE;
+        renderAllNotes();
+      });
+      allNotesList.appendChild(more);
+    }
+  }
+
+  function openAllNotes() {
+    allNotesLimit = ALL_NOTES_PAGE;
+    renderAllNotes();
+    allNotesPanel.style.display = 'block';
+  }
+
+  openAllNotesButton.addEventListener('click', openAllNotes);
+  pillAllNotesButton.addEventListener('click', openAllNotes);
+
+  // Wait a moment after typing stops, so a long list is not redrawn on every key.
+  let searchTimer = null;
+  searchInput.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      allNotesLimit = ALL_NOTES_PAGE;
+      renderAllNotes();
+    }, 150);
+  });
+
+  closeAllNotesButton.addEventListener('click', () => {
+    allNotesPanel.style.display = 'none';
+  });
+
+  function exportNotes() {
+    const data = {
+      format: 'make-highlights-notes',
+      version: 2,
+      exportedAt: new Date().toISOString(),
+      pages: readStore()
+    };
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+      type: 'application/json'
+    });
+
+    const downloadUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = 'make-highlights-notes.json';
+    link.click();
+
+    setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+  }
+
+  exportButton.addEventListener('click', exportNotes);
+
+  importButton.addEventListener('click', () => {
+    importInput.click();
+  });
+
+  // Also reads the JSON exported by the Url Notes site: it carries the same
+  // "pages" object when the site is linked to this script.
+  importInput.addEventListener('change', async () => {
+    const file = importInput.files?.[0];
+    importInput.value = '';
+    if (!file) return;
+
+    try {
+      const imported = JSON.parse(await file.text());
+      const importedPages = imported?.pages || imported?.annotations;
+
+      if (!importedPages || typeof importedPages !== 'object' || Array.isArray(importedPages)) {
+        throw new Error('The file does not contain a pages object.');
+      }
+
+      const store = readStore();
+      let importedCount = 0;
+
+      for (const [url, saved] of Object.entries(importedPages)) {
+        let parsedUrl;
+        try {
+          parsedUrl = new URL(url);
+        } catch {
+          continue;
+        }
+
+        if (!/^https?:$/.test(parsedUrl.protocol)) continue;
+
+        const incoming = normalizeAnnotations(saved);
+        if (!incoming.length) continue;
+
+        const existing = normalizeAnnotations(store[url]);
+        const merged = mergeAnnotations(existing, incoming);
+
+        importedCount += merged.length - existing.length;
+        store[url] = serializeAnnotations(merged);
+      }
+
+      const currentPageNotes = normalizeAnnotations(store[pageUrl]);
+      const updatedCurrentPage = mergeAnnotations(annotations, currentPageNotes);
+      annotations.splice(0, annotations.length, ...updatedCurrentPage);
+
+      store[pageUrl] = serializeAnnotations(annotations);
+
+      writeStore(store);
+      restoreAnnotations();
+      renderAnnotations();
+      renderAllNotes();
+
+      alert(`Import complete. Added ${importedCount} new ${importedCount === 1 ? 'note' : 'notes'}.`);
+    } catch (error) {
+      console.error('Highlights & Notes: could not import notes.', error);
+      alert('Could not import that JSON file. Make sure it is an export from Make Highlights & Notes.');
+    }
+  });
+
+  function updateSelectionRange() {
+    const selection = window.getSelection();
+
+    if (!selection || selection.rangeCount === 0 || !selection.toString().trim()) {
+      pendingRange = null;
+      return;
+    }
+
+    const range = selection.getRangeAt(0).cloneRange();
+    const rect = range.getBoundingClientRect();
+
+    if (!rect.width && !rect.height) {
+      pendingRange = null;
+      return;
+    }
+
+    pendingRange = range;
+  }
+
+  function flashButtonRed(button) {
+    button.classList.remove('flash-red');
+    void button.offsetWidth;
+    button.classList.add('flash-red');
+    setTimeout(() => button.classList.remove('flash-red'), 350);
+  }
+
+  function addNoteToCurrentSelection(button, rangeOverride = null) {
+    if (rangeOverride) {
+      pendingRange = rangeOverride;
+    } else {
+      updateSelectionRange();
+    }
+
+    if (!pendingRange) {
+      flashButtonRed(button);
+      return;
+    }
+
+    const range = pendingRange.cloneRange();
+    const text = range.toString().trim();
+
+    if (!text) {
+      pendingRange = null;
+      flashButtonRed(button);
+      return;
+    }
+
+    const index = buildTextIndex();
+    const offsets = getRangeOffsets(index, range);
+
+    const note = prompt(
+      `Add a note for “${text.slice(0, 120)}${text.length > 120 ? '…' : ''}”`
+    );
+
+    if (note !== null && note.trim()) {
+      const start = offsets ? offsets.start : -1;
+      const end = offsets ? offsets.end : -1;
+
+      annotations.push({
+        text,
+        note: note.trim(),
+        prefix: start >= 0 ? index.text.slice(Math.max(0, start - 60), start) : '',
+        suffix: end >= 0 ? index.text.slice(end, end + 60) : '',
+        createdAt: new Date().toISOString(),
+        updatedAt: '',
+        range
+      });
+
+      saveAnnotations();
+      restoreAnnotations();
+      renderAnnotations();
+
+      if (allNotesPanel.style.display !== 'none') {
+        renderAllNotes();
+      }
+    }
+
+    pendingRange = null;
+  }
+
+  for (const button of [panelAddButton, pillAddButton, panelSendButton, pillSendButton]) {
+    button.addEventListener('mousedown', event => event.preventDefault());
+  }
+
+  panelAddButton.addEventListener('click', () => {
+    addNoteToCurrentSelection(panelAddButton);
+  });
+
+  pillAddButton.addEventListener('click', () => {
+    addNoteToCurrentSelection(pillAddButton);
+  });
+
+  // ---------------------------------------------------------------------
+  // Send a note to the Url Notes site
+  // ---------------------------------------------------------------------
+
+  // "www.youtube.com" -> "youtube", "docs.github.com" -> "github",
+  // "news.bbc.co.uk" -> "bbc", "localhost" -> "localhost".
+  function domainTag(hostname) {
+    const labels = String(hostname || '')
+      .toLowerCase()
+      .replace(/^www\./, '')
+      .split('.')
+      .filter(Boolean);
+
+    if (!labels.length) return 'web';
+
+    if (labels.length === 1 || /^\d+$/.test(labels[labels.length - 1])) {
+      return labels.join('-').replace(/[^a-z0-9-]/g, '-');
+    }
+
+    let dropped = 1;
+    if (
+      labels.length >= 3 &&
+      labels[labels.length - 1].length <= 3 &&
+      labels[labels.length - 2].length <= 3
+    ) {
+      dropped = 2;
+    }
+
+    const label = labels[Math.max(0, labels.length - dropped - 1)];
+    return label.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'web';
+  }
+
+  function formatClock(totalSeconds) {
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    const pad = value => String(value).padStart(2, '0');
+
+    return hours
+      ? `${hours}:${pad(minutes)}:${pad(seconds)}`
+      : `${minutes}:${pad(seconds)}`;
+  }
+
+  // The link to save with a note. On a YouTube video it opens at the moment you
+  // sent the note (the same &t= link YouTube's own "Share at" produces).
+  function linkForNote() {
+    try {
+      const url = new URL(location.href);
+      const isYouTube = /(^|\.)youtube\.com$/.test(url.hostname);
+
+      if (isYouTube && url.pathname === '/watch' && url.searchParams.get('v')) {
+        const video = document.querySelector('video.html5-main-video') || document.querySelector('video');
+        const seconds = video && Number.isFinite(video.currentTime)
+          ? Math.floor(video.currentTime)
+          : 0;
+
+        if (seconds > 0) {
+          url.searchParams.set('t', `${seconds}s`);
+          url.hash = '';
+          return { url: url.toString(), stamp: formatClock(seconds) };
+        }
+      }
+    } catch {
+      // Fall back to the plain page link.
+    }
+
+    return { url: location.href.split('#')[0], stamp: '' };
+  }
+
+  // Quote, your note, page title + link (with the video time on YouTube), and
+  // a tag for the site's domain.
+  function composeSiteNote(quote, note) {
+    const parts = [];
+    if (quote) parts.push(`“${quote}”`);
+    if (note) parts.push(note);
+
+    const title = (document.title || '').trim();
+    const { url, stamp } = linkForNote();
+    parts.push([title, stamp ? `▶ ${stamp}` : '', url].filter(Boolean).join('\n'));
+    parts.push(`#${domainTag(location.hostname)}`);
+
+    return parts.join('\n\n');
+  }
+
+  function queueForSite(text) {
+    const outbox = readList(outboxKey);
+
+    outbox.push({
+      id: `gm-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+      text,
+      created: Date.now()
+    });
+
+    writeValue(outboxKey, outbox);
+  }
+
+  function sendToSite(button) {
+    const selected = String(window.getSelection() || '').trim();
+    const quote = selected.length > MAX_QUOTE_LENGTH
+      ? `${selected.slice(0, MAX_QUOTE_LENGTH)}…`
+      : selected;
+
+    const question = quote
+      ? `Note to send to your Url Notes site for “${quote.slice(0, 120)}${quote.length > 120 ? '…' : ''}” (optional):`
+      : 'Note to send to your Url Notes site about this page:';
+
+    const note = prompt(question);
+    if (note === null) return;
+
+    if (!quote && !note.trim()) {
+      if (button) flashButtonRed(button);
+      showToast('Nothing to send. Select text or write a note.');
+      return;
+    }
+
+    queueForSite(composeSiteNote(quote, note.trim()));
+    showToast('Queued for your Url Notes site ✓');
+
+    if (allNotesPanel.style.display !== 'none') renderAllNotes();
+  }
+
+  panelSendButton.addEventListener('click', () => sendToSite(panelAddButton));
+  pillSendButton.addEventListener('click', () => sendToSite(pillAddButton));
+
+  // ---------------------------------------------------------------------
+  // Bridge: only runs on your Url Notes site (see SITE at the top)
+  // ---------------------------------------------------------------------
+
+  function startBridge() {
+    const CHANNEL = 'url-notes-bridge';
+
+    const post = message => {
+      window.postMessage({ channel: CHANNEL, from: 'userscript', ...message }, location.origin);
+    };
+
+    const sendState = () => {
+      post({ type: 'state', outbox: readList(outboxKey), highlights: readStore() });
+    };
+
+    window.addEventListener('message', event => {
+      if (event.origin !== location.origin) return;
+
+      const data = event.data;
+      if (!data || data.channel !== CHANNEL || data.from !== 'page') return;
+
+      if (data.type === 'hello') {
+        sendState();
+      } else if (data.type === 'ack' && Array.isArray(data.ids)) {
+        const done = new Set(data.ids.map(String));
+        writeValue(
+          outboxKey,
+          readList(outboxKey).filter(item => !done.has(String(item?.id)))
+        );
+      } else if (data.type === 'snapshot' && Array.isArray(data.notes)) {
+        writeValue(snapshotKey, {
+          syncedAt: Date.now(),
+          siteUrl: `${location.origin}${location.pathname}`,
+          notes: data.notes.slice(0, 5000).map(note => ({
+            id: String(note?.id || ''),
+            text: String(note?.text || ''),
+            created: Number(note?.created) || 0,
+            pinned: !!note?.pinned
+          })).filter(note => note.text)
+        });
+      }
+    });
+
+    // Notes sent from other tabs, or highlights changed elsewhere, reach the
+    // open site right away.
+    if (typeof GM_addValueChangeListener === 'function') {
+      GM_addValueChangeListener(outboxKey, () => sendState());
+      GM_addValueChangeListener(storeKey, () => sendState());
+    }
+
+    sendState();
+  }
+
+  function openInterface(passedRange) {
+    handleNavigation();
+
+    let selectedRange = null;
+
+    if (passedRange && typeof passedRange.toString === 'function') {
+      try {
+        if (passedRange.toString().trim()) {
+          selectedRange = passedRange.cloneRange();
+        }
+      } catch {
+        selectedRange = null;
+      }
+    }
+
+    if (!selectedRange) {
+      updateSelectionRange();
+      selectedRange = pendingRange;
+    }
+
+    // Toggle: if the interface is already open and nothing is selected,
+    // this click closes it. With text selected it adds a note instead.
+    const isOpen = host.style.display !== 'none';
+
+    if (isOpen && !selectedRange) {
+      host.style.display = 'none';
+      allNotesPanel.style.display = 'none';
+      interfaceActive = false;
+      pendingRange = null;
+      return;
+    }
+
+    interfaceActive = true;
+    host.style.display = 'block';
+    allNotesPanel.style.display = 'none';
+
+    // The page may have changed since the panel was last open.
+    if (panelSort === 'page' && annotations.length) {
+      restoreAnnotations();
+      refreshPanelOrder();
+    }
+
+    panel.style.display = 'block';
+    pill.style.display = 'none';
+
+    if (selectedRange) {
+      addNoteToCurrentSelection(panelAddButton, selectedRange);
+    }
+  }
+
+  // Original trigger, still supported.
+  document.addEventListener('make-highlights-notes-toggle', event => {
+    openInterface(event.detail?.range);
+  });
+
+  // Extra ways to open the interface, independent of any other script.
+  document.addEventListener('keydown', event => {
+    if (event.altKey && event.shiftKey && event.code === 'KeyH') {
+      event.preventDefault();
+      event.stopPropagation();
+      openInterface();
+    } else if (event.altKey && event.shiftKey && event.code === 'KeyN') {
+      event.preventDefault();
+      event.stopPropagation();
+      sendToSite();
+    }
+  }, true);
+
+  if (typeof GM_registerMenuCommand === 'function') {
+    GM_registerMenuCommand('Open Highlights & Notes', () => openInterface());
+    GM_registerMenuCommand('Send note to Url Notes site', () => sendToSite());
+  }
+
+  document.addEventListener('selectionchange', () => {
+    if (interfaceActive) updateSelectionRange();
+  });
+
+  document.addEventListener('pointerup', () => {
+    setTimeout(() => {
+      if (interfaceActive) updateSelectionRange();
+    }, 30);
+  }, true);
+
+  // YouTube navigation events, plus history navigation for other SPAs.
+  document.addEventListener('yt-navigate-finish', () => {
+    handleNavigation();
+    scheduleRestore();
+  });
+  window.addEventListener('popstate', () => {
+    handleNavigation();
+    scheduleRestore();
+  });
+
+  // Find the text first, so "Order in page" is right from the start.
+  restoreAnnotations();
+  renderAnnotations();
+
+  // Keep the All notes panel current when stored data changes (including from
+  // another tab, e.g. when your Url Notes site syncs).
+  if (typeof GM_addValueChangeListener === 'function') {
+    for (const key of [storeKey, snapshotKey, outboxKey]) {
+      GM_addValueChangeListener(key, () => {
+        invalidateAllIndex();
+        if (allNotesPanel.style.display !== 'none') renderAllNotes();
+      });
+    }
+  }
+
+  if (isNotesSite) startBridge();
+
+  const observer = new MutationObserver(scheduleRestore);
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+    characterData: true
+  });
+})();
+</script>
+
+<script>
+'use strict';
+
+const KEY = 'text-viewer-messages';      // same key as the old version, so existing notes carry over
+const TRASH_KEY = 'text-viewer-trash';
+const THEME_KEY = 'url-notes-theme';
+const SEEN_KEY = 'url-notes-help-seen';
+const VIEW_KEY = 'url-notes-view';
+const SORT_KEY = 'url-notes-sort';
+const TRASH_DAYS = 30;
+const PAGE_SIZE = 100;
+
+const $ = id => document.getElementById(id);
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+const uid = () => (window.crypto && crypto.randomUUID)
+  ? crypto.randomUUID()
+  : Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+const fmt = ms => new Date(ms).toLocaleString('en-US', { hourCycle: 'h23' });
+const BASE = location.href.split(/[?#]/)[0];
+
+// emoji written as escapes so the variation selector (full-color presentation) is never lost
+const ICON = {
+  pin: '\u{1F4CC}',
+  copy: '\u{1F4CB}',
+  trash: '\u{1F5D1}️',
+  highlighter: '\u{1F58D}️',
+  save: '\u{1F4BE}'
+};
+
+/* ---------- data & state ---------- */
+const VIEWS = ['all', 'notes', 'timer', 'highlights', 'trash'];
+const SORTS = ['manual', 'newest', 'oldest', 'edited'];
+function stored(key, allowed, fallback) {
+  try {
+    const v = localStorage.getItem(key);
+    return allowed.includes(v) ? v : fallback;
+  } catch (e) { return fallback; }
+}
+
+let notes = [];
+let trash = [];
+let view = stored(VIEW_KEY, VIEWS, 'notes');
+let sortMode = stored(SORT_KEY, SORTS, 'manual');
+let query = '';
+let activeTag = null;
+let timerFilter = null;   // Timer tab: null = everything, or 'work' / 'workflow' / ... / 'summary'
+
+// Notes sent by the timer site (through the userscript) have ids like tm-workflow-<start ms> or tm-summary-<day>-...
+const TIMER_LABELS = {
+  work: '⏰ Work', paused: '⏸️ Paused', workflow: '🛠️ Workflow', workout: '🏋️ Workout',
+  eating: '🍽️ Eating', shower: '🚿 Shower', sleep: '🌙 Sleep', summary: '📊 Summaries'
+};
+const isTimerNote = n => typeof n.id === 'string' && n.id.startsWith('tm-');
+const timerKind = n => { const m = /^tm-([a-z]+)-/.exec(n.id || ''); return m ? m[1] : 'other'; };
+// When the session happened (start time in the id), else when the note was created.
+const timerWhen = n => { const m = /^tm-[a-z]+-(\d{10,})/.exec(n.id || ''); return m ? Number(m[1]) : n.created; };
+const plainNotes = () => notes.filter(n => !isTimerNote(n));
+const timerNotes = () => notes.filter(isTimerNote);
+let visibleLimit = PAGE_SIZE;
+
+// userscript bridge state
+let bridgeConnected = false;
+let bridgeWaiting = true;
+let highlights = {};   // { pageUrl: [ {text, note, prefix, suffix, createdAt, updatedAt} ] }, read-only, in memory only
+let snapshotTimer;
+
+// auto-backup state
+let backupHandle = null;
+let backupReady = false;
+let backupPaused = false;
+let backupTimer;
+let lastBackup = 0;
+
+function saveView() { try { localStorage.setItem(VIEW_KEY, view); } catch (e) {} }
+function setView(v) {
+  view = v;
+  if (v !== 'all' && v !== 'notes') activeTag = null;
+  timerFilter = null;
+  visibleLimit = PAGE_SIZE;
+  saveView();
+  render();
+}
+
+function normalize(raw) {
+  if (typeof raw === 'string') raw = { text: raw };
+  if (!raw || typeof raw.text !== 'string' || !raw.text.trim()) return null;
+  let created = Number(raw.created);
+  if (!Number.isFinite(created) || created <= 0) {
+    const p = Date.parse(raw.date || raw.created);
+    created = Number.isNaN(p) ? Date.now() : p;
+  }
+  const n = {
+    id: (typeof raw.id === 'string' && raw.id) ? raw.id : uid(),
+    text: raw.text,
+    created,
+    pinned: !!raw.pinned
+  };
+  const upd = Number(raw.updated);
+  if (Number.isFinite(upd) && upd > 0) n.updated = upd;
+  if (raw.deletedAt) n.deletedAt = Number(raw.deletedAt) || Date.now();
+  return n;
+}
+
+function readArray(key) {
+  try {
+    const v = JSON.parse(localStorage.getItem(key) || '[]');
+    return Array.isArray(v) ? v : [];
+  } catch (e) { return []; }
+}
+
+function load() {
+  notes = readArray(KEY).map(normalize).filter(Boolean);
+  trash = readArray(TRASH_KEY).map(normalize).filter(Boolean);
+  const cutoff = Date.now() - TRASH_DAYS * 864e5;
+  trash.forEach(n => { if (!n.deletedAt) n.deletedAt = Date.now(); });
+  trash = trash.filter(n => n.deletedAt > cutoff);
+}
+
+function persist() {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(notes));
+    localStorage.setItem(TRASH_KEY, JSON.stringify(trash));
+  } catch (e) {
+    toast('Could not save — browser storage is full or blocked.');
+  }
+  scheduleSnapshot();
+  scheduleBackup();
+}
+
+/* ---------- tags, checklists & rich text ---------- */
+const TAG_RE = /(?<![\p{L}\p{N}_&\/])#[\p{L}\p{N}_-]+/gu;
+const TOKEN_RE = /(https?:\/\/[^\s<>"']+)|((?<![\p{L}\p{N}_&\/])#[\p{L}\p{N}_-]+)/gu;
+const TODO_RE = /^(\s*)[-*]\s+\[([ xX])\]\s?(.*)$/;
+const TODO_ANY = /^\s*[-*]\s+\[[ xX]\]/m;
+const TODO_OPEN = /^\s*[-*]\s+\[ \]/m;
+
+const tagMemo = new Map();
+function tagsOf(text) {
+  let r = tagMemo.get(text);
+  if (r) return r;
+  const clean = text.replace(/https?:\/\/\S+/g, ' ');
+  const set = new Set();
+  for (const m of clean.matchAll(TAG_RE)) set.add(m[0].slice(1).toLowerCase());
+  r = [...set];
+  if (tagMemo.size > 5000) tagMemo.clear();
+  tagMemo.set(text, r);
+  return r;
+}
+
+function todoStats(text) {
+  let total = 0, done = 0;
+  for (const line of text.split('\n')) {
+    const m = TODO_RE.exec(line);
+    if (m) { total++; if (m[2] !== ' ') done++; }
+  }
+  return { total, done };
+}
+
+const escRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+function appendMarked(parent, str, words) {
+  if (!str) return;
+  if (!words.length) { parent.appendChild(document.createTextNode(str)); return; }
+  const re = new RegExp('(' + words.map(escRe).join('|') + ')', 'gi');
+  str.split(re).forEach((part, i) => {
+    if (!part) return;
+    if (i % 2) { const m = el('mark', null, part); parent.appendChild(m); }
+    else parent.appendChild(document.createTextNode(part));
+  });
+}
+
+function appendRich(parent, text, words) {
+  let last = 0;
+  for (const m of text.matchAll(TOKEN_RE)) {
+    if (m.index > last) appendMarked(parent, text.slice(last, m.index), words);
+    if (m[1]) {
+      let url = m[1], trail = '';
+      while (url.length) {
+        const c = url[url.length - 1];
+        const unbalanced = c === ')' && url.split('(').length < url.split(')').length;
+        if ('.,;:!?]\'"'.includes(c) || unbalanced) { trail = c + trail; url = url.slice(0, -1); }
+        else break;
+      }
+      const a = el('a');
+      a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+      appendMarked(a, url, words);
+      parent.appendChild(a);
+      appendMarked(parent, trail, words);
+    } else {
+      const s = el('span', 'tag');
+      s.dataset.tag = m[2].slice(1).toLowerCase();
+      appendMarked(s, m[2], words);
+      parent.appendChild(s);
+    }
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) appendMarked(parent, text.slice(last), words);
+}
+
+// Line by line, so "- [ ] task" lines become real checkboxes (when onToggle is given).
+function appendBody(parent, text, words, onToggle) {
+  const lines = text.split('\n');
+  lines.forEach((line, i) => {
+    const m = onToggle ? TODO_RE.exec(line) : null;
+    if (m) {
+      parent.appendChild(document.createTextNode(m[1]));
+      const box = el('input', 'todo-box');
+      box.type = 'checkbox';
+      box.checked = m[2] !== ' ';
+      box.addEventListener('click', e => e.stopPropagation());
+      box.addEventListener('change', () => onToggle(i, box.checked));
+      parent.appendChild(box);
+      const span = el('span', box.checked ? 'todo-text done' : 'todo-text');
+      appendRich(span, m[3], words);
+      parent.appendChild(span);
+    } else {
+      appendRich(parent, line, words);
+    }
+    if (i < lines.length - 1) parent.appendChild(document.createTextNode('\n'));
+  });
+}
+
+/* ---------- search ---------- */
+function parseDay(s) {
+  const d0 = new Date();
+  d0.setHours(0, 0, 0, 0);
+  if (s === 'today') return d0.getTime();
+  if (s === 'yesterday') return d0.getTime() - 864e5;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return null;
+  const t = new Date(+m[1], +m[2] - 1, +m[3]).getTime();
+  return Number.isNaN(t) ? null : t;
+}
+
+const parsedCache = { raw: null, value: null };
+function parseQuery(raw) {
+  if (parsedCache.raw === raw) return parsedCache.value;
+  const q = { words: [], tags: [], from: [], kinds: new Set(), flags: new Set(), after: null, before: null, active: false };
+  const tokens = raw.match(/"[^"]*"|\S+/g) || [];
+  for (const tok of tokens) {
+    const low = tok.toLowerCase();
+    let m;
+    if (low.startsWith('"')) {
+      const p = low.replace(/^"|"$/g, '').trim();
+      if (p) q.words.push(p);
+    } else if ((m = /^tag:#?(.+)$/.exec(low))) {
+      q.tags.push(m[1]);
+    } else if ((m = /^from:(.+)$/.exec(low))) {
+      q.from.push(m[1]);
+    } else if ((m = /^is:(\w+)$/.exec(low))) {
+      if (m[1] === 'note' || m[1] === 'highlight') q.kinds.add(m[1]);
+      else if (['pinned', 'todo', 'open'].includes(m[1])) q.flags.add(m[1]);
+      else q.words.push(low);
+    } else if ((m = /^has:(\w+)$/.exec(low))) {
+      if (m[1] === 'link') q.flags.add('link');
+      else q.words.push(low);
+    } else if ((m = /^(before|after):(.+)$/.exec(low))) {
+      const t = parseDay(m[2]);
+      if (t != null) q[m[1]] = t;
+      else q.words.push(low);
+    } else {
+      q.words.push(low);
+    }
+  }
+  q.active = !!(q.words.length || q.tags.length || q.from.length || q.kinds.size || q.flags.size ||
+    q.after != null || q.before != null);
+  parsedCache.raw = raw;
+  parsedCache.value = q;
+  return q;
+}
+const getWords = () => parseQuery(query).words;
+
+// e: { kind, text, hay (lowercase), created, pinned, tagText }
+function matchEntry(e, q) {
+  if (q.kinds.size && !q.kinds.has(e.kind)) return false;
+  if (q.after != null && e.created < q.after) return false;
+  if (q.before != null && e.created >= q.before) return false;
+  if (q.flags.has('pinned') && !e.pinned) return false;
+  for (const w of q.words) if (!e.hay.includes(w)) return false;
+  for (const f of q.from) if (!e.hay.includes(f)) return false;
+  if (q.flags.has('link') && !/https?:\/\//.test(e.hay)) return false;
+  if (q.flags.has('todo') && !TODO_ANY.test(e.text)) return false;
+  if (q.flags.has('open') && !TODO_OPEN.test(e.text)) return false;
+  if (q.tags.length) {
+    const have = tagsOf(e.tagText);
+    for (const t of q.tags) if (!have.includes(t)) return false;
+  }
+  return true;
+}
+
+function collectNotes(q, src) {
+  return src.filter(n => {
+    if (activeTag && !tagsOf(n.text).includes(activeTag)) return false;
+    if (!q.active) return true;
+    return matchEntry({
+      kind: 'note', text: n.text, hay: n.text.toLowerCase(), created: n.created, pinned: n.pinned, tagText: n.text
+    }, q);
+  });
+}
+
+function sortList(list, mode) {
+  const out = list.slice();
+  if (mode === 'oldest') return out.sort((a, b) => a.created - b.created);
+  if (mode === 'edited') return out.sort((a, b) => (b.updated || b.created) - (a.updated || a.created));
+  return out.sort((a, b) => b.created - a.created);
+}
+
+/* ---------- toast ---------- */
+let toastTimer;
+function toast(msg, actionLabel, action, ms = 6000) {
+  const t = $('toast');
+  t.textContent = '';
+  t.appendChild(el('span', null, msg));
+  if (actionLabel) {
+    const b = el('button', null, actionLabel);
+    b.addEventListener('click', () => { action(); t.classList.remove('show'); });
+    t.appendChild(b);
+  }
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), ms);
+}
+
+/* ---------- notes that become alarms ----------
+   A note containing the word "alarm" (anywhere) creates an alarm on the timer site (same gabryan.com storage,
+   key 'tsa2_alarms'). Works with speech-to-text: number words ("five thirty pm"), "in twenty minutes",
+   "tomorrow at seven", "every day", "half past five", "noon". Returns null when there is no trigger word,
+   { needsTime: true, label } when the trigger word is there but no time was understood. */
+const AL_KEY = 'tsa2_alarms';
+const AL_ONES = { zero: 0, oh: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19 };
+const AL_TENS = { twenty: 20, thirty: 30, forty: 40, fifty: 50 };
+const AL_DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+/* "five thirty" -> "5:30", "twenty minutes" -> "20 minutes", "five oh five" -> "5:05", "fifteen hundred" -> "15:00" */
+function alNumberWords(s) {
+  const tok = '(?:zero|oh|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|hundred)';
+  const re = new RegExp('\\b' + tok + '(?:[\\s-]+' + tok + ')*\\b', 'gi');
+  return s.replace(re, run => {
+    const w = run.toLowerCase().split(/[\s-]+/), nums = [];
+    for (let i = 0; i < w.length; i++) {
+      const x = w[i];
+      if (x === 'hundred') { if (nums.length) nums[nums.length - 1] = { v: nums[nums.length - 1].v * 100, two: false }; continue; }
+      if (x in AL_TENS) {
+        if (i + 1 < w.length && w[i + 1] in AL_ONES && AL_ONES[w[i + 1]] >= 1 && AL_ONES[w[i + 1]] <= 9 && w[i + 1] !== 'oh') { nums.push({ v: AL_TENS[x] + AL_ONES[w[i + 1]], two: true }); i++; }
+        else nums.push({ v: AL_TENS[x], two: true });
+      } else if (x === 'oh' || x === 'zero') {
+        if (i + 1 < w.length && w[i + 1] in AL_ONES && AL_ONES[w[i + 1]] >= 1 && AL_ONES[w[i + 1]] <= 9) { nums.push({ v: AL_ONES[w[i + 1]], two: true }); i++; }
+        else nums.push({ v: 0, two: true });
+      } else nums.push({ v: AL_ONES[x], two: false });
+    }
+    if (nums.length === 1) return String(nums[0].v);
+    if (nums.length === 2 && nums[0].v < 100 && nums[1].v < 60) return nums[0].v + ':' + String(nums[1].v).padStart(2, '0');
+    return nums.map(n => n.v).join(' ');
+  });
+}
+
+function alParse(raw, now) {
+  now = now || Date.now();
+  if (!/\balarms?\b/i.test(String(raw).replace(/\b(smoke|fire|burglar|car|security|carbon monoxide)\s+alarms?\b/gi, ' '))) return null;   // a smoke alarm is not an alarm request
+  let t = alNumberWords(String(raw).replace(/\s+/g, ' ')), used = [];
+  const take = (re, fn) => { const m = re.exec(t); if (!m) return null; used.push(m[0]); t = t.replace(m[0], ' '); if (fn) fn(m); return true; };
+  const out = { label: '', repeat: 'once', at: 0, needsTime: false };
+
+  take(/\b(every\s*day|everyday|daily|each\s+day)\b/i, () => { out.repeat = 'daily'; });
+  const everyPeriod = take(/\bevery\s+(morning|evening|night)\b/i, m => { out.repeat = 'daily'; return m[1].toLowerCase(); });
+
+  /* a day */
+  let dayShift = null, weekday = null;
+  take(/\b(tomorrow)(?:\s+(morning|afternoon|evening|night))?\b/i, m => { dayShift = 1; if (m[2]) out._pm = /afternoon|evening|night/i.test(m[2]) ? true : false; });
+  if (dayShift == null) take(/\b(today|tonight|this\s+morning|this\s+afternoon|this\s+evening)\b/i, m => { dayShift = 0; if (/tonight|evening|afternoon/i.test(m[1])) out._pm = true; });
+  if (dayShift == null) take(/\b(?:on\s+|next\s+)?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)(?:\s+(morning|afternoon|evening|night))?\b/i, m => { weekday = AL_DAYS.indexOf(m[1].toLowerCase()); if (m[2]) out._pm = /afternoon|evening|night/i.test(m[2]) ? true : false; });
+
+  /* relative: "in 20 minutes", "five minutes from now", "after an hour and a half", "two days from now", "half an hour later" */
+  let rel = null, relDays = 0;
+  {
+    const U = '(?:seconds?|secs?|minutes?|mins?|hours?|hrs?|days?|weeks?)';
+    const Q = '(?:\\d+(?:\\.\\d+)?|an?|one|a\\s+couple\\s+of|couple\\s+of|a\\s+few|few|(?:a\\s+)?half\\s+an?|(?:a\\s+)?quarter\\s+of\\s+an?)';
+    const ITEM = '(?:' + Q + '\\s+and\\s+a\\s+half\\s*' + U + '|' + Q + '\\s*' + U + '(?:\\s+and\\s+a\\s+half)?)';
+    const PHRASE = '(?:(in|after|within|for)\\s+(?:about\\s+|around\\s+|roughly\\s+)?)?(' + ITEM + '(?:(?:\\s*,\\s*|\\s+and\\s+|\\s+)' + ITEM + ')*)(\\s+(?:from\\s+now|later))?';
+    const re = new RegExp('\\b' + PHRASE + '\\b', 'i');
+    const m = re.exec(t);
+    const okFor = m && m[1] && m[1].toLowerCase() === 'for' ? /\balarms?\s*$/i.test(t.slice(0, m.index)) : true;
+    if (m && okFor && (m[1] || m[3])) {                                  // needs "in/after/within/for" before, or "from now/later" after
+      used.push(m[0]); t = t.replace(m[0], ' ');
+      let ms = 0;
+      for (const it of m[2].matchAll(new RegExp('(' + Q + ')(\\s+and\\s+a\\s+half)?\\s*(' + U + ')(\\s+and\\s+a\\s+half)?', 'gi'))) {
+        const q = it[1].toLowerCase().replace(/\s+/g, ' ');
+        let n = /^\d/.test(q) ? parseFloat(q) : /couple/.test(q) ? 2 : /few/.test(q) ? 3 : /half/.test(q) ? 0.5 : /quarter/.test(q) ? 0.25 : 1;
+        if (it[2] || it[4]) n += 0.5;
+        const u = it[3].toLowerCase();
+        if (/^sec/.test(u)) ms += n * 1e3; else if (/^min/.test(u)) ms += n * 60e3; else if (/^(h)/.test(u)) ms += n * 3600e3;
+        else if (/^day/.test(u)) relDays += n; else relDays += n * 7;
+      }
+      rel = ms;
+    } else {
+      const c = /\b(\d+)[\s-]*(minute|min|hour|hr)s?[\s-]+alarm\b/i.exec(t);                // "a 20 minute alarm"
+      if (c) { used.push(c[0]); t = t.replace(c[0], ' alarm '); rel = +c[1] * (/^h/i.test(c[2]) ? 3600e3 : 60e3); }
+    }
+  }
+
+  let h = null, mi = 0, ambiguous = false, pm = null;
+  if (rel == null || relDays > 0) {
+    const period = m => (/morning/i.test(m) ? 'am' : /afternoon|evening|night/i.test(m) ? 'pm' : null);
+    if (take(/\b(noon|midday)\b/i, () => { h = 12; mi = 0; pm = true; }) == null && take(/\bmidnight\b/i, () => { h = 0; mi = 0; }) == null) {
+      let r;
+      if ((r = take(/\bhalf\s+past\s+(\d{1,2})\b(?:\s*(a\.?\s?m\.?|p\.?\s?m\.?)(?![a-z]))?/i, m => { h = +m[1]; mi = 30; if (m[2]) pm = /p/i.test(m[2]); else ambiguous = true; })) == null &&
+          (r = take(/\bquarter\s+past\s+(\d{1,2})\b(?:\s*(a\.?\s?m\.?|p\.?\s?m\.?)(?![a-z]))?/i, m => { h = +m[1]; mi = 15; if (m[2]) pm = /p/i.test(m[2]); else ambiguous = true; })) == null &&
+          (r = take(/\bquarter\s+to\s+(\d{1,2})\b(?:\s*(a\.?\s?m\.?|p\.?\s?m\.?)(?![a-z]))?/i, m => { h = +m[1] - 1; mi = 45; if (m[2]) pm = /p/i.test(m[2]); else ambiguous = true; })) == null &&
+          (r = take(/\b(\d{1,2})(?::(\d{2})|\s+(\d{2}))?\s*(a\.?\s?m\.?|p\.?\s?m\.?)(?![a-z])/i, m => { h = +m[1]; mi = +(m[2] || m[3] || 0); pm = /p/i.test(m[4]); })) == null &&
+          (r = take(/\b(\d{1,2}):(\d{2})\b(?:\s+in\s+the\s+(morning|afternoon|evening)|\s+at\s+night)?/i, m => { h = +m[1]; mi = +m[2]; const p = period(m[0]); if (p) pm = p === 'pm'; else if (h <= 12 && h >= 1) ambiguous = true; })) == null &&
+          (r = take(/\b(\d{1,2})\s*o'?\s?clock\b(?:\s+in\s+the\s+(morning|afternoon|evening)|\s+at\s+night)?/i, m => { h = +m[1]; mi = 0; const p = period(m[0]); if (p) pm = p === 'pm'; else ambiguous = true; })) == null &&
+          (r = take(/\b(\d{1,2})\s+(?:in\s+the\s+(morning|afternoon|evening)|at\s+night)\b/i, m => { h = +m[1]; mi = 0; pm = period(m[0]) === 'pm'; })) == null &&
+          (r = take(/\b(?:at|for|by|around)\s+(\d{1,2})(?![\d:])(?!\s*(?:minutes?|mins?|hours?|hrs?|days?|%))/i, m => { h = +m[1]; mi = 0; ambiguous = true; })) == null) { /* no time */ }
+    }
+    if (h != null && (h > 23 || mi > 59)) h = null;
+  }
+  if (out._pm != null && pm == null && h != null) pm = out._pm;
+  if (everyPeriod && pm == null && h != null && h >= 1 && h <= 11) pm = everyPeriod !== 'morning';
+
+  /* label: the note without the trigger and time words */
+  let label = t.replace(/\b(please\s+)?(set|make|create|add|start|put)?\s*(me\s+)?(an?|the|my|another)?\s*alarms?\b/gi, ' ')
+    .replace(/\b(at|for|by|around|on|in|until|till)\b(?=\s*$)/gi, ' ').replace(/\s+/g, ' ').trim()
+    .replace(/^((at|by|around|on|in|until|till|for|to|that|about|saying|called|named|labelled|labeled|note|reminding me to|reminding me|remind me to|so (that )?i)\b[\s:,.-]*)+/i, '')
+    .replace(/^[\s:,.;-]+|[\s:,.;-]+$/g, '').trim();
+  if (!label) label = 'Alarm';
+  out.label = label.slice(0, 60);
+
+  if (relDays > 0 && h != null) { dayShift = (dayShift || 0) + relDays; rel = null; }
+  else if (relDays > 0) rel = (rel || 0) + relDays * 864e5;
+  if (rel != null) { out.at = now + rel; out.h = new Date(out.at).getHours(); out.m = new Date(out.at).getMinutes(); if (out.repeat === 'daily') out.repeat = 'once'; return out; }
+  if (h == null) { out.needsTime = true; return out; }
+
+  const base = new Date(now);
+  const make = (hh, dShift) => { const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + dShift, hh, mi, 0, 0); return d.getTime(); };
+  let cands;
+  if (pm != null) { let hh = h % 12 + (pm ? 12 : 0); if (h > 12) hh = h; cands = [hh]; }
+  else if (h === 0 || h > 12) cands = [h];
+  else if (dayShift === 1 || weekday != null) cands = [h === 12 ? 12 : (h >= 5 ? h : h + 12)];          // "tomorrow at 7" is the morning, "at 3" the afternoon
+  else cands = h === 12 ? [12, 0] : [h, h + 12];                                                          // soonest next one
+  let shift = dayShift == null ? 0 : dayShift;
+  if (weekday != null) { shift = (weekday - base.getDay() + 7) % 7; }
+  let best = null;
+  for (let tries = 0; tries < 2 && best == null; tries++) {
+    const opts = cands.map(c => make(c, shift + tries * (weekday != null ? 7 : 1))).filter(x => x > now);
+    if (opts.length) best = Math.min.apply(null, opts);
+    if (dayShift != null || weekday != null) { if (best == null) continue; }
+  }
+  if (best == null) return null;
+  out.at = best; const d = new Date(best); out.h = d.getHours(); out.m = d.getMinutes();
+  return out;
+}
+
+
+function alRead() { try { const a = JSON.parse(localStorage.getItem(AL_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+function alWrite(a) { try { localStorage.setItem(AL_KEY, JSON.stringify(a)); return true; } catch (e) { return false; } }
+function alAdd(h, m, label, repeat, at) {
+  const p2 = n => String(n).padStart(2, '0');
+  if (!at) { const d = new Date(); d.setHours(h, m, 0, 0); if (d.getTime() <= Date.now()) d.setDate(d.getDate() + 1); at = d.getTime(); }
+  const id = 'al-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const list = alRead(); list.push({ id, h, m, label: String(label || '').slice(0, 60), repeat: repeat === 'daily' ? 'daily' : 'once', at });
+  if (!alWrite(list)) { toast('Could not save the alarm in this browser'); return; }
+  const d = new Date(at), a = new Date(), day0 = new Date(a.getFullYear(), a.getMonth(), a.getDate()).getTime(), day1 = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diff = Math.round((day1 - day0) / 864e5), t = p2(d.getHours()) + ':' + p2(d.getMinutes());
+  const when = (diff === 0 ? 'today ' : diff === 1 ? 'tomorrow ' : d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + ' ') + t;
+  toast('⏰ Alarm set for ' + when + (repeat === 'daily' ? ' (every day)' : '') + (label && label !== 'Alarm' ? ': ' + label : ''), 'Undo', () => {
+    alWrite(alRead().filter(x => x.id !== id)); toast('Alarm removed');
+  }, 9000);
+}
+/* The trigger word is there but no time was understood: a small box with the text already filled in. */
+function alAskTime(label) {
+  const old = document.getElementById('alAsk'); if (old) old.remove();
+  const dlg = el('dialog'); dlg.id = 'alAsk';
+  dlg.style.cssText = 'border:1px solid var(--line);border-radius:14px;padding:16px;background:var(--bg);color:var(--fg);box-shadow:var(--shadow);max-width:340px';
+  const opts = n => Array.from({ length: n }, (_, i) => `<option value="${i}">${String(i).padStart(2, '0')}</option>`).join('');
+  dlg.innerHTML = '<h3 style="margin:0 0 6px">⏰ When should the alarm ring?</h3><p style="margin:0 0 10px;color:var(--muted);font-size:13px">I did not understand a time in your note.</p>' +
+    '<div style="display:flex;gap:6px;align-items:center;margin-bottom:8px"><select id="alAh">' + opts(24) + '</select><b>:</b><select id="alAm">' + opts(60) + '</select>' +
+    '<select id="alAr"><option value="once">Once</option><option value="daily">Every day</option></select></div>' +
+    '<input id="alAl" type="text" maxlength="60" style="width:100%;box-sizing:border-box;margin-bottom:10px;padding:7px 9px">' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" id="alAc">Cancel</button><button type="button" id="alAs" style="background:var(--accent);color:var(--accent-fg);border:0;border-radius:8px;padding:6px 14px">Set alarm</button></div>';
+  document.body.appendChild(dlg);
+  const n = new Date(Date.now() + 3600e3);
+  dlg.querySelector('#alAh').value = n.getHours(); dlg.querySelector('#alAm').value = 0; dlg.querySelector('#alAl').value = label === 'Alarm' ? '' : label;
+  dlg.querySelector('#alAc').addEventListener('click', () => { dlg.close(); dlg.remove(); });
+  dlg.querySelector('#alAs').addEventListener('click', () => {
+    alAdd(+dlg.querySelector('#alAh').value, +dlg.querySelector('#alAm').value, dlg.querySelector('#alAl').value.trim(), dlg.querySelector('#alAr').value);
+    dlg.close(); dlg.remove();
+  });
+  dlg.addEventListener('close', () => dlg.remove());
+  dlg.showModal();
+}
+function alarmFromNote(text) {
+  let r = null;
+  try { r = alParse(text); } catch (e) { r = null; }
+  if (!r) return;
+  if (r.needsTime) alAskTime(r.label); else alAdd(r.h, r.m, r.label, r.repeat, r.at);
+}
+
+/* ---------- actions ---------- */
+function addNote(text) {
+  text = text.trim();
+  if (!text) return false;
+  notes.unshift({ id: uid(), text, created: Date.now(), pinned: false });
+  persist();
+  setTimeout(() => alarmFromNote(text), 80);   // a note with the word "alarm" also becomes an alarm on the timer site
+  return true;
+}
+
+function deleteNote(n) {
+  const idx = notes.indexOf(n);
+  if (idx < 0) return;
+  notes.splice(idx, 1);
+  n.deletedAt = Date.now();
+  trash.unshift(n);
+  persist();
+  render();
+  toast('Note moved to trash', 'Undo', () => {
+    const ti = trash.indexOf(n);
+    if (ti < 0) return;
+    trash.splice(ti, 1);
+    delete n.deletedAt;
+    notes.splice(Math.min(idx, notes.length), 0, n);
+    persist();
+    render();
+  });
+}
+
+function restoreNote(n) {
+  const ti = trash.indexOf(n);
+  if (ti < 0) return;
+  trash.splice(ti, 1);
+  delete n.deletedAt;
+  notes.unshift(n);
+  persist();
+  render();
+  toast('Note restored');
+}
+
+function deleteForever(n) {
+  if (!confirm('Delete this note permanently? This cannot be undone.')) return;
+  trash.splice(trash.indexOf(n), 1);
+  persist();
+  render();
+}
+
+function emptyTrash() {
+  if (!trash.length || !confirm(`Permanently delete all ${trash.length} notes in the trash?`)) return;
+  trash = [];
+  persist();
+  render();
+}
+
+function togglePin(n) {
+  n.pinned = !n.pinned;
+  const i = notes.indexOf(n);
+  notes.splice(i, 1);
+  notes.unshift(n);           // pinned note goes first in its group
+  persist();
+  render();
+}
+
+function moveNote(n, dir) {
+  const i = notes.indexOf(n);
+  let j = i + dir;
+  while (j >= 0 && j < notes.length && notes[j].pinned !== n.pinned) j += dir;
+  if (j < 0 || j >= notes.length) return;
+  [notes[i], notes[j]] = [notes[j], notes[i]];
+  persist();
+  render();
+}
+
+function toggleTodo(n, lineIndex, checked, body) {
+  const lines = n.text.split('\n');
+  if (!TODO_RE.test(lines[lineIndex] || '')) return;
+  lines[lineIndex] = lines[lineIndex].replace(/\[[ xX]\]/, checked ? '[x]' : '[ ]');
+  n.text = lines.join('\n');
+  n.updated = Date.now();
+  persist();
+  fillBody(body, n, true);
+  const card = body.closest('.message');
+  const meta = card && card.querySelector('.meta');
+  if (meta) meta.textContent = metaText(n);
+}
+
+function showTag(tag) {
+  activeTag = tag;
+  if (view !== 'all') view = 'notes';
+  visibleLimit = PAGE_SIZE;
+  saveView();
+  render();
+}
+
+function copyText(text) {
+  const done = () => toast('Copied to clipboard', null, null, 1800);
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(done, fallback);
+  } else fallback();
+  function fallback() {
+    const ta = el('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) { toast('Could not copy'); }
+    ta.remove();
+  }
+}
+
+/* ---------- rendering ---------- */
+function autosize(ta) {
+  ta.style.height = 'auto';
+  ta.style.height = ta.scrollHeight + 2 + 'px';
+}
+
+function iconBtn(icon, label, fn, opts = {}) {
+  const b = el('button', 'icon' + (opts.cls ? ' ' + opts.cls : ''), icon);
+  b.title = label;
+  b.setAttribute('aria-label', label);
+  if (opts.disabled) b.disabled = true;
+  b.addEventListener('click', fn);
+  return b;
+}
+
+function fillBody(body, n, interactive = view !== 'trash') {
+  body.textContent = '';
+  const onToggle = interactive ? (i, checked) => toggleTodo(n, i, checked, body) : null;
+  appendBody(body, n.text, getWords(), onToggle);
+}
+
+function bindBody(body, card, n) {
+  body.addEventListener('click', e => {
+    const tag = e.target.closest('.tag');
+    if (tag) { showTag(tag.dataset.tag); return; }
+    if (e.target.closest('a') || e.target.closest('.todo-box')) return;
+    if (String(window.getSelection()).length) return;   // user is selecting text
+    enterEdit(card, n);
+  });
+}
+
+function enterEdit(card, n) {
+  if (card.querySelector('textarea.edit')) return;
+  const body = card.querySelector('.body');
+  const ta = el('textarea', 'edit');
+  ta.value = n.text;
+  body.replaceWith(ta);
+  autosize(ta);
+  ta.focus();
+  ta.setSelectionRange(ta.value.length, ta.value.length);
+
+  let timer, changed = false;
+  ta.addEventListener('input', () => {
+    changed = true;
+    n.text = ta.value;
+    n.updated = Date.now();
+    autosize(ta);
+    clearTimeout(timer);
+    timer = setTimeout(() => { persist(); renderTags(); }, 300);
+  });
+  ta.addEventListener('keydown', e => {
+    if (e.key === 'Escape' || (e.key === 'Enter' && (e.ctrlKey || e.metaKey))) { e.preventDefault(); ta.blur(); }
+  });
+  ta.addEventListener('blur', () => {
+    clearTimeout(timer);
+    if (!ta.value.trim()) { n.text = ta.value; deleteNote(n); return; }
+    if (changed) { persist(); renderTags(); }
+    const nb = el('div', 'body');
+    fillBody(nb, n);
+    bindBody(nb, card, n);
+    if (ta.isConnected) ta.replaceWith(nb);
+    const meta = card.querySelector('.meta');
+    if (meta) meta.textContent = metaText(n);
+  });
+}
+
+function metaText(n) {
+  if (view === 'trash') return `${fmt(n.created)} · deleted ${fmt(n.deletedAt)}`;
+  let s = fmt(n.created) + (n.updated ? ` · edited ${fmt(n.updated)}` : '');
+  const t = todoStats(n.text);
+  if (t.total) s += ` · ☑ ${t.done}/${t.total}`;
+  return s;
+}
+
+function makeCard(n, opts) {
+  const card = el('article', 'message' + (n.pinned && view !== 'trash' ? ' pinned' : ''));
+  card.appendChild(el('div', 'meta', metaText(n)));
+
+  const body = el('div', 'body');
+  fillBody(body, n);
+  if (view !== 'trash') bindBody(body, card, n);
+  card.appendChild(body);
+
+  const actions = el('div', 'actions');
+  if (view !== 'trash') {
+    const canMove = sortMode === 'manual';
+    actions.append(
+      iconBtn(ICON.pin, n.pinned ? 'Unpin' : 'Pin to top', () => togglePin(n), { cls: n.pinned ? 'on' : '' }),
+      iconBtn('↑', canMove ? 'Move up' : 'Moving needs "Manual order" and no active search', () => moveNote(n, -1), { cls: 'arrow', disabled: !opts.canUp }),
+      iconBtn('↓', canMove ? 'Move down' : 'Moving needs "Manual order" and no active search', () => moveNote(n, 1), { cls: 'arrow', disabled: !opts.canDown }),
+      iconBtn('✎', 'Edit', () => enterEdit(card, n), { cls: 'edit-icon' }),
+      iconBtn(ICON.copy, 'Copy text', () => copyText(n.text)),
+      iconBtn(ICON.trash, 'Move to trash', () => deleteNote(n), { cls: 'danger' })
+    );
+  } else {
+    actions.append(
+      iconBtn('↩ Restore', 'Restore note', () => restoreNote(n), { cls: 'text' }),
+      iconBtn(ICON.copy, 'Copy text', () => copyText(n.text)),
+      iconBtn(ICON.trash + ' Delete forever', 'Delete permanently', () => deleteForever(n), { cls: 'danger text' })
+    );
+  }
+  card.appendChild(actions);
+  return card;
+}
+
+function appendMore(box, remaining) {
+  const wrap = el('div', 'more-wrap');
+  const b = el('button', 'btn', `Show ${Math.min(PAGE_SIZE, remaining)} more (${remaining} hidden)`);
+  b.addEventListener('click', () => { visibleLimit += PAGE_SIZE; render(); });
+  wrap.appendChild(b);
+  box.appendChild(wrap);
+}
+
+function renderTabs() {
+  const hlCount = bridgeConnected ? countHighlights() : 0;
+  $('tabAll').textContent = `All (${notes.length + hlCount})`;
+  $('tabNotes').textContent = `Notes (${plainNotes().length})`;
+  $('tabTimer').textContent = `⏱ Timer (${timerNotes().length})`;
+  $('tabTimer').setAttribute('aria-pressed', view === 'timer');
+  $('tabHl').textContent = bridgeConnected ? `Highlights (${hlCount})` : 'Highlights';
+  $('tabTrash').textContent = `Trash (${trash.length})`;
+  $('tabAll').setAttribute('aria-pressed', view === 'all');
+  $('tabNotes').setAttribute('aria-pressed', view === 'notes');
+  $('tabHl').setAttribute('aria-pressed', view === 'highlights');
+  $('tabTrash').setAttribute('aria-pressed', view === 'trash');
+}
+
+function renderTags() {
+  const box = $('tags');
+  box.textContent = '';
+  if (view === 'timer') { renderTimerChips(box); return; }
+  if (view !== 'notes' && view !== 'all') return;
+  const counts = new Map();
+  (view === 'notes' ? plainNotes() : notes).forEach(n => tagsOf(n.text).forEach(t => counts.set(t, (counts.get(t) || 0) + 1)));
+  if (activeTag && !counts.has(activeTag)) activeTag = null;
+  [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .forEach(([tag, count]) => {
+      const c = el('button', 'chip');
+      c.setAttribute('aria-pressed', tag === activeTag);
+      c.append('#' + tag);
+      c.appendChild(el('small', null, String(count)));
+      c.addEventListener('click', () => {
+        activeTag = activeTag === tag ? null : tag;
+        visibleLimit = PAGE_SIZE;
+        render();
+      });
+      box.appendChild(c);
+    });
+}
+
+// Notes tab and Trash tab
+function renderNotesView() {
+  const box = $('messages');
+  box.textContent = '';
+  const q = parseQuery(query);
+  const isTrash = view === 'trash';
+  const src = isTrash ? trash : plainNotes();
+  const filtering = q.active || (!isTrash && !!activeTag);
+  const list = collectNotes(q, src);
+
+  $('status').textContent = filtering ? `Showing ${list.length} of ${src.length}` : '';
+
+  if (isTrash && trash.length) {
+    const hint = el('p', 'note-hint', `Notes in the trash are removed after ${TRASH_DAYS} days. `);
+    const eb = el('button', 'btn danger', 'Empty trash');
+    eb.addEventListener('click', emptyTrash);
+    hint.appendChild(eb);
+    box.appendChild(hint);
+  }
+
+  if (!list.length) {
+    const e = el('div', 'empty');
+    if (filtering) e.textContent = 'No notes match your search.';
+    else if (isTrash) e.textContent = 'Trash is empty.';
+    else e.textContent = 'No notes yet. Type one above, or add ?q=your note to the URL. Press ? for help.';
+    box.appendChild(e);
+    return;
+  }
+
+  if (isTrash) {
+    list.slice(0, visibleLimit).forEach(n => box.appendChild(makeCard(n, {})));
+    if (list.length > visibleLimit) appendMore(box, list.length - visibleLimit);
+    return;
+  }
+
+  const arrange = arr => (sortMode === 'manual' ? arr : sortList(arr, sortMode));
+  const pinned = arrange(list.filter(n => n.pinned));
+  const rest = arrange(list.filter(n => !n.pinned));
+  const canMove = !filtering && sortMode === 'manual';
+
+  const pinnedShown = pinned.slice(0, visibleLimit);
+  const restShown = rest.slice(0, Math.max(0, visibleLimit - pinnedShown.length));
+
+  const group = (shown, full, label) => {
+    if (label) box.appendChild(el('div', 'section-label', label));
+    shown.forEach((n, i) => box.appendChild(makeCard(n, {
+      canUp: canMove && i > 0,
+      canDown: canMove && i < full.length - 1
+    })));
+  };
+  if (pinnedShown.length) group(pinnedShown, pinned, ICON.pin + ' Pinned');
+  if (restShown.length) group(restShown, rest, pinned.length ? 'Notes' : '');
+
+  const hidden = list.length - pinnedShown.length - restShown.length;
+  if (hidden > 0) appendMore(box, hidden);
+}
+
+// Timer chips: one per timer that has notes, plus summaries
+function renderTimerChips(box) {
+  const counts = new Map();
+  timerNotes().forEach(n => counts.set(timerKind(n), (counts.get(timerKind(n)) || 0) + 1));
+  if (timerFilter && !counts.has(timerFilter)) timerFilter = null;
+  const order = Object.keys(TIMER_LABELS);
+  [...counts.entries()]
+    .sort((a, b) => (order.indexOf(a[0]) + 1 || 99) - (order.indexOf(b[0]) + 1 || 99))
+    .forEach(([kind, count]) => {
+      const c = el('button', 'chip');
+      c.setAttribute('aria-pressed', kind === timerFilter);
+      c.append(TIMER_LABELS[kind] || kind);
+      c.appendChild(el('small', null, String(count)));
+      c.addEventListener('click', () => {
+        timerFilter = timerFilter === kind ? null : kind;
+        visibleLimit = PAGE_SIZE;
+        render();
+      });
+      box.appendChild(c);
+    });
+}
+
+// Timer tab: notes and day summaries from the timer, grouped by day (newest day first)
+function renderTimerView() {
+  const box = $('messages');
+  box.textContent = '';
+  const q = parseQuery(query);
+  const all = timerNotes();
+  const list = collectNotes(q, all.filter(n => !timerFilter || timerKind(n) === timerFilter));
+  const filtering = q.active || !!timerFilter;
+  $('status').textContent = filtering ? `Showing ${list.length} of ${all.length}` : '';
+
+  if (!list.length) {
+    box.appendChild(el('div', 'empty', filtering
+      ? 'No timer notes match.'
+      : 'No timer notes yet. Notes you save on the timer page (and its day summaries) arrive here through the userscript.'));
+    return;
+  }
+  const sorted = list.slice().sort((a, b) => timerWhen(b) - timerWhen(a));
+  const shown = sorted.slice(0, visibleLimit);
+  let lastDay = '';
+  shown.forEach(n => {
+    const day = new Date(timerWhen(n)).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+    if (day !== lastDay) { box.appendChild(el('div', 'section-label', day)); lastDay = day; }
+    box.appendChild(makeCard(n, {}));
+  });
+  if (sorted.length > shown.length) appendMore(box, sorted.length - shown.length);
+}
+
+// All tab: notes + highlights mixed by time, pinned notes on top
+function renderAllView() {
+  const box = $('messages');
+  box.textContent = '';
+  const q = parseQuery(query);
+  const words = q.words;
+  const filtering = q.active || !!activeTag;
+
+  const noteList = collectNotes(q, notes);
+  const hlList = activeTag ? [] : collectHighlights(q);
+  const total = notes.length + (bridgeConnected ? countHighlights() : 0);
+  $('status').textContent = filtering ? `Showing ${noteList.length + hlList.length} of ${total}` : '';
+
+  const pinned = sortMode === 'manual' ? noteList.filter(n => n.pinned) : sortList(noteList.filter(n => n.pinned), sortMode);
+  const mixed = [];
+  noteList.forEach(n => { if (!n.pinned) mixed.push({ kind: 'note', n, created: n.created, updated: n.updated || 0 }); });
+  hlList.forEach(h => mixed.push(h));
+  const order = sortMode === 'manual' ? 'newest' : sortMode;
+  const sorted = sortList(mixed, order);
+
+  if (!pinned.length && !sorted.length) {
+    box.appendChild(el('div', 'empty', filtering
+      ? 'Nothing matches your search.'
+      : 'Nothing here yet. Type a note above, or add ?q=your note to the URL. Press ? for help.'));
+    return;
+  }
+
+  if (pinned.length) {
+    box.appendChild(el('div', 'section-label', ICON.pin + ' Pinned'));
+    pinned.forEach(n => box.appendChild(makeCard(n, {})));
+  }
+  const shown = sorted.slice(0, visibleLimit);
+  if (shown.length) {
+    const label = { newest: 'Newest first', oldest: 'Oldest first', edited: 'Recently edited' }[order];
+    box.appendChild(el('div', 'section-label', pinned.length ? label : ''));
+    if (!pinned.length) box.lastChild.remove();
+    shown.forEach(item => {
+      box.appendChild(item.kind === 'note'
+        ? makeCard(item.n, {})
+        : makeHlCard(item.url, item.it, words, true));
+    });
+  }
+  if (sorted.length > shown.length) appendMore(box, sorted.length - shown.length);
+}
+
+function render() {
+  renderTabs();
+  renderTags();
+  if (view === 'highlights') renderHighlights();
+  else if (view === 'all') renderAllView();
+  else if (view === 'timer') renderTimerView();
+  else renderNotesView();
+  $('sort').value = sortMode;
+}
+
+/* ---------- export / import ---------- */
+function download(name, content, type) {
+  const blob = new Blob([content], { type });
+  const a = el('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+const stamp = () => {
+  const d = new Date(), p = x => String(x).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+};
+const localIso = ms => {
+  const d = new Date(ms), p = x => String(x).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+};
+
+function buildExport() {
+  const data = { app: 'url-notes-maker', version: 2, exportedAt: new Date().toISOString(), notes, trash };
+  // Same shape as the userscript's own export, so its Import can read this file too.
+  if (bridgeConnected) data.pages = highlights;
+  return data;
+}
+const stampTime = () => {
+  const d = new Date(), p = x => String(x).padStart(2, '0');
+  return `${stamp()}_${p(d.getHours())}-${p(d.getMinutes())}`;
+};
+function exportJson() {
+  const data = buildExport();
+  download(`url-notes-${stampTime()}.json`, JSON.stringify(data, null, 2), 'application/json');
+  markBackedUp(data);
+}
+
+/* ---------- daily backup offer ---------- */
+// The first time the page is opened on a new day, if notes (or highlights) changed since the last
+// backup file, a bar offers to download one. Browsers can't pick a folder, so the file goes to the
+// normal download folder; the name (url-notes-DATE_TIME.json) tells it apart from other backups.
+const DAILY_KEY = 'url-notes-daily-backup';
+function readDaily() {
+  try { const v = JSON.parse(localStorage.getItem(DAILY_KEY) || '{}'); return v && typeof v === 'object' ? v : {}; }
+  catch (e) { return {}; }
+}
+function writeDaily(patch) {
+  try { localStorage.setItem(DAILY_KEY, JSON.stringify(Object.assign(readDaily(), patch))); } catch (e) {}
+}
+function dataSignature(data) {
+  const str = JSON.stringify([
+    (data.notes || []).map(n => [n.id, n.text, n.created, !!n.pinned]),
+    (data.trash || []).map(n => [n.id, n.text]),
+    data.pages || null
+  ]);
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) h = ((h * 33) ^ str.charCodeAt(i)) >>> 0;
+  return h.toString(36) + ':' + str.length;
+}
+function markBackedUp(data) {
+  writeDaily({ sig: dataSignature(data), backedUpAt: Date.now() });
+}
+function checkDailyBackup() {
+  const today = stamp();
+  const rec = readDaily();
+  if (rec.checkedDay === today) return;              // already looked at today
+  writeDaily({ checkedDay: today });
+  const data = buildExport();
+  if (!data.notes.length && !data.trash.length) return;
+  if (rec.sig === dataSignature(data)) return;       // nothing new since the last backup
+  const fresh = rec.sig ? 'New or changed notes since your last backup.' : 'No backup file made yet.';
+  toast(fresh, 'Download backup', exportJson, 30000);
+}
+function exportTxt() {
+  const out = notes.map(n =>
+    `[${localIso(n.created)}]${n.pinned ? ' (pinned)' : ''}\n${n.text}\n\n${'-'.repeat(40)}\n`
+  ).join('\n');
+  download(`notes-${stamp()}.txt`, out || 'No notes.\n', 'text/plain');
+}
+function exportCsv() {
+  const q = s => '"' + String(s).replace(/"/g, '""') + '"';
+  const rows = [['created', 'pinned', 'tags', 'text'].map(q).join(',')];
+  notes.forEach(n => rows.push([
+    localIso(n.created), n.pinned ? 'yes' : 'no', tagsOf(n.text).join(' '), n.text
+  ].map(q).join(',')));
+  download(`notes-${stamp()}.csv`, '﻿' + rows.join('\r\n'), 'text/csv');
+}
+
+function importData(text) {
+  let data;
+  try { data = JSON.parse(text); } catch (e) { toast('That file is not valid JSON.'); return; }
+  const incomingNotes = Array.isArray(data) ? data : (Array.isArray(data && data.notes) ? data.notes : null);
+  if (!incomingNotes) {
+    toast(data && data.pages
+      ? 'That file only holds highlights. Import it in the userscript’s All notes panel.'
+      : 'No notes found in that file.');
+    return;
+  }
+  const incomingTrash = Array.isArray(data && data.trash) ? data.trash : [];
+
+  const ids = new Set([...notes, ...trash].map(n => n.id));
+  const sigs = new Set([...notes, ...trash].map(n => n.text + '|' + n.created));
+  let added = 0, skipped = 0;
+  const take = (raw, target) => {
+    const n = normalize(raw);
+    if (!n) return;
+    const sig = n.text + '|' + n.created;
+    if (ids.has(n.id) || sigs.has(sig)) { skipped++; return; }
+    ids.add(n.id); sigs.add(sig);
+    target.push(n);
+    added++;
+  };
+  incomingNotes.forEach(r => take(r, notes));
+  incomingTrash.forEach(r => take(r, trash));
+  persist();
+  render();
+  toast(`Imported ${added} note${added === 1 ? '' : 's'}, skipped ${skipped} duplicate${skipped === 1 ? '' : 's'}.`);
+}
+
+/* ---------- auto-backup to a file (Chrome / Edge) ---------- */
+const hasFsApi = typeof window.showSaveFilePicker === 'function' && !!window.indexedDB;
+
+function idbOpen() {
+  return new Promise((resolve, reject) => {
+    const r = indexedDB.open('url-notes', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('kv');
+    r.onsuccess = () => resolve(r.result);
+    r.onerror = () => reject(r.error);
+  });
+}
+async function idbGet(key) {
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const req = db.transaction('kv').objectStore('kv').get(key);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function idbSet(key, value) {
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('kv', 'readwrite');
+    tx.objectStore('kv').put(value, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function idbDel(key) {
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('kv', 'readwrite');
+    tx.objectStore('kv').delete(key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+function updateBackupUi() {
+  const active = !!backupHandle;
+  const badge = $('backupBadge');
+  $('bkNow').hidden = !active;
+  $('bkStop').hidden = !active;
+  badge.hidden = !active;
+  if (!active) return;
+  badge.classList.toggle('attention', backupPaused);
+  badge.textContent = backupPaused ? ICON.save + ' Resume backup' : ICON.save + ' Backup on';
+  badge.title = backupPaused
+    ? 'Click to let this page write to your backup file again'
+    : `Auto-saving to ${backupHandle.name}` +
+      (lastBackup ? ` · last saved ${new Date(lastBackup).toLocaleTimeString('en-US', { hourCycle: 'h23' })}` : '');
+}
+
+async function hasWritePermission(ask) {
+  const opts = { mode: 'readwrite' };
+  if ((await backupHandle.queryPermission(opts)) === 'granted') return true;
+  return !!ask && (await backupHandle.requestPermission(opts)) === 'granted';
+}
+
+async function runBackup(ask = false) {
+  if (!backupHandle) return;
+  try {
+    if (!(await hasWritePermission(ask))) { backupPaused = true; updateBackupUi(); return; }
+    backupPaused = false;
+
+    if (!backupReady) {
+      // Safety: never overwrite a file that has notes with an empty browser.
+      const text = await (await backupHandle.getFile()).text();
+      let count = 0;
+      try { const d = JSON.parse(text); count = Array.isArray(d.notes) ? d.notes.length : 0; } catch (e) {}
+      if (!notes.length && !trash.length && count > 0) {
+        updateBackupUi();
+        toast(`Your backup file has ${count} note${count === 1 ? '' : 's'} but this browser has none.`,
+          'Restore', () => importData(text), 20000);
+        return;
+      }
+      backupReady = true;
+    }
+
+    const writable = await backupHandle.createWritable();
+    await writable.write(JSON.stringify(buildExport(), null, 2));
+    await writable.close();
+    lastBackup = Date.now();
+  } catch (e) {
+    toast('Backup failed: ' + (e && e.message ? e.message : 'unknown error'));
+  }
+  updateBackupUi();
+}
+
+function scheduleBackup() {
+  if (!backupHandle) return;
+  clearTimeout(backupTimer);
+  backupTimer = setTimeout(() => runBackup(false), 1500);
+}
+
+async function chooseBackupFile() {
+  if (!hasFsApi) { toast('Auto-backup needs Chrome, Edge or another Chromium-based browser.'); return; }
+  try {
+    const handle = await window.showSaveFilePicker({
+      suggestedName: 'url-notes-backup.json',
+      types: [{ description: 'JSON backup', accept: { 'application/json': ['.json'] } }]
+    });
+    backupHandle = handle;
+    backupReady = false;
+    backupPaused = false;
+    await idbSet('backup', handle);
+    updateBackupUi();
+    await runBackup(true);
+    if (backupHandle && !backupPaused) toast('Auto-backup is on: ' + handle.name);
+  } catch (e) {
+    // the file picker was cancelled
+  }
+}
+
+async function stopBackup() {
+  backupHandle = null;
+  backupReady = false;
+  clearTimeout(backupTimer);
+  try { await idbDel('backup'); } catch (e) {}
+  updateBackupUi();
+  toast('Auto-backup stopped');
+}
+
+async function initBackup() {
+  if (!hasFsApi) return;
+  try {
+    const handle = await idbGet('backup');
+    if (handle) {
+      backupHandle = handle;
+      updateBackupUi();
+      runBackup(false);
+    }
+  } catch (e) {}
+}
+
+/* ---------- theme ---------- */
+function applyTheme(mode) {
+  const root = document.documentElement;
+  if (mode === 'light' || mode === 'dark') root.dataset.theme = mode;
+  else delete root.dataset.theme;
+  const icon = { auto: '◐ Auto', light: '☀ Light', dark: '☾ Dark' }[mode] || '◐ Auto';
+  $('themeBtn').textContent = icon;
+  $('themeBtn').title = 'Theme: ' + (mode || 'auto') + ' (click to change)';
+}
+let theme = 'auto';
+try { theme = localStorage.getItem(THEME_KEY) || 'auto'; } catch (e) {}
+applyTheme(theme);
+$('themeBtn').addEventListener('click', () => {
+  theme = { auto: 'light', light: 'dark', dark: 'auto' }[theme] || 'auto';
+  try { localStorage.setItem(THEME_KEY, theme); } catch (e) {}
+  applyTheme(theme);
+});
+
+/* ---------- help ---------- */
+const help = $('help');
+function setupHelp() {
+  const ex1 = BASE + '?q=Buy milk on the way home';
+  const ex2 = BASE + '?q=Idea for the blog%0ALine two %23idea';
+  $('ex1').textContent = ex1;
+  $('ex2').textContent = ex2;
+  $('try1').href = ex1;
+  $('try2').href = ex2;
+  const code = 'javascript:' + '(function(){var s=String(getSelection()).trim();window.open(' +
+    JSON.stringify(BASE) + '+"?q="+encodeURIComponent((s?s+"\\n":"")+document.title+"\\n"+location.href),"_blank")})()';
+  $('bm').href = encodeURI(code);
+  $('bm').addEventListener('click', e => { e.preventDefault(); toast('Drag this button to your bookmarks bar.'); });
+}
+function openHelp(sectionId) {
+  try { localStorage.setItem(SEEN_KEY, '1'); } catch (e) {}
+  if (!help.open) help.showModal();
+  if (typeof sectionId === 'string') {
+    const target = $(sectionId);
+    if (target && target.scrollIntoView) target.scrollIntoView({ block: 'start' });
+  }
+}
+$('helpBtn').addEventListener('click', () => openHelp());
+
+/* ---------- companion userscript (shown in the help dialog) ---------- */
+// The embedded copy points at gabryan.com/notes. When someone copies or downloads it,
+// the SITE block is rewritten to the address of the page they're on, so the link works
+// wherever this file is hosted.
+function userscriptSource() {
+  const node = $('userscriptSrc');
+  let src = node ? node.textContent : '';
+  if (!/^https?:$/.test(location.protocol)) return src;
+  try {
+    const host = location.hostname;
+    const origins = [location.origin];
+    if (/\./.test(host) && !/^[\d.]+$/.test(host) && location.protocol === 'https:') {
+      origins.push(host.startsWith('www.') ? 'https://' + host.slice(4) : 'https://www.' + host);
+    }
+    const dir = location.pathname.replace(/\/[^\/]*$/, '');
+    const siteBlock = /const SITE = \{[\s\S]*?\n  \};/;
+    const siteUrl = /const DEFAULT_SITE_URL = '[^']*';/;
+    if (siteBlock.test(src) && siteUrl.test(src)) {
+      const q = v => "'" + String(v).replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
+      src = src
+        .replace(siteBlock, () => 'const SITE = {\n    origins: [' + origins.map(q).join(', ') +
+          '],\n    path: ' + q(dir) + '\n  };')
+        .replace(siteUrl, () => 'const DEFAULT_SITE_URL = ' + q(BASE) + ';');
+    }
+  } catch (e) {}
+  return src;
+}
+
+function flashLabel(btn, text) {
+  const old = btn.dataset.label || btn.textContent;
+  btn.dataset.label = old;
+  btn.textContent = text;
+  clearTimeout(btn._t);
+  btn._t = setTimeout(() => { btn.textContent = old; }, 1800);
+}
+
+$('copyScript').addEventListener('click', e => {
+  const text = userscriptSource();
+  const btn = e.currentTarget;
+  const fallback = () => {
+    const ta = el('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed'; ta.style.opacity = '0';
+    $('help').appendChild(ta);
+    ta.select();
+    let done = false;
+    try { done = document.execCommand('copy'); } catch (err) {}
+    ta.remove();
+    flashLabel(btn, done ? 'Copied ✓' : 'Copy failed: open "Show the code" and copy it by hand');
+  };
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(() => flashLabel(btn, 'Copied ✓'), fallback);
+  } else fallback();
+});
+$('downloadScript').addEventListener('click', () => {
+  download('make-highlights-notes.user.js', userscriptSource(), 'text/javascript');
+});
+$('codeDetails').addEventListener('toggle', e => {
+  const view = $('codeView');
+  if (e.target.open && !view.textContent) view.textContent = userscriptSource();   // filled only when opened
+});
+$('helpClose').addEventListener('click', () => help.close());
+help.addEventListener('click', e => { if (e.target === help) help.close(); });
+setupHelp();
+
+/* ---------- userscript bridge ---------- */
+// Talks to the "Make Highlights & Notes" userscript (v2.4+) and the "Focus Timer Capsule" userscript through window.postMessage.
+// Without the userscript nothing here does anything.
+const CHANNEL = 'url-notes-bridge';
+const DELIVERED_KEY = 'url-notes-delivered';
+
+function toScript(msg) {
+  window.postMessage(Object.assign({ channel: CHANNEL, from: 'page' }, msg), location.origin);
+}
+
+function scheduleSnapshot() {
+  if (!bridgeConnected) return;
+  clearTimeout(snapshotTimer);
+  snapshotTimer = setTimeout(() => {
+    toScript({
+      type: 'snapshot',
+      notes: notes.map(n => ({ id: n.id, text: n.text, created: n.created, pinned: n.pinned }))
+    });
+  }, 400);
+}
+
+function readDelivered() {
+  try {
+    const v = JSON.parse(localStorage.getItem(DELIVERED_KEY) || '[]');
+    return Array.isArray(v) ? v : [];
+  } catch (e) { return []; }
+}
+function rememberDelivered(ids) {
+  try {
+    localStorage.setItem(DELIVERED_KEY, JSON.stringify(readDelivered().concat(ids).slice(-500)));
+  } catch (e) {}
+}
+
+function ingestOutbox(items) {
+  if (!Array.isArray(items) || !items.length) return;
+  const known = new Set([...notes, ...trash].map(n => n.id).concat(readDelivered()));
+  const fresh = [];
+  const ids = [];
+  items.forEach(item => {
+    const id = item && String(item.id || '');
+    if (!id) return;
+    ids.push(id);
+    if (known.has(id)) return;
+    const n = normalize({ id, text: String(item.text || ''), created: Number(item.created) || Date.now() });
+    if (n) { fresh.push(n); known.add(id); }
+  });
+  fresh.sort((a, b) => a.created - b.created).forEach(n => notes.unshift(n));
+  if (fresh.length) {
+    persist();
+    render();
+    toast(`${fresh.length} note${fresh.length === 1 ? '' : 's'} received from the userscript`, null, null, 3500);
+  }
+  rememberDelivered(ids);
+  toScript({ type: 'ack', ids });
+}
+
+window.addEventListener('message', e => {
+  if (e.source !== window || e.origin !== location.origin) return;
+  const d = e.data;
+  if (!d || d.channel !== CHANNEL || d.from !== 'userscript') return;
+  // 'outbox' = notes only (sent by the Focus Timer Capsule script); it must not touch the highlights.
+  if (d.type === 'outbox') { ingestOutbox(d.items); return; }
+  if (d.type !== 'state') return;
+  const first = !bridgeConnected;
+  bridgeConnected = true;
+  bridgeWaiting = false;
+  $('linkStatus').hidden = false;
+  highlights = (d.highlights && typeof d.highlights === 'object' && !Array.isArray(d.highlights)) ? d.highlights : {};
+  ingestOutbox(d.outbox);
+  if (first) scheduleSnapshot();
+  render();
+});
+
+function initBridge() {
+  // The userscript also announces itself as soon as it loads, so a few seconds of
+  // waiting is enough; a late arrival is still accepted and updates the page.
+  [0, 500, 1500, 3000].forEach(ms => setTimeout(() => {
+    if (!bridgeConnected) toScript({ type: 'hello' });
+  }, ms));
+  setTimeout(() => {
+    if (bridgeConnected) return;
+    bridgeWaiting = false;
+    if (view === 'highlights') render();
+  }, 4000);
+}
+
+function highlightItems(list) {
+  return (Array.isArray(list) ? list : []).filter(it =>
+    it && typeof it.text === 'string' && typeof it.note === 'string' && it.text && it.note);
+}
+function countHighlights() {
+  return Object.values(highlights).reduce((sum, list) => sum + highlightItems(list).length, 0);
+}
+
+// Text fragment so the browser scrolls to (and marks) the highlighted text when the page opens.
+function highlightLink(url, text) {
+  const clean = text.replace(/\s+/g, ' ').trim();
+  const enc = s => encodeURIComponent(s).replace(/-/g, '%2D');
+  const frag = clean.length <= 100
+    ? enc(clean)
+    : enc(clean.slice(0, 50).trim()) + ',' + enc(clean.slice(-50).trim());
+  return url + '#:~:text=' + frag;
+}
+
+function tsText(item) {
+  const c = Date.parse(item.createdAt), u = Date.parse(item.updatedAt);
+  const created = Number.isNaN(c) ? 'Date unavailable' : fmt(c);
+  return Number.isNaN(u) ? created : `${created} · edited ${fmt(u)}`;
+}
+
+function collectHighlights(q) {
+  const out = [];
+  Object.entries(highlights).forEach(([url, list]) => {
+    let u;
+    try { u = new URL(url); } catch (e) { return; }
+    if (!/^https?:$/.test(u.protocol)) return;
+    highlightItems(list).forEach(it => {
+      const created = Date.parse(it.createdAt) || 0;
+      const updated = Date.parse(it.updatedAt) || 0;
+      if (q.active) {
+        const probe = {
+          kind: 'highlight', text: it.text, hay: (it.text + ' ' + it.note + ' ' + url).toLowerCase(),
+          created, pinned: false, tagText: it.note
+        };
+        if (!matchEntry(probe, q)) return;
+      }
+      out.push({ kind: 'highlight', url, u, it, created, updated });
+    });
+  });
+  return out;
+}
+
+function makeHlCard(url, it, words, showSite) {
+  const card = el('article', 'message hl-card');
+  const meta = el('div', 'meta');
+  meta.appendChild(el('span', 'badge', ICON.highlighter + ' Highlight'));
+  if (showSite) {
+    let u = null;
+    try { u = new URL(url); } catch (e) {}
+    if (u) {
+      meta.append(' · ');
+      const a = el('a', null, u.host);
+      a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+      meta.appendChild(a);
+    }
+  }
+  meta.append(' · ' + tsText(it));
+  card.appendChild(meta);
+
+  const quote = el('blockquote', 'hl-quote');
+  appendMarked(quote, '“' + it.text + '”', words);
+  card.appendChild(quote);
+  const note = el('div', 'hl-note');
+  appendMarked(note, it.note, words);
+  card.appendChild(note);
+
+  const actions = el('div', 'actions');
+  const open = el('a', 'icon text', 'Open page ↗');
+  open.href = highlightLink(url, it.text);
+  open.target = '_blank'; open.rel = 'noopener noreferrer';
+  open.title = 'Open the page and jump to the highlighted text';
+  actions.append(open, iconBtn(ICON.copy, 'Copy quote and note', () => copyText('“' + it.text + '”\n\n' + it.note + '\n\n' + url)));
+  card.appendChild(actions);
+  return card;
+}
+
+function renderHighlights() {
+  const box = $('messages');
+  box.textContent = '';
+  const q = parseQuery(query);
+  const words = q.words;
+
+  if (!bridgeConnected) {
+    $('status').textContent = '';
+    const msg = el('div', 'empty', bridgeWaiting
+      ? 'Connecting to the userscript…'
+      : 'Highlights appear here when the Make Highlights & Notes userscript (v2.5 or newer) is running in this browser. ' +
+        'If you already installed it, make sure Tampermonkey is on and reload this page.');
+    if (!bridgeWaiting) {
+      msg.appendChild(el('br'));
+      const b = el('button', 'btn primary', 'Get the Tampermonkey script');
+      b.style.marginTop = '12px';
+      b.addEventListener('click', () => openHelp('scriptHelp'));
+      msg.appendChild(b);
+    }
+    box.appendChild(msg);
+    return;
+  }
+
+  const all = collectHighlights(q);
+  const total = countHighlights();
+  $('status').textContent = q.active ? `Showing ${all.length} of ${total}` : '';
+
+  if (!all.length) {
+    box.appendChild(el('div', 'empty', q.active
+      ? 'No highlights match your search.'
+      : 'No highlights yet. Select text on any page and add a note with the userscript.'));
+    return;
+  }
+
+  const byPage = new Map();
+  all.forEach(h => {
+    if (!byPage.has(h.url)) byPage.set(h.url, { url: h.url, u: h.u, items: [], latest: 0 });
+    const g = byPage.get(h.url);
+    g.items.push(h);
+    g.latest = Math.max(g.latest, h.updated || h.created);
+  });
+  const pages = [...byPage.values()].sort((a, b) => sortMode === 'oldest' ? a.latest - b.latest : b.latest - a.latest);
+
+  box.appendChild(el('p', 'note-hint', 'Read-only view. Edit or delete highlights with the userscript on the page itself.'));
+
+  let drawn = 0;
+  for (const { url, u, items } of pages) {
+    if (drawn >= visibleLimit) break;
+    const sec = el('section', 'hl-page');
+    const head = el('div', 'hl-head');
+    const site = el('a', 'hl-site', u.host);
+    site.href = url; site.target = '_blank'; site.rel = 'noopener noreferrer';
+    head.append(site, el('span', 'hl-path', (u.pathname || '/') + u.search));
+    sec.appendChild(head);
+    items.forEach(h => { sec.appendChild(makeHlCard(url, h.it, words, false)); drawn++; });
+    box.appendChild(sec);
+  }
+  if (drawn < all.length) appendMore(box, all.length - drawn);
+}
+
+/* ---------- wiring ---------- */
+const composer = $('composer');
+composer.addEventListener('input', () => { composer.style.height = 'auto'; composer.style.height = composer.scrollHeight + 2 + 'px'; });
+function submitComposer() {
+  if (addNote(composer.value)) {
+    composer.value = '';
+    composer.style.height = 'auto';
+    if (view === 'all' || view === 'notes') render();
+    else setView('notes');   // (a note typed on the Timer tab is a normal note, so it opens Notes)
+  }
+}
+$('addBtn').addEventListener('click', () => { submitComposer(); composer.focus(); });
+composer.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); submitComposer(); }
+});
+
+let searchTimer;
+$('search').addEventListener('input', e => {
+  query = e.target.value;
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => { visibleLimit = PAGE_SIZE; render(); }, 120);
+});
+$('sort').addEventListener('change', e => {
+  sortMode = SORTS.includes(e.target.value) ? e.target.value : 'manual';
+  try { localStorage.setItem(SORT_KEY, sortMode); } catch (err) {}
+  visibleLimit = PAGE_SIZE;
+  render();
+});
+$('tabAll').addEventListener('click', () => setView('all'));
+$('tabNotes').addEventListener('click', () => setView('notes'));
+$('tabTimer').addEventListener('click', () => setView('timer'));
+$('tabHl').addEventListener('click', () => setView('highlights'));
+$('tabTrash').addEventListener('click', () => setView('trash'));
+
+const menu = $('backupMenu');
+document.addEventListener('click', e => { if (!menu.contains(e.target)) menu.open = false; });
+const menuAction = fn => () => { menu.open = false; fn(); };
+$('expJson').addEventListener('click', menuAction(exportJson));
+$('expTxt').addEventListener('click', menuAction(exportTxt));
+$('expCsv').addEventListener('click', menuAction(exportCsv));
+$('impBtn').addEventListener('click', menuAction(() => $('importFile').click()));
+$('bkChoose').addEventListener('click', menuAction(chooseBackupFile));
+$('bkNow').addEventListener('click', menuAction(() => { runBackup(true).then(() => { if (!backupPaused) toast('Backup saved'); }); }));
+$('bkStop').addEventListener('click', menuAction(stopBackup));
+$('backupBadge').addEventListener('click', () => {
+  if (backupPaused) runBackup(true);
+  else toast(backupHandle ? `Auto-saving to ${backupHandle.name}` : 'Auto-backup is off', null, null, 3000);
+});
+$('importFile').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => importData(String(r.result));
+  r.readAsText(f);
+  e.target.value = '';
+});
+
+document.addEventListener('keydown', e => {
+  if (help.open) return;
+  const t = e.target;
+  const typing = t.matches && t.matches('input, textarea, select');
+  if (e.key === 'Escape' && t === $('search')) {
+    $('search').value = ''; query = ''; render(); $('search').blur();
+    return;
+  }
+  if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key === '/') { e.preventDefault(); $('search').focus(); $('search').select(); }
+  else if (e.key === 'n') { e.preventDefault(); composer.focus(); }
+  else if (e.key === '?') { e.preventDefault(); openHelp(); }
+});
+
+// keep several open tabs in sync
+window.addEventListener('storage', e => {
+  if (e.key !== KEY && e.key !== TRASH_KEY) return;
+  if (document.activeElement && document.activeElement.matches('textarea')) return;
+  load();
+  render();
+});
+
+/* ---------- start ---------- */
+load();
+
+// Add a note from the URL: ?q=... or ?text=...
+const params = new URLSearchParams(location.search);
+const incoming = params.get('q') ?? params.get('text');
+let addedFromUrl = false;
+if (incoming !== null && incoming.trim() !== '') {
+  addedFromUrl = addNote(incoming);
+  if (addedFromUrl) { view = 'notes'; activeTag = null; saveView(); }   // show the note that was just added
+}
+if (params.has('q') || params.has('text')) {
+  history.replaceState({}, '', location.pathname);   // so a refresh doesn't add it twice
+}
+persist();   // also migrates notes saved by the old version
+render();
+initBridge();
+setTimeout(checkDailyBackup, 4300);   // after the bridge had its 4 s to deliver the highlights
+initBackup();
+
+if (addedFromUrl) toast('Note added from the URL', null, null, 3000);
+let seen = '1';
+try { seen = localStorage.getItem(SEEN_KEY); } catch (e) {}
+if (!seen && !addedFromUrl) openHelp();
+</script>
+</body>
+</html>
