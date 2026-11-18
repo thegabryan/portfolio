@@ -364,3 +364,5 @@ dialog.lstdlg[open] { display: flex; }
 /* header chip: someone waits in "To reach out" */
 .nav .reachchip { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-color: #e0a100; background: rgba(224,161,0,.14); font-weight: 600; }
 .nav .reachchip[hidden] { display: none; }
+
+.nav .reachchip.followup { border-color: #2f6df6; background: rgba(47,109,246,.12); }

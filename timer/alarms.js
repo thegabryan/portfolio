@@ -82,29 +82,36 @@
         '<button type="button" class="ghost" data-del="' + a.id + '">Delete</button></div>';
     }).join('') : '<p class="muted">No alarms yet.</p>';
   }
-  /* "Reach out" chip: shows who is waiting in the To-reach-out list (read from the site data, so it works on every page). */
+  /* Header chips for the outreach lists, read from the site data so they work on every page:
+     amber "Reach out: Name" (To reach out list) and blue "Follow up: Name" (follow-ups that are due). */
   function initReach(after) {
-    var chip = document.createElement('button'); chip.type = 'button'; chip.className = 'ghost hbtn reachchip'; chip.id = 'reachChip'; chip.hidden = true;
-    after.after(chip);
-    function waiting() {
-      try { var d = JSON.parse(localStorage.getItem('tsa2_data') || 'null'); var t = d && d.outreach && d.outreach.todo; return Array.isArray(t) ? t.slice().sort(function (a, b) { return a.added - b.added; }) : []; } catch (e) { return []; }
+    var data = function () { try { var d = JSON.parse(localStorage.getItem('tsa2_data') || 'null'); return d && d.outreach ? d.outreach : {}; } catch (e) { return {}; } };
+    var nm = function (x) { return x.name || x.url || 'a creator'; };
+    function make(id, cls, anchor, tab, list, label, head) {
+      var chip = document.createElement('button'); chip.type = 'button'; chip.className = 'ghost hbtn reachchip ' + cls; chip.id = id; chip.hidden = true;
+      anchor.after(chip);
+      chip.paint = function () {
+        var t = list(data());
+        chip.hidden = !t.length;
+        if (!t.length) return;
+        chip.textContent = label + nm(t[0]) + (t.length > 1 ? ' +' + (t.length - 1) : '');
+        chip.title = head + ' (' + t.length + '):\n' + t.map(nm).join('\n') + '\n\nClick to open the list';
+      };
+      chip.addEventListener('click', function () {
+        if (document.getElementById('lstDlg')) window.dispatchEvent(new CustomEvent('tsa-open-lists', { detail: { tab: tab } }));
+        else location.href = 'index.html#' + tab;
+      });
+      return chip;
     }
-    function paint() {
-      var t = waiting();
-      chip.hidden = !t.length;
-      if (!t.length) return;
-      var nm = function (x) { return x.name || x.url || 'a creator'; };
-      chip.textContent = '📌 Reach out: ' + nm(t[0]) + (t.length > 1 ? ' +' + (t.length - 1) : '');
-      chip.title = 'To reach out (' + t.length + '):\n' + t.map(nm).join('\n') + '\n\nClick to open the list';
-    }
-    chip.addEventListener('click', function () {
-      if (document.getElementById('lstDlg')) window.dispatchEvent(new CustomEvent('tsa-open-lists', { detail: { tab: 'todo' } }));
-      else location.href = 'index.html#todo';
-    });
+    var arr = function (v) { return Array.isArray(v) ? v : []; };
+    var reach = make('reachChip', 'reachto', after, 'todo', function (o) { return arr(o.todo).slice().sort(function (a, b) { return a.added - b.added; }); }, '📌 Reach out: ', 'To reach out');
+    var fu = make('followChip', 'followup', reach, 'follow', function (o) { var n = Date.now(); return arr(o.follow).filter(function (f) { return f.status === 'active' && f.due <= n; }).sort(function (a, b) { return a.due - b.due; }); }, '🔁 Follow up: ', 'Follow-ups due');
+    var paint = function () { reach.paint(); fu.paint(); };
     window.addEventListener('storage', function (e) { if (e.key === 'tsa2_data') paint(); });
     window.addEventListener('tsa-lists-changed', paint);
     setInterval(paint, 3000); paint();
   }
+
   function init() {
     var nav = document.querySelector('.nav nav'); if (!nav) return;
     btn = document.createElement('button'); btn.type = 'button'; btn.className = 'ghost hbtn alarmtime'; btn.id = 'alarmBtn';
