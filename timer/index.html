@@ -323,7 +323,7 @@
     var nm = $('whoInput').value.trim();
     if (nm && whoMs) TSA.setOutreachName(whoMs, nm);
     if ($('whoNote').value.trim() && whoMs) TSA.setOutreachNote(whoMs, $('whoNote').value);
-    if (nm && $('whoFollow').checked) TSA.startFollow(nm, '', whoMs || Date.now());
+    if (nm && $('whoFollow').checked) TSA.startFollow(nm, '', whoMs || Date.now(), { note: $('whoNote').value, ms: whoMs });
     S = TSA.get(); renderFollow();
     hideWho();
   });
@@ -393,13 +393,37 @@
   var linkify = function (t) { return esc(t).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>'); };
   var lstTab = 'follow';
   var dayLbl = function (ms) { return new Date(ms).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }); };
-  var leadHtml = function (f) { return '<b>' + linkify(f.name || f.url) + '</b>' + (f.name && f.url ? ' <span class="muted">' + linkify(f.url) + '</span>' : ''); };
+  var leadHtml = function (f) {
+    var pic = TSA.picFor(f), letter = (f.name || f.url || '?').replace(/^\W+/, '').charAt(0).toUpperCase() || '?';
+    return '<div class="lwho"><span class="av" data-l="' + esc(letter) + '">' + (pic ? '<img src="' + esc(pic) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' : '') + '</span><div class="lname"><b>' + linkify(f.name || f.url) + '</b>' + (f.name && f.url ? ' <span class="muted">' + linkify(f.url) + '</span>' : '') + '</div></div>';
+  };
   function renderFollow() {
     var now = Date.now(), due = TSA.followDue(now), todo = TSA.todoList().length;
     $('fuBar').hidden = !due.length;
     if (due.length) $('fuTxt').textContent = '📋 ' + due.length + ' follow-up' + (due.length === 1 ? '' : 's') + ' due: ' + due.slice(0, 3).map(function (f) { return f.name || f.url; }).join(', ') + (due.length > 3 ? '…' : '');
     var b = $('lstBtn'); if (b) b.textContent = '📋 Outreach lists' + (due.length ? ' (' + due.length + ' due)' : todo ? ' (' + todo + ')' : '');
+    window.dispatchEvent(new Event('tsa-lists-changed'));
     if ($('lstDlg').open) paintLists();
+  }
+  var editId = '';
+  var dkey = function (ms) { var d = new Date(ms); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); };
+  var noteHtml = function (x) { return x.note ? '<div class="lnote">' + esc(x.note).replace(/\n/g, '<br>') + '</div>' : ''; };
+  var pencil = function (id) { return '<button type="button" class="ghost" data-edit="' + id + '" title="Edit or delete">✏️ Edit</button>'; };
+  /* inline edit form for one entry (kind: 'todo' or 'follow') */
+  function editForm(x, kind) {
+    var f = kind === 'follow', i = function (id, v, ph) { return '<input id="' + id + '" type="text" maxlength="' + (id === 'edUrl' ? 300 : 120) + '" value="' + esc(v) + '" placeholder="' + ph + '">'; };
+    return '<form class="editform" data-kind="' + kind + '" data-id="' + x.id + '">' +
+      '<label>Name' + i('edName', x.name || '', 'Name') + '</label><label>Channel link' + i('edUrl', x.url || '', 'https://www.youtube.com/@…') + '</label>' +
+      '<label>Note<textarea id="edNote" maxlength="1000" rows="3" placeholder="Note about this outreach">' + esc(x.note || '') + '</textarea></label>' +
+      (f ? '<div class="edrow"><label>Outreach date<input id="edDate" type="date" value="' + dkey(x.started) + '"></label>' +
+        '<label>Follow-ups done<select id="edCount">' + [0, 1, 2, 3].map(function (n) { return '<option value="' + n + '"' + (n === x.count ? ' selected' : '') + '>' + n + ' / ' + TSA.FOLLOW_MAX + '</option>'; }).join('') + '</select></label>' +
+        '<label>Status<select id="edStatus">' + [['active', 'Active'], ['replied', 'Replied'], ['stopped', 'Stopped'], ['done', 'Finished']].map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === x.status ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></label></div>' +
+        (x.ms && S.outreach.clicks.indexOf(x.ms) >= 0 ? '<label class="chk"><input id="edScore" type="checkbox"> When deleting, also remove its +1 from the outreach score</label>' : '') : '') +
+      '<div class="lbtns"><button class="primary" type="submit">Save</button><button type="button" class="ghost" data-edit-cancel="1">Cancel</button><button type="button" class="ghost danger" data-edit-del="' + x.id + '">Delete…</button></div></form>';
+  }
+  function row(x, kind, muted, btns) {
+    if (editId === x.id) return '<div class="lrow editing"><div class="lmain">' + leadHtml(x) + editForm(x, kind) + '</div></div>';
+    return '<div class="lrow"><div class="lmain">' + leadHtml(x) + '<div class="muted">' + muted + '</div>' + noteHtml(x) + '</div><div class="lbtns">' + btns + pencil(x.id) + '</div></div>';
   }
   function paintLists() {
     var now = Date.now(), html = '';
@@ -408,28 +432,29 @@
       var act = TSA.followList().filter(function (f) { return f.status === 'active'; }).sort(function (a, b) { return a.due - b.due; });
       html = act.length ? act.map(function (f) {
         var isDue = f.due <= now;
-        return '<div class="lrow"><div class="lmain">' + leadHtml(f) + '<div class="muted">' + f.count + ' / ' + TSA.FOLLOW_MAX + ' follow-ups · ' + (isDue ? '<b class="duenow">due now</b>' : 'next ' + dayLbl(f.due)) + ' · outreach ' + dayLbl(f.started) + '</div></div>' +
-          '<div class="lbtns"><button type="button" class="primary" data-fu-done="' + f.id + '">Followed up</button><button type="button" class="ghost" data-fu-rep="' + f.id + '">Replied</button><button type="button" class="ghost" data-fu-stop="' + f.id + '">Stop</button></div></div>';
+        return row(f, 'follow', f.count + ' / ' + TSA.FOLLOW_MAX + ' follow-ups · ' + (isDue ? '<b class="duenow">due now</b>' : 'next ' + dayLbl(f.due)) + ' · outreach ' + dayLbl(f.started),
+          '<button type="button" class="primary" data-fu-done="' + f.id + '">Followed up</button><button type="button" class="ghost" data-fu-rep="' + f.id + '">Replied</button><button type="button" class="ghost" data-fu-stop="' + f.id + '">Stop</button>');
       }).join('') : '<p class="muted">No active follow-ups. Mark an outreach as reached (or tick “Remind me to follow up” on the +1 box) and it shows up here.</p>';
     } else if (lstTab === 'todo') {
       var td = TSA.todoList();
-      html = '<form id="todoForm" class="todoform"><input id="tdName" type="text" maxlength="120" placeholder="Name"><input id="tdUrl" type="text" maxlength="300" placeholder="Channel link"><button class="primary">Add</button></form>' +
+      html = '<form id="todoForm" class="todoform"><input id="tdName" type="text" maxlength="120" placeholder="Name"><input id="tdUrl" type="text" maxlength="300" placeholder="Channel link"><input id="tdNote" type="text" maxlength="1000" placeholder="Note (optional)"><button class="primary">Add</button></form>' +
         (td.length ? td.map(function (t) {
-          return '<div class="lrow"><div class="lmain">' + leadHtml(t) + '<div class="muted">added ' + dayLbl(t.added) + '</div></div><div class="lbtns"><button type="button" class="primary" data-td-reach="' + t.id + '">Outreached ✓</button><button type="button" class="ghost" data-td-del="' + t.id + '">Remove</button></div></div>';
+          return row(t, 'todo', 'added ' + dayLbl(t.added), '<button type="button" class="primary" data-td-reach="' + t.id + '">Outreached ✓</button><button type="button" class="ghost" data-td-del="' + t.id + '">Remove</button>');
         }).join('') : '<p class="muted">Nobody on the list. The YouTube userscript adds channels here, or add one above.</p>');
     } else {
       var fin = TSA.followList().filter(function (f) { return f.status !== 'active'; }).sort(function (a, b) { return (b.log[b.log.length - 1] || b.started) - (a.log[a.log.length - 1] || a.started); });
       var lab = { done: 'finished (3 follow-ups)', replied: 'replied', stopped: 'stopped' };
-      html = fin.length ? fin.map(function (f) { return '<div class="lrow"><div class="lmain">' + leadHtml(f) + '<div class="muted">' + lab[f.status] + ' · ' + f.count + ' follow-up' + (f.count === 1 ? '' : 's') + ' · outreach ' + dayLbl(f.started) + '</div></div></div>'; }).join('') : '<p class="muted">Nothing finished yet.</p>';
+      html = fin.length ? fin.map(function (f) { return row(f, 'follow', lab[f.status] + ' · ' + f.count + ' follow-up' + (f.count === 1 ? '' : 's') + ' · outreach ' + dayLbl(f.started), ''); }).join('') : '<p class="muted">Nothing finished yet.</p>';
     }
+    if (editId && $('lstBody').contains(document.activeElement) && document.activeElement.closest && document.activeElement.closest('.editform') && lstTab === lastLstTab) return;   // never rebuild under a form being typed in
     if (html === lastLstHtml && lstTab === lastLstTab) return;   // nothing changed: do not rebuild (it would drop the typing focus)
     var ae = document.activeElement, keep = null;
     if (ae && $('lstBody').contains(ae) && ae.id) keep = { id: ae.id, v: ae.value, a: ae.selectionStart, b: ae.selectionEnd };
-    var vals = { tdName: $('tdName') ? $('tdName').value : '', tdUrl: $('tdUrl') ? $('tdUrl').value : '' };
+    var vals = { tdName: $('tdName') ? $('tdName').value : '', tdUrl: $('tdUrl') ? $('tdUrl').value : '', tdNote: $('tdNote') ? $('tdNote').value : '' };
     lastLstHtml = html; lastLstTab = lstTab;
     $('lstBody').innerHTML = html;
     if ($('tdName')) {
-      if (lstTab === 'todo') { $('tdName').value = vals.tdName; $('tdUrl').value = vals.tdUrl; }
+      if (lstTab === 'todo') { $('tdName').value = vals.tdName; $('tdUrl').value = vals.tdUrl; $('tdNote').value = vals.tdNote; }
     }
     if (keep && $(keep.id)) { var el = $(keep.id); el.focus(); try { el.setSelectionRange(keep.a, keep.b); } catch (e) {} }
   }
@@ -445,15 +470,36 @@
     $('lstDlg').addEventListener('click', function (e) {
       var t = e.target.closest('button'); if (!t) { if (e.target === $('lstDlg')) $('lstDlg').close(); return; }
       var d = t.dataset;
+      var stopEdit = function () { editId = ''; lastLstHtml = ''; if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); };
+      if (d.edit) { editId = d.edit; lastLstHtml = ''; S = TSA.get(); paintLists(); var en = $('edName'); if (en) en.focus(); return; }
+      if (d.editCancel) { stopEdit(); S = TSA.get(); paintLists(); return; }
+      if (d.editDel) {
+        var fm = t.closest('form'), kind = fm.dataset.kind, sc = $('edScore') && $('edScore').checked;
+        if (!confirm('Delete this entry completely?' + (sc ? '\nIts +1 will also be removed from the outreach score.' : ''))) return;
+        if (kind === 'follow') TSA.removeFollow(d.editDel, sc); else TSA.removeTodo(d.editDel);
+        stopEdit(); S = TSA.get(); renderOutreach(Date.now()); renderFollow(); return;
+      }
       if (d.fuDone) TSA.followDone(d.fuDone); else if (d.fuRep) TSA.followStop(d.fuRep, 'replied'); else if (d.fuStop) TSA.followStop(d.fuStop, 'stopped');
       else if (d.tdDel) TSA.removeTodo(d.tdDel);
-      else if (d.tdReach) { var it = TSA.todoList().filter(function (x) { return x.id === d.tdReach; })[0]; if (it) { TSA.markReached(it.name, it.url, Date.now(), { note: 'From the To-reach-out list' }); renderOutreach(Date.now()); } }
+      else if (d.tdReach) { var it = TSA.todoList().filter(function (x) { return x.id === d.tdReach; })[0]; if (it) { TSA.markReached(it.name, it.url, Date.now(), {}); renderOutreach(Date.now()); } }
       else return;
       S = TSA.get(); renderFollow();
     });
     $('lstDlg').addEventListener('submit', function (e) {
+      if (e.target.classList.contains('editform')) {
+        e.preventDefault();
+        var fm = e.target, v = { name: $('edName').value, url: $('edUrl').value, note: $('edNote').value }, ok;
+        if (fm.dataset.kind === 'follow') {
+          var dd = $('edDate').value.split('-'), st = dd.length === 3 ? new Date(+dd[0], +dd[1] - 1, +dd[2], 12).getTime() : 0;
+          v.started = st; v.count = $('edCount').value; v.status = $('edStatus').value;
+          ok = TSA.editFollow(fm.dataset.id, v);
+        } else ok = TSA.editTodo(fm.dataset.id, v);
+        if (!ok) { showNotice('Give it a name or a link.'); return; }
+        editId = ''; lastLstHtml = ''; if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+        S = TSA.get(); renderOutreach(Date.now()); renderFollow(); return;
+      }
       if (e.target.id !== 'todoForm') return; e.preventDefault();
-      if (TSA.addTodo($('tdName').value, $('tdUrl').value)) { $('tdName').value = ''; $('tdUrl').value = ''; S = TSA.get(); renderFollow(); }
+      if (TSA.addTodo($('tdName').value, $('tdUrl').value, Date.now(), $('tdNote').value)) { $('tdName').value = ''; $('tdUrl').value = ''; $('tdNote').value = ''; S = TSA.get(); renderFollow(); }
     });
     /* channels sent by the YouTube userscript */
     window.addEventListener('message', function (e) {
@@ -465,6 +511,13 @@
         window.postMessage({ channel: 'timer-bridge', from: 'page', type: 'lead-ok', id: m.id }, location.origin);
       }
     });
+    window.addEventListener('message', function (e) {   // profile pictures sent by the YouTube userscript
+      var m = e.data;
+      if (e.origin !== location.origin || !m || m.channel !== 'timer-bridge' || m.from !== 'userscript' || m.type !== 'pics') return;
+      if (TSA.setPics(m.pics)) { S = TSA.get(); lastLstHtml = ''; renderFollow(); }
+    });
+    window.addEventListener('tsa-open-lists', function (e) { open((e.detail && e.detail.tab) || 'todo'); });
+    if (/#(todo|follow|done)\b/.test(location.hash)) { open(location.hash === '#follow' ? 'follow' : location.hash === '#done' ? 'done' : 'todo'); }
     renderFollow(); setInterval(renderFollow, 60000);
   })();
 

@@ -66,7 +66,7 @@
       liveProject: '', lastProject: '',   // project tag of the running Work/Workflow run; the last one used
       segments: [],              // finished stretches: { act, start, end, [id, note] }
       sessions: [],              // finished work rounds (= points)
-      outreach: { clicks: [], goal: 3, adj: {}, names: {}, notes: {}, todo: [], follow: [], seen: [] },   // click times of the outreach counter + hand corrections per day
+      outreach: { clicks: [], goal: 3, adj: {}, names: {}, notes: {}, todo: [], follow: [], seen: [], pics: {} },   // click times of the outreach counter + hand corrections per day
       days: {}                   // 'YYYY-MM-DD' -> { firstOpen }
     };
   }
@@ -95,6 +95,7 @@
     if (!r.outreach.names || typeof r.outreach.names !== 'object' || Array.isArray(r.outreach.names)) r.outreach.names = {};   // who each outreach was to, by click time
     var oc = r.outreach;
     if (!oc.notes || typeof oc.notes !== 'object' || Array.isArray(oc.notes)) oc.notes = {};     // a note for each outreach, by click time
+    if (!oc.pics || typeof oc.pics !== 'object' || Array.isArray(oc.pics)) oc.pics = {};          // channel profile picture links, by channel key
     ['todo', 'follow', 'seen'].forEach(function (k) { if (!Array.isArray(oc[k])) oc[k] = []; });   // 'To reach out' list, follow-up reminders, ids already applied from the userscript
     if (!r.days || typeof r.days !== 'object') r.days = {};
     if (!r.timer || !r.timer.mode) r.timer = { mode: 'idle' };
@@ -472,6 +473,13 @@
     save(); return true;
   }
   /* Who an outreach was to (empty text removes the name). `ms` is the click's time. */
+  /* Removes one specific counted click (and its name/note) from the score. */
+  function outreachRemoveClick(ms) {
+    ms = +ms; var i = S.outreach.clicks.indexOf(ms);
+    if (i < 0) return false;
+    S.outreach.clicks.splice(i, 1); delete S.outreach.names[ms]; delete S.outreach.notes[ms];
+    save(); return true;
+  }
   function setOutreachName(ms, text) {
     ms = +ms;
     if (S.outreach.clicks.indexOf(ms) < 0) return false;
@@ -498,13 +506,14 @@
   var leadKey = function (name, url) { return String(url || name || '').toLowerCase().replace(/[?#].*$/, '').replace(/\/+$/, '').trim(); };
   var dayStartOf = function (k) { var p = k.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]).getTime(); };
   var due2 = function (from) { return dayStartOf(addDays(dayKey(from), FOLLOW_DAYS)); };      // two calendar days later, from midnight
+  var cleanNote = function (t) { return String(t || '').replace(/\r\n?/g, '\n').trim().slice(0, NOTE_MAX); };
   function todoList() { return S.outreach.todo.slice(); }
-  function addTodo(name, url, now) {
+  function addTodo(name, url, now, note) {
     name = String(name || '').replace(/\s+/g, ' ').trim().slice(0, 120); url = String(url || '').trim().slice(0, 300);
     if (!name && !url) return false;
     var key = leadKey(name, url);
     if (S.outreach.todo.some(function (t) { return leadKey(t.name, t.url) === key; })) return false;
-    S.outreach.todo.push({ id: uid(), name: name, url: url, added: now || Date.now() });
+    S.outreach.todo.push({ id: uid(), name: name, url: url, note: cleanNote(note), added: now || Date.now() });
     save(); return true;
   }
   function removeTodo(id) {
@@ -517,16 +526,18 @@
     now = now || Date.now();
     name = String(name || '').replace(/\s+/g, ' ').trim().slice(0, 120); url = String(url || '').trim().slice(0, 300);
     var key = leadKey(name, url);
+    var old = S.outreach.todo.filter(function (t) { return leadKey(t.name, t.url) === key; })[0];
     S.outreach.todo = S.outreach.todo.filter(function (t) { return leadKey(t.name, t.url) !== key; });
-    var ms = outreachAdd(now, [name, url].filter(Boolean).join(' ').slice(0, 200), opts && opts.note);
-    if (!(opts && opts.noFollow)) startFollow(name, url, now);
+    var note = cleanNote((opts && opts.note) || (old && old.note));          // a note written in "To reach out" moves along
+    var ms = outreachAdd(now, [name, url].filter(Boolean).join(' ').slice(0, 200), note);
+    if (!(opts && opts.noFollow)) startFollow(name, url, now, { note: note, ms: ms });
     return ms;
   }
-  function startFollow(name, url, now) {
+  function startFollow(name, url, now, extra) {
     now = now || Date.now();
     var key = leadKey(name, url);
     if (!key || S.outreach.follow.some(function (f) { return f.status === 'active' && leadKey(f.name, f.url) === key; })) return false;
-    S.outreach.follow.push({ id: uid(), name: name || '', url: url || '', started: now, count: 0, due: due2(now), status: 'active', log: [] });
+    S.outreach.follow.push({ id: uid(), name: name || '', url: url || '', note: cleanNote(extra && extra.note), ms: (extra && +extra.ms) || 0, started: now, count: 0, due: due2(now), status: 'active', log: [] });
     save(); return true;
   }
   function followList() { return S.outreach.follow.slice(); }
@@ -545,7 +556,69 @@
     if (!f) return false;
     f.status = status === 'replied' ? 'replied' : 'stopped'; save(); return true;
   }
+  /* Editing. A "To reach out" entry: name, link, note. */
+  function editTodo(id, f) {
+    var t = S.outreach.todo.filter(function (x) { return x.id === id; })[0]; if (!t) return false;
+    var name = String(f.name || '').replace(/\s+/g, ' ').trim().slice(0, 120), url = String(f.url || '').trim().slice(0, 300);
+    if (!name && !url) return false;
+    t.name = name; t.url = url; t.note = cleanNote(f.note); save(); return true;
+  }
+  /* A follow-up entry: name, link, note, outreach date, follow-ups done (0-3) and status. The linked +1 in the log follows name and note. */
+  function editFollow(id, f) {
+    var x = S.outreach.follow.filter(function (y) { return y.id === id; })[0]; if (!x) return false;
+    var name = String(f.name || '').replace(/\s+/g, ' ').trim().slice(0, 120), url = String(f.url || '').trim().slice(0, 300);
+    if (!name && !url) return false;
+    x.name = name; x.url = url; x.note = cleanNote(f.note);
+    if (+f.started > 0) x.started = +f.started;
+    var n = Math.max(0, Math.min(FOLLOW_MAX, Math.round(+f.count)));
+    if (n === n) { while (x.log.length > n) x.log.pop(); while (x.log.length < n) x.log.push(x.started); x.count = n; }
+    var st = ['active', 'replied', 'stopped', 'done'].indexOf(f.status) >= 0 ? f.status : x.status;
+    if (st === 'active' && x.count >= FOLLOW_MAX) st = 'done';
+    if (st === 'done' && x.count < FOLLOW_MAX) st = 'active';
+    x.status = st;
+    if (st === 'active') x.due = due2(x.log.length ? x.log[x.log.length - 1] : x.started);
+    if (x.ms && S.outreach.clicks.indexOf(x.ms) >= 0) {
+      S.outreach.names[x.ms] = [name, url].filter(Boolean).join(' ').slice(0, 200);
+      if (x.note) S.outreach.notes[x.ms] = x.note; else delete S.outreach.notes[x.ms];
+    }
+    save(); return true;
+  }
+  /* Deletes a follow-up entry; optionally also takes its +1 out of the outreach score. */
+  function removeFollow(id, alsoScore) {
+    var x = S.outreach.follow.filter(function (y) { return y.id === id; })[0]; if (!x) return false;
+    S.outreach.follow = S.outreach.follow.filter(function (y) { return y.id !== id; });
+    if (alsoScore && x.ms) outreachRemoveClick(x.ms);
+    save(); return true;
+  }
   /* A request from the YouTube userscript: { id, kind: 'todo' | 'done', name, url, ts }. Applied once per id. */
+  /* Channel profile pictures: only the image link is saved. A channel is found by its @handle / channel id / name. */
+  var PIC_HOST = /^https:\/\/[a-z0-9.-]*(googleusercontent\.com|ggpht\.com|ytimg\.com)\//i;
+  function picKeys(name, url) {
+    var keys = [], m = /youtube\.com\/(@[^\s\/?#"')]+|channel\/[^\s\/?#"')]+|c\/[^\s\/?#"')]+|user\/[^\s\/?#"')]+)/i.exec(String(url || ''));
+    if (m) { var k = m[1]; try { k = decodeURIComponent(k); } catch (e) {} keys.push(k.toLowerCase()); }
+    var n = String(name || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    if (n) keys.push('n:' + n);
+    return keys;
+  }
+  function picFor(item) {
+    var p = S.outreach.pics || {}, ks = picKeys(item && item.name, item && item.url);
+    for (var i = 0; i < ks.length; i++) if (p[ks[i]]) return p[ks[i]];
+    return '';
+  }
+  /* map = { key: imageUrl }. Only channels that are in the To-reach-out list or in follow-ups keep a picture. */
+  function setPics(map) {
+    if (!map || typeof map !== 'object') return false;
+    var want = {};
+    S.outreach.todo.concat(S.outreach.follow).forEach(function (it) { picKeys(it.name, it.url).forEach(function (k) { want[k] = 1; }); });
+    var changed = false;
+    Object.keys(map).forEach(function (k) {
+      var u = String(map[k] || '');
+      if (!want[k] || !PIC_HOST.test(u) || u.length > 400 || S.outreach.pics[k] === u) return;
+      S.outreach.pics[k] = u; changed = true;
+    });
+    if (changed) save();
+    return changed;
+  }
   function leadFromScript(m) {
     if (!m || !m.id) return false;
     var seen = S.outreach.seen;
@@ -554,6 +627,7 @@
     if (m.kind === 'done') markReached(m.name, m.url, ts, { note: 'From the YouTube channel page' });
     else if (m.kind === 'todo') addTodo(m.name, m.url, ts);
     else return false;
+    if (m.pic) { var pm = {}; picKeys(m.name, m.url).forEach(function (k) { pm[k] = m.pic; }); setPics(pm); }
     seen.push(m.id); S.outreach.seen = seen.slice(-300); save(); return true;
   }
   /* Sets a day's total by hand. Real click times stay; the difference is stored as a correction. */
@@ -841,6 +915,7 @@
   var flashTimer = null, flashEnd = null, flashPhase = 0, baseTitle = '', baseAct = 'paused';
   function startFlash(ms) {
     if (!root.document) return;
+    if (flashQuick) { clearInterval(flashTimer); flashTimer = null; flashQuick = false; flashPhase = 0; putIcon(META[baseAct].icon); root.document.title = baseTitle; }   // an alarm takes over from a quick blink
     if (!flashTimer) {
       baseTitle = root.document.title;
       flashTimer = setInterval(function () {
@@ -852,10 +927,23 @@
     if (flashEnd) { clearTimeout(flashEnd); flashEnd = null; }
     if (ms && !alarmTimer) flashEnd = setTimeout(stopFlash, ms);   // a ringing alarm never times out
   }
+  /* Beeps (10-minute beep, idle nudge, auto-restart): just two quick blinks, 200 ms apart. */
+  var flashQuick = false;
+  function quickBlink() {
+    if (!root.document || alarmTimer || flashTimer) return;
+    baseTitle = root.document.title; flashQuick = true;
+    var steps = [1, 0, 1, 0], i = 0;
+    flashTimer = setInterval(function () {
+      if (i >= steps.length) { stopFlash(); return; }
+      flashPhase = steps[i++];
+      putIcon(flashPhase ? '🔔' : META[baseAct].icon);
+      root.document.title = flashPhase ? '🔔 ' + baseTitle : baseTitle;
+    }, 200);
+  }
   function stopFlash() {
     if (flashEnd) { clearTimeout(flashEnd); flashEnd = null; }
     if (!flashTimer) return;
-    clearInterval(flashTimer); flashTimer = null; flashPhase = 0;
+    clearInterval(flashTimer); flashTimer = null; flashPhase = 0; flashQuick = false;
     root.document.title = baseTitle; putIcon(META[baseAct].icon);
   }
   /* Called by the page whenever it sets the tab title, so the blink never fights with the clock in it. */
@@ -863,11 +951,11 @@
   /* A short two-tone beep for the idle nudge. */
   function nudgeBeep() {
     if (!audioReady()) return;
-    startFlash(8000);
+    quickBlink();
     beep(660, 0.14, 0.4); setTimeout(function () { beep(880, 0.18, 0.4); }, 190);
   }
   function reminderBeep() {
-    startFlash(8000);
+    quickBlink();
     beep(784, .16, .4);
     setTimeout(function () { beep(784, .16, .4); }, 220);
   }
@@ -936,7 +1024,7 @@
     setInterval(function () {
       var now = Date.now(), r = tick(now), lead = isLeader(now);
       if (r && r.rounds) {
-        if (lead) { if (r.auto) beep(1000, .22, .4); else alarmStart(); }
+        if (lead) { if (r.auto) { beep(1000, .22, .4); quickBlink(); } else alarmStart(); }
         onEvent('round');
       } else if (r && r.refreshed) onEvent('refresh');
       var iv = S.settings.beepMinutes * 60000;
@@ -1053,6 +1141,20 @@
     root.addEventListener('load', function () { root.navigator.serviceWorker.register('sw.js').catch(function () {}); });
   }
 
+  /* Esc never throws away typing (vim habit): in a text field inside a popup it does nothing, and a popup that
+     holds text in a text field refuses to close on Esc. Close it with its Save / Cancel / Close button instead. */
+  if (root.document) {
+    var isText = function (el) { return el && el.matches && el.matches('textarea, input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=button]):not([type=submit]):not([type=date]):not([type=time]):not([type=number])'); };
+    root.document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      var el = root.document.activeElement;
+      if (isText(el) && el.closest('dialog, #whoBox')) { e.preventDefault(); e.stopPropagation(); }
+    }, true);
+    root.document.addEventListener('cancel', function (e) {      // the popup's own Esc handling
+      var d = e.target;
+      if (d && d.querySelectorAll && [].some.call(d.querySelectorAll('textarea, input'), function (el) { return isText(el) && el.value.trim(); })) e.preventDefault();
+    }, true);
+  }
   root.TSA = {
     noteBox: noteBox, timeline: timeline, ACTS: ACTS, BEEP_ACTS: BEEP_ACTS, NOTE_ACTS: NOTE_ACTS, META: META, WORK_SEC: WORK_SEC, pad: pad,
     dayKey: dayKey, addDays: addDays, keyToDate: keyToDate, fmtDur: fmtDur,
@@ -1063,7 +1165,7 @@
     todayTotals: todayTotals, todayPoints: todayPoints, analyze: analyze,
     exportAll: exportAll, importText: importText,
     audio: audio, audioReady: audioReady, beep: beep, nudgeBeep: nudgeBeep, alarmStart: alarmStart, alarmStop: alarmStop,
-    setFavicon: setFavicon, setTitle: setTitle, startFlash: startFlash, engine: engine, initTheme: initTheme, mountDataTools: mountDataTools, mountCsvTools: mountCsvTools, csvExport: csvExport, maybeAutoBackup: maybeAutoBackup, setAutoBackup: setAutoBackup, setGoalSec: setGoalSec, GOALS: GOALS,
+    setFavicon: setFavicon, setTitle: setTitle, picFor: picFor, editTodo: editTodo, editFollow: editFollow, removeFollow: removeFollow, outreachRemoveClick: outreachRemoveClick, setPics: setPics, startFlash: startFlash, quickBlink: quickBlink, engine: engine, initTheme: initTheme, mountDataTools: mountDataTools, mountCsvTools: mountCsvTools, csvExport: csvExport, maybeAutoBackup: maybeAutoBackup, setAutoBackup: setAutoBackup, setGoalSec: setGoalSec, GOALS: GOALS,
     dailySummary: dailySummary, sendSummary: sendSummary,
     KEY: KEY, CHRONO_KEY: CHRONO_KEY
   };
