@@ -296,6 +296,16 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
     <p><code id="ex1"></code><br><a id="try1" href="#">Try it</a></p>
     <p>Tip: set this page as a custom search engine in your browser (use <code>%s</code> where the note goes) and a note is just a keyword + text away. A note added this way always opens the <b>Notes</b> tab.</p>
 
+    <h3>1b. Notes that become alarms</h3>
+    <p>If a note contains the word <b>alarm</b>, an alarm is also created on your timer site (gabryan.com/timer) and the note is kept as written. A short message with <b>Undo</b> confirms it. Plain words work, so speech-to-text is fine:</p>
+    <ul>
+      <li><code>set an alarm for five thirty pm to call Alice</code></li>
+      <li><code>alarm in twenty minutes check the oven</code></li>
+      <li><code>alarm tomorrow at seven</code> · <code>alarm friday at 10 am meeting</code> · <code>alarm every day at nine am take vitamins</code></li>
+      <li><code>alarm at noon</code> · <code>alarm half past five</code></li>
+    </ul>
+    <p>If there is no time I can understand, a small box asks for it. The alarm rings while any page of your timer site is open (a missed one shows a notice when you open it).</p>
+
     <h3>2. Special characters in the URL</h3>
     <table>
       <tr><td>new line</td><td><code>%0A</code></td></tr>
@@ -2816,12 +2826,169 @@ function toast(msg, actionLabel, action, ms = 6000) {
   toastTimer = setTimeout(() => t.classList.remove('show'), ms);
 }
 
+/* ---------- notes that become alarms ----------
+   A note containing the word "alarm" (anywhere) creates an alarm on the timer site (same gabryan.com storage,
+   key 'tsa2_alarms'). Works with speech-to-text: number words ("five thirty pm"), "in twenty minutes",
+   "tomorrow at seven", "every day", "half past five", "noon". Returns null when there is no trigger word,
+   { needsTime: true, label } when the trigger word is there but no time was understood. */
+const AL_KEY = 'tsa2_alarms';
+const AL_ONES = { zero: 0, oh: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19 };
+const AL_TENS = { twenty: 20, thirty: 30, forty: 40, fifty: 50 };
+const AL_DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+/* "five thirty" -> "5:30", "twenty minutes" -> "20 minutes", "five oh five" -> "5:05", "fifteen hundred" -> "15:00" */
+function alNumberWords(s) {
+  const tok = '(?:zero|oh|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|hundred)';
+  const re = new RegExp('\\b' + tok + '(?:[\\s-]+' + tok + ')*\\b', 'gi');
+  return s.replace(re, run => {
+    const w = run.toLowerCase().split(/[\s-]+/), nums = [];
+    for (let i = 0; i < w.length; i++) {
+      const x = w[i];
+      if (x === 'hundred') { if (nums.length) nums[nums.length - 1] = { v: nums[nums.length - 1].v * 100, two: false }; continue; }
+      if (x in AL_TENS) {
+        if (i + 1 < w.length && w[i + 1] in AL_ONES && AL_ONES[w[i + 1]] >= 1 && AL_ONES[w[i + 1]] <= 9 && w[i + 1] !== 'oh') { nums.push({ v: AL_TENS[x] + AL_ONES[w[i + 1]], two: true }); i++; }
+        else nums.push({ v: AL_TENS[x], two: true });
+      } else if (x === 'oh' || x === 'zero') {
+        if (i + 1 < w.length && w[i + 1] in AL_ONES && AL_ONES[w[i + 1]] >= 1 && AL_ONES[w[i + 1]] <= 9) { nums.push({ v: AL_ONES[w[i + 1]], two: true }); i++; }
+        else nums.push({ v: 0, two: true });
+      } else nums.push({ v: AL_ONES[x], two: false });
+    }
+    if (nums.length === 1) return String(nums[0].v);
+    if (nums.length === 2 && nums[0].v < 100 && nums[1].v < 60) return nums[0].v + ':' + String(nums[1].v).padStart(2, '0');
+    return nums.map(n => n.v).join(' ');
+  });
+}
+
+function alParse(raw, now) {
+  now = now || Date.now();
+  if (!/\balarms?\b/i.test(String(raw).replace(/\b(smoke|fire|burglar|car|security|carbon monoxide)\s+alarms?\b/gi, ' '))) return null;   // a smoke alarm is not an alarm request
+  let t = alNumberWords(String(raw).replace(/\s+/g, ' ')), used = [];
+  const take = (re, fn) => { const m = re.exec(t); if (!m) return null; used.push(m[0]); t = t.replace(m[0], ' '); if (fn) fn(m); return true; };
+  const out = { label: '', repeat: 'once', at: 0, needsTime: false };
+
+  take(/\b(every\s*day|everyday|daily|each\s+day)\b/i, () => { out.repeat = 'daily'; });
+  const everyPeriod = take(/\bevery\s+(morning|evening|night)\b/i, m => { out.repeat = 'daily'; return m[1].toLowerCase(); });
+
+  /* a day */
+  let dayShift = null, weekday = null;
+  take(/\b(tomorrow)\b/i, () => { dayShift = 1; });
+  if (dayShift == null) take(/\b(today|tonight|this\s+morning|this\s+afternoon|this\s+evening)\b/i, m => { dayShift = 0; if (/tonight|evening|afternoon/i.test(m[1])) out._pm = true; });
+  if (dayShift == null) take(/\b(?:on\s+|next\s+)?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/i, m => { weekday = AL_DAYS.indexOf(m[1].toLowerCase()); });
+
+  /* relative: "in 20 minutes", "in an hour and a half" */
+  let rel = null;
+  take(/\bin\s+(?:about\s+|around\s+)?(?:(\d+(?:\.\d+)?)\s*(hours?|hrs?)(?:\s*(?:and\s*)?(\d+)\s*(?:minutes?|mins?))?|(\d+)\s*(?:minutes?|mins?)|an?\s+hour\s+and\s+a\s+half|half\s+an?\s+hour|an?\s+hour|an?\s+minute)\b/i, m => {
+    const s = m[0].toLowerCase();
+    if (m[1]) rel = (parseFloat(m[1]) * 60 + (m[3] ? +m[3] : 0)) * 60e3;
+    else if (m[4]) rel = +m[4] * 60e3;
+    else if (/hour and a half/.test(s)) rel = 90 * 60e3;
+    else if (/half/.test(s)) rel = 30 * 60e3;
+    else if (/hour/.test(s)) rel = 60 * 60e3;
+    else rel = 60e3;
+  });
+
+  let h = null, mi = 0, ambiguous = false, pm = null;
+  if (rel == null) {
+    const period = m => (/morning/i.test(m) ? 'am' : /afternoon|evening|night/i.test(m) ? 'pm' : null);
+    if (take(/\b(noon|midday)\b/i, () => { h = 12; mi = 0; pm = true; }) == null && take(/\bmidnight\b/i, () => { h = 0; mi = 0; }) == null) {
+      let r;
+      if ((r = take(/\bhalf\s+past\s+(\d{1,2})\b(?:\s*(a\.?\s?m\.?|p\.?\s?m\.?)(?![a-z]))?/i, m => { h = +m[1]; mi = 30; if (m[2]) pm = /p/i.test(m[2]); else ambiguous = true; })) == null &&
+          (r = take(/\bquarter\s+past\s+(\d{1,2})\b(?:\s*(a\.?\s?m\.?|p\.?\s?m\.?)(?![a-z]))?/i, m => { h = +m[1]; mi = 15; if (m[2]) pm = /p/i.test(m[2]); else ambiguous = true; })) == null &&
+          (r = take(/\bquarter\s+to\s+(\d{1,2})\b(?:\s*(a\.?\s?m\.?|p\.?\s?m\.?)(?![a-z]))?/i, m => { h = +m[1] - 1; mi = 45; if (m[2]) pm = /p/i.test(m[2]); else ambiguous = true; })) == null &&
+          (r = take(/\b(\d{1,2})(?::(\d{2})|\s+(\d{2}))?\s*(a\.?\s?m\.?|p\.?\s?m\.?)(?![a-z])/i, m => { h = +m[1]; mi = +(m[2] || m[3] || 0); pm = /p/i.test(m[4]); })) == null &&
+          (r = take(/\b(\d{1,2}):(\d{2})\b(?:\s+in\s+the\s+(morning|afternoon|evening)|\s+at\s+night)?/i, m => { h = +m[1]; mi = +m[2]; const p = period(m[0]); if (p) pm = p === 'pm'; else if (h <= 12 && h >= 1) ambiguous = true; })) == null &&
+          (r = take(/\b(\d{1,2})\s*o'?\s?clock\b(?:\s+in\s+the\s+(morning|afternoon|evening)|\s+at\s+night)?/i, m => { h = +m[1]; mi = 0; const p = period(m[0]); if (p) pm = p === 'pm'; else ambiguous = true; })) == null &&
+          (r = take(/\b(\d{1,2})\s+(?:in\s+the\s+(morning|afternoon|evening)|at\s+night)\b/i, m => { h = +m[1]; mi = 0; pm = period(m[0]) === 'pm'; })) == null &&
+          (r = take(/\b(?:at|for|by|around)\s+(\d{1,2})(?![\d:])(?!\s*(?:minutes?|mins?|hours?|hrs?|days?|%))/i, m => { h = +m[1]; mi = 0; ambiguous = true; })) == null) { /* no time */ }
+    }
+    if (h != null && (h > 23 || mi > 59)) h = null;
+  }
+  if (out._pm && pm == null && h != null) pm = true;
+  if (everyPeriod && pm == null && h != null && h >= 1 && h <= 11) pm = everyPeriod !== 'morning';
+
+  /* label: the note without the trigger and time words */
+  let label = t.replace(/\b(please\s+)?(set|make|create|add|start|put)?\s*(me\s+)?(an?|the|my|another)?\s*alarms?\b/gi, ' ')
+    .replace(/\b(at|for|by|around|on|in|until|till)\b(?=\s*$)/gi, ' ').replace(/\s+/g, ' ').trim()
+    .replace(/^((at|by|around|on|in|until|till|for|to|that|about|saying|called|named|labelled|labeled|note|reminding me to|reminding me|remind me to|so (that )?i)\b[\s:,.-]*)+/i, '')
+    .replace(/^[\s:,.;-]+|[\s:,.;-]+$/g, '').trim();
+  if (!label) label = 'Alarm';
+  out.label = label.slice(0, 60);
+
+  if (rel != null) { out.at = now + rel; out.h = new Date(out.at).getHours(); out.m = new Date(out.at).getMinutes(); if (out.repeat === 'daily') out.repeat = 'once'; return out; }
+  if (h == null) { out.needsTime = true; return out; }
+
+  const base = new Date(now);
+  const make = (hh, dShift) => { const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + dShift, hh, mi, 0, 0); return d.getTime(); };
+  let cands;
+  if (pm != null) { let hh = h % 12 + (pm ? 12 : 0); if (h > 12) hh = h; cands = [hh]; }
+  else if (h === 0 || h > 12) cands = [h];
+  else if (dayShift === 1 || weekday != null) cands = [h === 12 ? 12 : (h >= 5 ? h : h + 12)];          // "tomorrow at 7" is the morning, "at 3" the afternoon
+  else cands = h === 12 ? [12, 0] : [h, h + 12];                                                          // soonest next one
+  let shift = dayShift == null ? 0 : dayShift;
+  if (weekday != null) { shift = (weekday - base.getDay() + 7) % 7; }
+  let best = null;
+  for (let tries = 0; tries < 2 && best == null; tries++) {
+    const opts = cands.map(c => make(c, shift + tries * (weekday != null ? 7 : 1))).filter(x => x > now);
+    if (opts.length) best = Math.min.apply(null, opts);
+    if (dayShift != null || weekday != null) { if (best == null) continue; }
+  }
+  if (best == null) return null;
+  out.at = best; const d = new Date(best); out.h = d.getHours(); out.m = d.getMinutes();
+  return out;
+}
+
+
+function alRead() { try { const a = JSON.parse(localStorage.getItem(AL_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+function alWrite(a) { try { localStorage.setItem(AL_KEY, JSON.stringify(a)); return true; } catch (e) { return false; } }
+function alAdd(h, m, label, repeat, at) {
+  const p2 = n => String(n).padStart(2, '0');
+  if (!at) { const d = new Date(); d.setHours(h, m, 0, 0); if (d.getTime() <= Date.now()) d.setDate(d.getDate() + 1); at = d.getTime(); }
+  const id = 'al-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const list = alRead(); list.push({ id, h, m, label: String(label || '').slice(0, 60), repeat: repeat === 'daily' ? 'daily' : 'once', at });
+  if (!alWrite(list)) { toast('Could not save the alarm in this browser'); return; }
+  const d = new Date(at), a = new Date(), day0 = new Date(a.getFullYear(), a.getMonth(), a.getDate()).getTime(), day1 = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diff = Math.round((day1 - day0) / 864e5), t = p2(d.getHours()) + ':' + p2(d.getMinutes());
+  const when = (diff === 0 ? 'today ' : diff === 1 ? 'tomorrow ' : d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + ' ') + t;
+  toast('⏰ Alarm set for ' + when + (repeat === 'daily' ? ' (every day)' : '') + (label && label !== 'Alarm' ? ': ' + label : ''), 'Undo', () => {
+    alWrite(alRead().filter(x => x.id !== id)); toast('Alarm removed');
+  }, 9000);
+}
+/* The trigger word is there but no time was understood: a small box with the text already filled in. */
+function alAskTime(label) {
+  const old = document.getElementById('alAsk'); if (old) old.remove();
+  const dlg = el('dialog'); dlg.id = 'alAsk';
+  dlg.style.cssText = 'border:1px solid var(--line);border-radius:14px;padding:16px;background:var(--bg);color:var(--fg);box-shadow:var(--shadow);max-width:340px';
+  const opts = n => Array.from({ length: n }, (_, i) => `<option value="${i}">${String(i).padStart(2, '0')}</option>`).join('');
+  dlg.innerHTML = '<h3 style="margin:0 0 6px">⏰ When should the alarm ring?</h3><p style="margin:0 0 10px;color:var(--muted);font-size:13px">I did not understand a time in your note.</p>' +
+    '<div style="display:flex;gap:6px;align-items:center;margin-bottom:8px"><select id="alAh">' + opts(24) + '</select><b>:</b><select id="alAm">' + opts(60) + '</select>' +
+    '<select id="alAr"><option value="once">Once</option><option value="daily">Every day</option></select></div>' +
+    '<input id="alAl" type="text" maxlength="60" style="width:100%;box-sizing:border-box;margin-bottom:10px;padding:7px 9px">' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" id="alAc">Cancel</button><button type="button" id="alAs" style="background:var(--accent);color:var(--accent-fg);border:0;border-radius:8px;padding:6px 14px">Set alarm</button></div>';
+  document.body.appendChild(dlg);
+  const n = new Date(Date.now() + 3600e3);
+  dlg.querySelector('#alAh').value = n.getHours(); dlg.querySelector('#alAm').value = 0; dlg.querySelector('#alAl').value = label === 'Alarm' ? '' : label;
+  dlg.querySelector('#alAc').addEventListener('click', () => { dlg.close(); dlg.remove(); });
+  dlg.querySelector('#alAs').addEventListener('click', () => {
+    alAdd(+dlg.querySelector('#alAh').value, +dlg.querySelector('#alAm').value, dlg.querySelector('#alAl').value.trim(), dlg.querySelector('#alAr').value);
+    dlg.close(); dlg.remove();
+  });
+  dlg.addEventListener('close', () => dlg.remove());
+  dlg.showModal();
+}
+function alarmFromNote(text) {
+  let r = null;
+  try { r = alParse(text); } catch (e) { r = null; }
+  if (!r) return;
+  if (r.needsTime) alAskTime(r.label); else alAdd(r.h, r.m, r.label, r.repeat, r.at);
+}
+
 /* ---------- actions ---------- */
 function addNote(text) {
   text = text.trim();
   if (!text) return false;
   notes.unshift({ id: uid(), text, created: Date.now(), pinned: false });
   persist();
+  setTimeout(() => alarmFromNote(text), 80);   // a note with the word "alarm" also becomes an alarm on the timer site
   return true;
 }
 
