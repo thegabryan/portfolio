@@ -473,6 +473,13 @@
     save(); return true;
   }
   /* Who an outreach was to (empty text removes the name). `ms` is the click's time. */
+  /* Removes one specific counted click (and its name/note) from the score. */
+  function outreachRemoveClick(ms) {
+    ms = +ms; var i = S.outreach.clicks.indexOf(ms);
+    if (i < 0) return false;
+    S.outreach.clicks.splice(i, 1); delete S.outreach.names[ms]; delete S.outreach.notes[ms];
+    save(); return true;
+  }
   function setOutreachName(ms, text) {
     ms = +ms;
     if (S.outreach.clicks.indexOf(ms) < 0) return false;
@@ -499,13 +506,14 @@
   var leadKey = function (name, url) { return String(url || name || '').toLowerCase().replace(/[?#].*$/, '').replace(/\/+$/, '').trim(); };
   var dayStartOf = function (k) { var p = k.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]).getTime(); };
   var due2 = function (from) { return dayStartOf(addDays(dayKey(from), FOLLOW_DAYS)); };      // two calendar days later, from midnight
+  var cleanNote = function (t) { return String(t || '').replace(/\r\n?/g, '\n').trim().slice(0, NOTE_MAX); };
   function todoList() { return S.outreach.todo.slice(); }
-  function addTodo(name, url, now) {
+  function addTodo(name, url, now, note) {
     name = String(name || '').replace(/\s+/g, ' ').trim().slice(0, 120); url = String(url || '').trim().slice(0, 300);
     if (!name && !url) return false;
     var key = leadKey(name, url);
     if (S.outreach.todo.some(function (t) { return leadKey(t.name, t.url) === key; })) return false;
-    S.outreach.todo.push({ id: uid(), name: name, url: url, added: now || Date.now() });
+    S.outreach.todo.push({ id: uid(), name: name, url: url, note: cleanNote(note), added: now || Date.now() });
     save(); return true;
   }
   function removeTodo(id) {
@@ -518,16 +526,18 @@
     now = now || Date.now();
     name = String(name || '').replace(/\s+/g, ' ').trim().slice(0, 120); url = String(url || '').trim().slice(0, 300);
     var key = leadKey(name, url);
+    var old = S.outreach.todo.filter(function (t) { return leadKey(t.name, t.url) === key; })[0];
     S.outreach.todo = S.outreach.todo.filter(function (t) { return leadKey(t.name, t.url) !== key; });
-    var ms = outreachAdd(now, [name, url].filter(Boolean).join(' ').slice(0, 200), opts && opts.note);
-    if (!(opts && opts.noFollow)) startFollow(name, url, now);
+    var note = cleanNote((opts && opts.note) || (old && old.note));          // a note written in "To reach out" moves along
+    var ms = outreachAdd(now, [name, url].filter(Boolean).join(' ').slice(0, 200), note);
+    if (!(opts && opts.noFollow)) startFollow(name, url, now, { note: note, ms: ms });
     return ms;
   }
-  function startFollow(name, url, now) {
+  function startFollow(name, url, now, extra) {
     now = now || Date.now();
     var key = leadKey(name, url);
     if (!key || S.outreach.follow.some(function (f) { return f.status === 'active' && leadKey(f.name, f.url) === key; })) return false;
-    S.outreach.follow.push({ id: uid(), name: name || '', url: url || '', started: now, count: 0, due: due2(now), status: 'active', log: [] });
+    S.outreach.follow.push({ id: uid(), name: name || '', url: url || '', note: cleanNote(extra && extra.note), ms: (extra && +extra.ms) || 0, started: now, count: 0, due: due2(now), status: 'active', log: [] });
     save(); return true;
   }
   function followList() { return S.outreach.follow.slice(); }
@@ -545,6 +555,40 @@
     var f = S.outreach.follow.filter(function (x) { return x.id === id && x.status === 'active'; })[0];
     if (!f) return false;
     f.status = status === 'replied' ? 'replied' : 'stopped'; save(); return true;
+  }
+  /* Editing. A "To reach out" entry: name, link, note. */
+  function editTodo(id, f) {
+    var t = S.outreach.todo.filter(function (x) { return x.id === id; })[0]; if (!t) return false;
+    var name = String(f.name || '').replace(/\s+/g, ' ').trim().slice(0, 120), url = String(f.url || '').trim().slice(0, 300);
+    if (!name && !url) return false;
+    t.name = name; t.url = url; t.note = cleanNote(f.note); save(); return true;
+  }
+  /* A follow-up entry: name, link, note, outreach date, follow-ups done (0-3) and status. The linked +1 in the log follows name and note. */
+  function editFollow(id, f) {
+    var x = S.outreach.follow.filter(function (y) { return y.id === id; })[0]; if (!x) return false;
+    var name = String(f.name || '').replace(/\s+/g, ' ').trim().slice(0, 120), url = String(f.url || '').trim().slice(0, 300);
+    if (!name && !url) return false;
+    x.name = name; x.url = url; x.note = cleanNote(f.note);
+    if (+f.started > 0) x.started = +f.started;
+    var n = Math.max(0, Math.min(FOLLOW_MAX, Math.round(+f.count)));
+    if (n === n) { while (x.log.length > n) x.log.pop(); while (x.log.length < n) x.log.push(x.started); x.count = n; }
+    var st = ['active', 'replied', 'stopped', 'done'].indexOf(f.status) >= 0 ? f.status : x.status;
+    if (st === 'active' && x.count >= FOLLOW_MAX) st = 'done';
+    if (st === 'done' && x.count < FOLLOW_MAX) st = 'active';
+    x.status = st;
+    if (st === 'active') x.due = due2(x.log.length ? x.log[x.log.length - 1] : x.started);
+    if (x.ms && S.outreach.clicks.indexOf(x.ms) >= 0) {
+      S.outreach.names[x.ms] = [name, url].filter(Boolean).join(' ').slice(0, 200);
+      if (x.note) S.outreach.notes[x.ms] = x.note; else delete S.outreach.notes[x.ms];
+    }
+    save(); return true;
+  }
+  /* Deletes a follow-up entry; optionally also takes its +1 out of the outreach score. */
+  function removeFollow(id, alsoScore) {
+    var x = S.outreach.follow.filter(function (y) { return y.id === id; })[0]; if (!x) return false;
+    S.outreach.follow = S.outreach.follow.filter(function (y) { return y.id !== id; });
+    if (alsoScore && x.ms) outreachRemoveClick(x.ms);
+    save(); return true;
   }
   /* A request from the YouTube userscript: { id, kind: 'todo' | 'done', name, url, ts }. Applied once per id. */
   /* Channel profile pictures: only the image link is saved. A channel is found by its @handle / channel id / name. */
@@ -1107,7 +1151,7 @@
     todayTotals: todayTotals, todayPoints: todayPoints, analyze: analyze,
     exportAll: exportAll, importText: importText,
     audio: audio, audioReady: audioReady, beep: beep, nudgeBeep: nudgeBeep, alarmStart: alarmStart, alarmStop: alarmStop,
-    setFavicon: setFavicon, setTitle: setTitle, picFor: picFor, setPics: setPics, startFlash: startFlash, quickBlink: quickBlink, engine: engine, initTheme: initTheme, mountDataTools: mountDataTools, mountCsvTools: mountCsvTools, csvExport: csvExport, maybeAutoBackup: maybeAutoBackup, setAutoBackup: setAutoBackup, setGoalSec: setGoalSec, GOALS: GOALS,
+    setFavicon: setFavicon, setTitle: setTitle, picFor: picFor, editTodo: editTodo, editFollow: editFollow, removeFollow: removeFollow, outreachRemoveClick: outreachRemoveClick, setPics: setPics, startFlash: startFlash, quickBlink: quickBlink, engine: engine, initTheme: initTheme, mountDataTools: mountDataTools, mountCsvTools: mountCsvTools, csvExport: csvExport, maybeAutoBackup: maybeAutoBackup, setAutoBackup: setAutoBackup, setGoalSec: setGoalSec, GOALS: GOALS,
     dailySummary: dailySummary, sendSummary: sendSummary,
     KEY: KEY, CHRONO_KEY: CHRONO_KEY
   };
