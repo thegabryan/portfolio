@@ -303,6 +303,9 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
       <li><code>alarm in twenty minutes check the oven</code></li>
       <li><code>alarm tomorrow at seven</code> · <code>alarm friday at 10 am meeting</code> · <code>alarm every day at nine am take vitamins</code></li>
       <li><code>alarm at noon</code> · <code>alarm half past five</code></li>
+      <li><code>alarm five minutes from now</code> · <code>alarm after ten minutes</code> · <code>alarm in a couple of minutes</code> · <code>set a twenty minute alarm</code></li>
+      <li><code>alarm in two and a half hours</code> · <code>alarm an hour from now</code> · <code>alarm two days from now at nine am</code> · <code>alarm in a week</code></li>
+      <li><code>alarm tomorrow morning at eight thirty</code> · <code>alarm friday afternoon at three</code> · <code>alarm tonight at ten thirty</code></li>
     </ul>
     <p>If there is no time I can understand, a small box asks for it. The alarm rings while any page of your timer site is open (a missed one shows a notice when you open it).</p>
 
@@ -346,7 +349,7 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
     <h3>6. Backup &amp; import</h3>
     <ul>
       <li><b>JSON</b> keeps everything (pins, order, dates, trash). Use it for backups and moving between browsers or devices.</li>
-      <li><b>Daily backup offer:</b> the first time you open this page on a new day, if notes or highlights changed since your last backup, a bar offers <i>Download backup</i> (<code>url-notes-DATE_TIME.json</code>, saved in your browser's download folder). It never downloads by itself.</li>
+      <li><b>Daily automatic backup:</b> the first time you open this page on a new day, if notes or highlights changed since your last backup, the page downloads a backup file by itself (<code>url-notes-DATE_TIME.json</code>, saved in your browser's download folder) and shows a short message. If your browser asks where to save, allow downloads from this site.</li>
       <li><b>TXT</b> and <b>CSV</b> are export-only, for reading or opening in a spreadsheet.</li>
       <li><b>Import</b> merges: notes you already have are skipped, nothing is overwritten.</li>
       <li><b>Auto-backup</b> (Chrome / Edge): pick a file once and the site rewrites it whenever your notes change. After restarting the browser, click <i>💾 Resume backup</i> once to allow it again. If this browser ever has no notes but the file does, it offers to restore instead of overwriting the file.</li>
@@ -2871,24 +2874,40 @@ function alParse(raw, now) {
 
   /* a day */
   let dayShift = null, weekday = null;
-  take(/\b(tomorrow)\b/i, () => { dayShift = 1; });
+  take(/\b(tomorrow)(?:\s+(morning|afternoon|evening|night))?\b/i, m => { dayShift = 1; if (m[2]) out._pm = /afternoon|evening|night/i.test(m[2]) ? true : false; });
   if (dayShift == null) take(/\b(today|tonight|this\s+morning|this\s+afternoon|this\s+evening)\b/i, m => { dayShift = 0; if (/tonight|evening|afternoon/i.test(m[1])) out._pm = true; });
-  if (dayShift == null) take(/\b(?:on\s+|next\s+)?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/i, m => { weekday = AL_DAYS.indexOf(m[1].toLowerCase()); });
+  if (dayShift == null) take(/\b(?:on\s+|next\s+)?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)(?:\s+(morning|afternoon|evening|night))?\b/i, m => { weekday = AL_DAYS.indexOf(m[1].toLowerCase()); if (m[2]) out._pm = /afternoon|evening|night/i.test(m[2]) ? true : false; });
 
-  /* relative: "in 20 minutes", "in an hour and a half" */
-  let rel = null;
-  take(/\bin\s+(?:about\s+|around\s+)?(?:(\d+(?:\.\d+)?)\s*(hours?|hrs?)(?:\s*(?:and\s*)?(\d+)\s*(?:minutes?|mins?))?|(\d+)\s*(?:minutes?|mins?)|an?\s+hour\s+and\s+a\s+half|half\s+an?\s+hour|an?\s+hour|an?\s+minute)\b/i, m => {
-    const s = m[0].toLowerCase();
-    if (m[1]) rel = (parseFloat(m[1]) * 60 + (m[3] ? +m[3] : 0)) * 60e3;
-    else if (m[4]) rel = +m[4] * 60e3;
-    else if (/hour and a half/.test(s)) rel = 90 * 60e3;
-    else if (/half/.test(s)) rel = 30 * 60e3;
-    else if (/hour/.test(s)) rel = 60 * 60e3;
-    else rel = 60e3;
-  });
+  /* relative: "in 20 minutes", "five minutes from now", "after an hour and a half", "two days from now", "half an hour later" */
+  let rel = null, relDays = 0;
+  {
+    const U = '(?:seconds?|secs?|minutes?|mins?|hours?|hrs?|days?|weeks?)';
+    const Q = '(?:\\d+(?:\\.\\d+)?|an?|one|a\\s+couple\\s+of|couple\\s+of|a\\s+few|few|(?:a\\s+)?half\\s+an?|(?:a\\s+)?quarter\\s+of\\s+an?)';
+    const ITEM = '(?:' + Q + '\\s+and\\s+a\\s+half\\s*' + U + '|' + Q + '\\s*' + U + '(?:\\s+and\\s+a\\s+half)?)';
+    const PHRASE = '(?:(in|after|within|for)\\s+(?:about\\s+|around\\s+|roughly\\s+)?)?(' + ITEM + '(?:(?:\\s*,\\s*|\\s+and\\s+|\\s+)' + ITEM + ')*)(\\s+(?:from\\s+now|later))?';
+    const re = new RegExp('\\b' + PHRASE + '\\b', 'i');
+    const m = re.exec(t);
+    const okFor = m && m[1] && m[1].toLowerCase() === 'for' ? /\balarms?\s*$/i.test(t.slice(0, m.index)) : true;
+    if (m && okFor && (m[1] || m[3])) {                                  // needs "in/after/within/for" before, or "from now/later" after
+      used.push(m[0]); t = t.replace(m[0], ' ');
+      let ms = 0;
+      for (const it of m[2].matchAll(new RegExp('(' + Q + ')(\\s+and\\s+a\\s+half)?\\s*(' + U + ')(\\s+and\\s+a\\s+half)?', 'gi'))) {
+        const q = it[1].toLowerCase().replace(/\s+/g, ' ');
+        let n = /^\d/.test(q) ? parseFloat(q) : /couple/.test(q) ? 2 : /few/.test(q) ? 3 : /half/.test(q) ? 0.5 : /quarter/.test(q) ? 0.25 : 1;
+        if (it[2] || it[4]) n += 0.5;
+        const u = it[3].toLowerCase();
+        if (/^sec/.test(u)) ms += n * 1e3; else if (/^min/.test(u)) ms += n * 60e3; else if (/^(h)/.test(u)) ms += n * 3600e3;
+        else if (/^day/.test(u)) relDays += n; else relDays += n * 7;
+      }
+      rel = ms;
+    } else {
+      const c = /\b(\d+)[\s-]*(minute|min|hour|hr)s?[\s-]+alarm\b/i.exec(t);                // "a 20 minute alarm"
+      if (c) { used.push(c[0]); t = t.replace(c[0], ' alarm '); rel = +c[1] * (/^h/i.test(c[2]) ? 3600e3 : 60e3); }
+    }
+  }
 
   let h = null, mi = 0, ambiguous = false, pm = null;
-  if (rel == null) {
+  if (rel == null || relDays > 0) {
     const period = m => (/morning/i.test(m) ? 'am' : /afternoon|evening|night/i.test(m) ? 'pm' : null);
     if (take(/\b(noon|midday)\b/i, () => { h = 12; mi = 0; pm = true; }) == null && take(/\bmidnight\b/i, () => { h = 0; mi = 0; }) == null) {
       let r;
@@ -2903,7 +2922,7 @@ function alParse(raw, now) {
     }
     if (h != null && (h > 23 || mi > 59)) h = null;
   }
-  if (out._pm && pm == null && h != null) pm = true;
+  if (out._pm != null && pm == null && h != null) pm = out._pm;
   if (everyPeriod && pm == null && h != null && h >= 1 && h <= 11) pm = everyPeriod !== 'morning';
 
   /* label: the note without the trigger and time words */
@@ -2914,6 +2933,8 @@ function alParse(raw, now) {
   if (!label) label = 'Alarm';
   out.label = label.slice(0, 60);
 
+  if (relDays > 0 && h != null) { dayShift = (dayShift || 0) + relDays; rel = null; }
+  else if (relDays > 0) rel = (rel || 0) + relDays * 864e5;
   if (rel != null) { out.at = now + rel; out.h = new Date(out.at).getHours(); out.m = new Date(out.at).getMinutes(); if (out.repeat === 'daily') out.repeat = 'once'; return out; }
   if (h == null) { out.needsTime = true; return out; }
 
@@ -3442,7 +3463,7 @@ function exportJson() {
 
 /* ---------- daily backup offer ---------- */
 // The first time the page is opened on a new day, if notes (or highlights) changed since the last
-// backup file, a bar offers to download one. Browsers can't pick a folder, so the file goes to the
+// backup file, the page downloads one by itself (no question). Browsers can't pick a folder, so the file goes to the
 // normal download folder; the name (url-notes-DATE_TIME.json) tells it apart from other backups.
 const DAILY_KEY = 'url-notes-daily-backup';
 function readDaily() {
@@ -3473,8 +3494,8 @@ function checkDailyBackup() {
   const data = buildExport();
   if (!data.notes.length && !data.trash.length) return;
   if (rec.sig === dataSignature(data)) return;       // nothing new since the last backup
-  const fresh = rec.sig ? 'New or changed notes since your last backup.' : 'No backup file made yet.';
-  toast(fresh, 'Download backup', exportJson, 30000);
+  exportJson();                                      // downloads by itself (no question)
+  toast('Backup downloaded automatically: new or changed notes since the last one.', null, null, 8000);
 }
 function exportTxt() {
   const out = notes.map(n =>
