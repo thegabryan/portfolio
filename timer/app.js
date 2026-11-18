@@ -1141,6 +1141,20 @@
     root.addEventListener('load', function () { root.navigator.serviceWorker.register('sw.js').catch(function () {}); });
   }
 
+  /* Esc never throws away typing (vim habit): in a text field inside a popup it does nothing, and a popup that
+     holds text in a text field refuses to close on Esc. Close it with its Save / Cancel / Close button instead. */
+  if (root.document) {
+    var isText = function (el) { return el && el.matches && el.matches('textarea, input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=button]):not([type=submit]):not([type=date]):not([type=time]):not([type=number])'); };
+    root.document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      var el = root.document.activeElement;
+      if (isText(el) && el.closest('dialog, #whoBox')) { e.preventDefault(); e.stopPropagation(); }
+    }, true);
+    root.document.addEventListener('cancel', function (e) {      // the popup's own Esc handling
+      var d = e.target;
+      if (d && d.querySelectorAll && [].some.call(d.querySelectorAll('textarea, input'), function (el) { return isText(el) && el.value.trim(); })) e.preventDefault();
+    }, true);
+  }
   root.TSA = {
     noteBox: noteBox, timeline: timeline, ACTS: ACTS, BEEP_ACTS: BEEP_ACTS, NOTE_ACTS: NOTE_ACTS, META: META, WORK_SEC: WORK_SEC, pad: pad,
     dayKey: dayKey, addDays: addDays, keyToDate: keyToDate, fmtDur: fmtDur,

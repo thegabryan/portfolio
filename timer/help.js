@@ -20,6 +20,7 @@
     '<ul>' +
     '<li>The small <b>📝 Note</b> button on every card adds a note to the running session, or to that timer\'s most recent session if it is stopped. If a note exists it opens for editing; clearing the text removes it.</li>' +
     '<li>Work and Workflow also have a <b>Project</b> field (it starts empty for every new run and suggests earlier projects as you type). Projects show up in the dashboard and in tags sent to Url Notes.</li>' +
+    '<li><b>Esc never throws away what you typed</b>: in a note box or any popup text field it does nothing, and a popup with text in it will not close on Esc – use its Save, Cancel or Close button.</li>' +
     '<li>The note box starts as one line. <b>Enter</b> saves; <b>Shift+Enter</b> adds a new line (the box grows to several lines, and Enter still saves). Every line you start writing gets the time you started it, like <code>16:12 · text</code> (24 h). Lines already in a note keep what they have, and an existing note opens with the cursor at the end so you can add to it. Notes can be up to 1000 characters.</li>' +
     '<li>The note box never opens by itself when you switch timers – use the <b>Note</b> button (or Enter) when you want to add one.</li>' +
     '</ul>' +
