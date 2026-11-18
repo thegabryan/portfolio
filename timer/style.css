@@ -374,3 +374,19 @@ a.chatlink { text-decoration: none; }
 .lstdlg .edchats { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
 .lstdlg .edchat { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
 .lstdlg .edchat a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+
+/* creator links popup (📁 Links) */
+.linksdlg .linkbar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 6px 0 8px; }
+.linksdlg .linkbar button { padding: 5px 10px; font-size: 13px; }
+.linksdlg .linkrow { display: flex; gap: 10px; align-items: flex-start; padding: 9px 0; border-top: 1px solid var(--line); flex-wrap: wrap; }
+.linksdlg .lkedit { display: block; }
+.linksdlg .lkedit label { display: flex; flex-direction: column; gap: 3px; margin-bottom: 6px; font-size: 13px; }
+.linksdlg .lkedit input, .linksdlg .lkedit select, .linksdlg .lkedit textarea { padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: inherit; font: inherit; }
+.linksdlg .fav { position: relative; flex: none; width: 24px; height: 24px; border-radius: 6px; overflow: hidden; background: var(--line); display: inline-flex; align-items: center; justify-content: center; font-size: 13px; }
+.linksdlg .fav::before { content: attr(data-l); }
+.linksdlg .fav img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #fff; }
+.linksdlg .lkmain { flex: 1; min-width: 180px; overflow-wrap: anywhere; }
+.linksdlg .lkmain a { color: var(--text); text-decoration: none; }
+.linksdlg .lbtns a.chatlink, .linksdlg .lbtns button.on { background: var(--accent); color: var(--accent-ink); }
+.linksdlg .lbtns a.chatlink { display: inline-block; padding: 5px 10px; border-radius: 8px; border: 1px solid var(--line); font-size: 13px; background: none; color: var(--text); }
+.linksdlg .lbtns button.on { border-color: var(--accent); }

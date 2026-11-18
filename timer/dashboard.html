@@ -239,7 +239,7 @@
   var zeroT = function () { var o = {}; ACTS.forEach(function (a) { o[a] = 0; }); return o; };
   function chatLinks(ms) {
     return TSA.chatsForClick(ms).map(function (c, i, all) {
-      return ' <a class="chatlink" href="' + esc(c.url) + '" target="_blank" rel="noopener" title="' + esc(c.title || c.url) + '">💬' + (all.length > 1 ? ' ' + (i + 1) : ' Chat') + '</a>';
+      return ' <a class="chatlink" href="' + esc(c.url) + '" target="_blank" rel="noopener" title="' + esc(c.title || c.url) + '">' + (TSA.KIND_EMOJI[c.kind] || '💬') + ' ' + esc((c.title || '').slice(0, 24) || 'Link') + '</a>';
     }).join('');
   }
   function linkify(h) { return h.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'); }

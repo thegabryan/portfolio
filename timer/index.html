@@ -96,6 +96,13 @@
   <div class="drow"><button type="button" class="primary" id="lstClose">Close</button></div>
 </dialog>
 
+<dialog id="linksDlg" class="lstdlg linksdlg">
+  <div id="linksHead"></div>
+  <div class="linkbar"><button type="button" class="ghost" id="lkOpenAll">Open all</button><button type="button" class="ghost" id="lkCopyAll">Copy all</button><span class="muted" id="lkMsg"></span></div>
+  <div id="linksBody" class="lstbody"></div>
+  <div class="drow"><button type="button" class="primary" id="linksClose">Close</button></div>
+</dialog>
+
 <dialog id="gDlg">
   <form method="dialog">
     <h2 id="gTitle">Daily goal</h2>
@@ -409,8 +416,9 @@
   var dkey = function (ms) { var d = new Date(ms); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); };
   var noteHtml = function (x) { return x.note ? '<div class="lnote">' + esc(x.note).replace(/\n/g, '<br>') + '</div>' : ''; };
   var chatBtns = function (x) {
-    var cs = TSA.chatsOf(x);
-    return cs.map(function (c, i) { return '<a class="ghost chatlink" href="' + esc(c.url) + '" target="_blank" rel="noopener" title="' + esc(c.title || c.url) + '">💬 Chat' + (cs.length > 1 ? ' ' + (i + 1) : '') + '</a>'; }).join('');
+    var cs = TSA.chatsOf(x), pin = cs.filter(function (c) { return c.pin; })[0];
+    return (pin ? '<a class="ghost chatlink" href="' + esc(pin.url) + '" target="_blank" rel="noopener" title="Pinned: ' + esc(pin.title || pin.url) + '">📌 ' + esc((pin.title || 'Pinned').slice(0, 18)) + '</a>' : '') +
+      '<button type="button" class="ghost chatlink" data-links="' + x.id + '" title="Everything linked to this creator">📁 Links' + (cs.length ? ' ' + cs.length : '') + '</button>';
   };
   var pencil = function (id) { return '<button type="button" class="ghost" data-edit="' + id + '" title="Edit or delete">✏️ Edit</button>'; };
   /* inline edit form for one entry (kind: 'todo' or 'follow') */
@@ -418,7 +426,6 @@
     var f = kind === 'follow', i = function (id, v, ph) { return '<input id="' + id + '" type="text" maxlength="' + (id === 'edUrl' ? 300 : 120) + '" value="' + esc(v) + '" placeholder="' + ph + '">'; };
     return '<form class="editform" data-kind="' + kind + '" data-id="' + x.id + '">' +
       '<label>Name' + i('edName', x.name || '', 'Name') + '</label><label>Channel link' + i('edUrl', x.url || '', 'https://www.youtube.com/@…') + '</label>' +
-      (TSA.chatsOf(x).length ? '<div class="edchats"><span class="muted">Linked chats</span>' + TSA.chatsOf(x).map(function (c) { return '<div class="edchat"><a href="' + esc(c.url) + '" target="_blank" rel="noopener">💬 ' + esc(c.title || c.url) + '</a><button type="button" class="ghost" data-chat-del="' + esc(c.url) + '" data-chat-for="' + x.id + '" title="Unlink">✕</button></div>'; }).join('') + '</div>' : '') +
       '<label>Note<textarea id="edNote" maxlength="1000" rows="3" placeholder="Note about this outreach">' + esc(x.note || '') + '</textarea></label>' +
       (f ? '<div class="edrow"><label>Outreach date<input id="edDate" type="date" value="' + dkey(x.started) + '"></label>' +
         '<label>Follow-ups done<select id="edCount">' + [0, 1, 2, 3].map(function (n) { return '<option value="' + n + '"' + (n === x.count ? ' selected' : '') + '>' + n + ' / ' + TSA.FOLLOW_MAX + '</option>'; }).join('') + '</select></label>' +
@@ -476,7 +483,7 @@
       var t = e.target.closest('button'); if (!t) { if (e.target === $('lstDlg')) $('lstDlg').close(); return; }
       var d = t.dataset;
       var stopEdit = function () { editId = ''; lastLstHtml = ''; if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); };
-      if (d.chatDel) { TSA.unlinkChat(d.chatFor, d.chatDel); S = TSA.get(); lastLstHtml = ''; paintLists(); return; }
+      if (d.links) { openLinks(d.links); return; }
       if (d.edit) { editId = d.edit; lastLstHtml = ''; S = TSA.get(); paintLists(); var en = $('edName'); if (en) en.focus(); return; }
       if (d.editCancel) { stopEdit(); S = TSA.get(); paintLists(); return; }
       if (d.editDel) {
@@ -525,9 +532,63 @@
     window.addEventListener('message', function (e) {   // 💬 button on the capsule: link a web page (an AI chat) to a channel
       var m = e.data;
       if (e.origin !== location.origin || !m || m.channel !== 'timer-bridge' || m.from !== 'userscript' || m.type !== 'chat-link') return;
-      var ok = m.op === 'remove' ? TSA.unlinkChat(m.id, m.url) : TSA.linkChat(m.id, m.url, m.title);
-      S = TSA.get(); lastLstHtml = ''; renderFollow();
+      var ok = m.op === 'remove' ? TSA.unlinkChat(m.id, m.url) : TSA.linkChat(m.id, m.url, m.title, { icon: m.icon, kind: m.kind });
+      S = TSA.get(); lastLstHtml = ''; renderFollow(); if (linksFor) paintLinks();
       window.postMessage({ channel: 'timer-bridge', from: 'page', type: 'chat-link-ok', qid: m.qid, ok: ok }, location.origin);
+    });
+    window.addEventListener('message', function (e) {   // links found on a YouTube About page
+      var m = e.data;
+      if (e.origin !== location.origin || !m || m.channel !== 'timer-bridge' || m.from !== 'userscript' || m.type !== 'links-add') return;
+      var ok = TSA.addLinksByKeys(m.keys, m.links); S = TSA.get(); lastLstHtml = ''; renderFollow(); if (linksFor) paintLinks();
+      window.postMessage({ channel: 'timer-bridge', from: 'page', type: 'links-add-ok', qid: m.qid, ok: ok }, location.origin);
+    });
+    /* 📁 Links popup: everything linked to one creator */
+    var linksFor = '', linkEdit = '', hostOf = function (u) { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return u; } };
+    var KIND_LABEL = { chat: 'AI chat', job: 'Job page', site: 'Website', social: 'Social', video: 'YouTube', other: 'Other' };
+    var shortDay = function (ms) { var d = new Date(ms); return d.getDate() + ' ' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()] + ' ' + d.getFullYear(); };
+    function paintLinks() {
+      var x = TSA.todoList().concat(TSA.followList()).filter(function (y) { return y.id === linksFor; })[0];
+      if (!x) { $('linksDlg').close(); return; }
+      $('linksHead').innerHTML = '<h2>📁 ' + esc(x.name || 'Creator') + '</h2><div class="lrow" style="border-top:0">' + '<div class="lmain">' + leadHtml(x) + noteHtml(x) + '</div>' +
+        '<div class="lbtns">' + (/^https?:\/\//i.test(x.url || '') ? '<a class="ghost chatlink" href="' + esc(x.url) + '" target="_blank" rel="noopener">Open channel ↗</a>' : '') + '</div></div>';
+      var cs = TSA.chatsOf(x);
+      $('linksBody').innerHTML = cs.length ? cs.map(function (c) {
+        var ic = TSA.linkIcon(c), em = TSA.KIND_EMOJI[c.kind] || '🔗';
+        if (linkEdit === c.url) return '<form class="lkedit linkrow" data-url="' + esc(c.url) + '"><label>Label<input id="lkTitle" type="text" maxlength="120" value="' + esc(c.title || '') + '"></label>' +
+          '<label>Type<select id="lkKind">' + Object.keys(KIND_LABEL).map(function (k) { return '<option value="' + k + '"' + (k === (c.kind || 'other') ? ' selected' : '') + '>' + TSA.KIND_EMOJI[k] + ' ' + KIND_LABEL[k] + '</option>'; }).join('') + '</select></label>' +
+          '<label>Note<textarea id="lkNote" rows="2" maxlength="1000" placeholder="Short note about this link">' + esc(c.note || '') + '</textarea></label>' +
+          '<div class="lbtns"><button class="primary" type="submit">Save</button><button type="button" class="ghost" data-lk-cancel="1">Cancel</button></div></form>';
+        return '<div class="linkrow"><span class="fav" data-l="' + em + '">' + (ic ? '<img src="' + esc(ic) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' : '') + '</span>' +
+          '<div class="lkmain"><a href="' + esc(c.url) + '" target="_blank" rel="noopener"><b>' + esc(c.title || hostOf(c.url)) + '</b></a>' +
+          '<div class="muted">' + em + ' ' + esc(KIND_LABEL[c.kind] || 'Link') + ' · ' + esc(hostOf(c.url)) + ' · linked ' + shortDay(c.ts) + '</div>' + (c.note ? '<div class="lnote" style="margin-left:0">' + esc(c.note).replace(/\n/g, '<br>') + '</div>' : '') + '</div>' +
+          '<div class="lbtns"><button type="button" class="ghost' + (c.pin ? ' on' : '') + '" data-lk-pin="' + esc(c.url) + '" title="' + (c.pin ? 'Unpin' : 'Pin to the top') + '">' + (c.pin ? '📌 Pinned' : '📌 Pin') + '</button>' +
+          '<a class="ghost chatlink" href="' + esc(c.url) + '" target="_blank" rel="noopener">Open</a>' +
+          '<button type="button" class="ghost" data-lk-edit="' + esc(c.url) + '">✏️</button><button type="button" class="ghost" data-lk-del="' + esc(c.url) + '" title="Remove this link">✕</button></div></div>';
+      }).join('') : '<p class="muted">Nothing linked yet. On any page, use the 📁 button on the timer capsule and pick this creator.</p>';
+    }
+    function openLinks(id) { linksFor = id; linkEdit = ''; $('lkMsg').textContent = ''; paintLinks(); if (!$('linksDlg').open) $('linksDlg').showModal(); }
+    var linksOf = function () { var x = TSA.todoList().concat(TSA.followList()).filter(function (y) { return y.id === linksFor; })[0]; return x ? TSA.chatsOf(x) : []; };
+    $('linksClose').addEventListener('click', function () { $('linksDlg').close(); });
+    $('linksDlg').addEventListener('close', function () { linksFor = ''; linkEdit = ''; });
+    $('lkOpenAll').addEventListener('click', function () { var l = linksOf(); l.forEach(function (c) { window.open(c.url, '_blank', 'noopener'); }); $('lkMsg').textContent = l.length > 1 ? 'If only one tab opened, allow pop-ups for this site.' : ''; });
+    $('lkCopyAll').addEventListener('click', function () {
+      var x = TSA.todoList().concat(TSA.followList()).filter(function (y) { return y.id === linksFor; })[0]; if (!x) return;
+      var t = (x.name || 'Creator') + (x.url ? '\n' + x.url : '') + (x.note ? '\nNote: ' + x.note : '') + '\n\n' + linksOf().map(function (c) { return '- ' + (c.title || hostOf(c.url)) + ' (' + (KIND_LABEL[c.kind] || 'Link') + '): ' + c.url + (c.note ? ' – ' + c.note : ''); }).join('\n');
+      var done = function (ok) { $('lkMsg').textContent = ok ? 'Copied ✓' : 'Could not copy'; };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(function () { done(true); }, function () { done(false); }); else done(false);
+    });
+    $('linksDlg').addEventListener('click', function (e) {
+      var t = e.target.closest('button'); if (!t) { if (e.target === $('linksDlg')) $('linksDlg').close(); return; }
+      var d = t.dataset, upd = function () { S = TSA.get(); lastLstHtml = ''; renderFollow(); paintLinks(); };
+      if (d.lkPin) { var c = linksOf().filter(function (z) { return z.url === d.lkPin; })[0]; TSA.pinLink(linksFor, d.lkPin, !(c && c.pin)); upd(); }
+      else if (d.lkDel) { if (confirm('Remove this link from the creator?')) { TSA.unlinkChat(linksFor, d.lkDel); upd(); } }
+      else if (d.lkEdit) { linkEdit = d.lkEdit; paintLinks(); var ti = $('lkTitle'); if (ti) ti.focus(); }
+      else if (d.lkCancel) { linkEdit = ''; paintLinks(); }
+    });
+    $('linksDlg').addEventListener('submit', function (e) {
+      var f = e.target; if (!f.classList.contains('lkedit')) return; e.preventDefault();
+      TSA.editLink(linksFor, f.dataset.url, { title: $('lkTitle').value, kind: $('lkKind').value, note: $('lkNote').value });
+      linkEdit = ''; S = TSA.get(); lastLstHtml = ''; renderFollow(); paintLinks();
     });
     window.addEventListener('tsa-open-lists', function (e) { open((e.detail && e.detail.tab) || 'todo'); });
     if (/#(todo|follow|done)\b/.test(location.hash)) { open(location.hash === '#follow' ? 'follow' : location.hash === '#done' ? 'done' : 'todo'); }

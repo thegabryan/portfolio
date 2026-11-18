@@ -556,20 +556,41 @@
     if (!f) return false;
     f.status = status === 'replied' ? 'replied' : 'stopped'; save(); return true;
   }
-  /* AI chats (or any web page) linked to a channel; added from the capsule userscript's 💬 button. */
+  /* The channel's file: every web page linked to a channel (AI chats, YTJobs, website, socials...).
+     Added from the capsule userscript's 📁 button or the YouTube About-page suggestion.
+     Stored in item.chats[] as {url, title, ts, kind, icon, note, pin} (old chat links have only url/title/ts). */
   var chatNorm = function (u) { return String(u || '').split('#')[0].replace(/\/+$/, ''); };
+  var KIND_EMOJI = { chat: '💬', job: '💼', site: '🌐', social: '📷', video: '▶️', mail: '✉️', other: '🔗' };
+  function linkKind(url) {
+    var h = ''; try { h = new URL(url).hostname.replace(/^www\./, '').toLowerCase(); } catch (e) { return 'other'; }
+    if (/(^|\.)(claude\.ai|chatgpt\.com|chat\.openai\.com|gemini\.google\.com|perplexity\.ai|grok\.com|copilot\.microsoft\.com|chat\.deepseek\.com|poe\.com|aistudio\.google\.com)$/.test(h)) return 'chat';
+    if (/(^|\.)ytjobs\.co$/.test(h)) return 'job';
+    if (/(^|\.)(youtube\.com|youtu\.be)$/.test(h)) return 'video';
+    if (/(^|\.)(instagram\.com|x\.com|twitter\.com|linkedin\.com|tiktok\.com|facebook\.com|threads\.net|discord\.gg|discord\.com|patreon\.com|twitch\.tv|reddit\.com)$/.test(h)) return 'social';
+    return 'site';
+  }
   function leadById(id) {
     return S.outreach.todo.concat(S.outreach.follow).filter(function (x) { return x.id === id; })[0] || null;
   }
-  function chatsOf(item) { return item && Array.isArray(item.chats) ? item.chats : []; }
-  function linkChat(id, url, title) {
-    var it = leadById(id); url = String(url || '').trim();
+  /* pinned links first, then in the order they were added */
+  function chatsOf(item) {
+    var l = item && Array.isArray(item.chats) ? item.chats.slice() : [];
+    return l.map(function (c, i) { return { c: c, i: i }; }).sort(function (a, b) { return (b.c.pin ? 1 : 0) - (a.c.pin ? 1 : 0) || a.i - b.i; }).map(function (x) { return x.c; });
+  }
+  function linkIcon(c) {
+    if (c.icon && /^https?:\/\//i.test(c.icon)) return c.icon;
+    try { return new URL(c.url).origin + '/favicon.ico'; } catch (e) { return ''; }
+  }
+  function linkChat(id, url, title, extra) {
+    var it = leadById(id); url = String(url || '').trim(); extra = extra || {};
     if (!it || !/^https?:\/\//i.test(url) || url.length > 500) return false;
     if (!Array.isArray(it.chats)) it.chats = [];
-    var k = chatNorm(url);
-    if (it.chats.some(function (c) { return chatNorm(c.url) === k; })) return true;
-    if (it.chats.length >= 10) return false;
-    it.chats.push({ url: url, title: String(title || '').replace(/\s+/g, ' ').trim().slice(0, 120), ts: Date.now() });
+    var k = chatNorm(url), have = it.chats.filter(function (c) { return chatNorm(c.url) === k; })[0];
+    if (have) { if (!have.icon && extra.icon) { have.icon = String(extra.icon).slice(0, 400); save(); } return true; }
+    if (it.chats.length >= 40) return false;
+    var kind = KIND_EMOJI[extra.kind] ? extra.kind : linkKind(url);
+    it.chats.push({ url: url, title: String(title || '').replace(/\s+/g, ' ').trim().slice(0, 120), ts: Date.now(), kind: kind,
+      icon: /^https?:\/\//i.test(extra.icon || '') ? String(extra.icon).slice(0, 400) : '', note: '', pin: false });
     save(); return true;
   }
   function unlinkChat(id, url) {
@@ -579,10 +600,33 @@
     if (it.chats.length !== n) save();
     return it.chats.length !== n;
   }
-  /* chats of the follow-up that belongs to a counted outreach (for the dashboard log) */
+  function pinLink(id, url, on) {
+    var it = leadById(id); if (!it || !Array.isArray(it.chats)) return false;
+    var k = chatNorm(url), c = it.chats.filter(function (x) { return chatNorm(x.url) === k; })[0]; if (!c) return false;
+    c.pin = !!on; save(); return true;
+  }
+  function editLink(id, url, f) {
+    var it = leadById(id); if (!it || !Array.isArray(it.chats)) return false;
+    var k = chatNorm(url), c = it.chats.filter(function (x) { return chatNorm(x.url) === k; })[0]; if (!c) return false;
+    if (f.title != null) c.title = String(f.title).replace(/\s+/g, ' ').trim().slice(0, 120);
+    if (f.note != null) c.note = cleanNote(f.note);
+    if (f.kind && KIND_EMOJI[f.kind]) c.kind = f.kind;
+    save(); return true;
+  }
+  /* links of the follow-up that belongs to a counted outreach (for the dashboard log) */
   function chatsForClick(ms) {
     var f = S.outreach.follow.filter(function (x) { return x.ms === +ms; })[0];
     return f ? chatsOf(f) : [];
+  }
+  /* links found on a channel's YouTube About page: added to the list entry whose channel handle matches */
+  function addLinksByKeys(keys, links) {
+    keys = (keys || []).map(function (k) { return String(k).toLowerCase(); });
+    var it = S.outreach.todo.concat(S.outreach.follow).filter(function (x) {
+      return picKeys(x.name, x.url).some(function (k) { return keys.indexOf(k) >= 0 && k.charAt(0) !== 'n'; });
+    })[0];
+    if (!it) return false;
+    var any = false; (links || []).forEach(function (l) { if (linkChat(it.id, l.url, l.title, { icon: l.icon })) any = true; });
+    return any;
   }
   /* Editing. A "To reach out" entry: name, link, note. */
   function editTodo(id, f) {
@@ -1193,7 +1237,7 @@
     todayTotals: todayTotals, todayPoints: todayPoints, analyze: analyze,
     exportAll: exportAll, importText: importText,
     audio: audio, audioReady: audioReady, beep: beep, nudgeBeep: nudgeBeep, alarmStart: alarmStart, alarmStop: alarmStop,
-    setFavicon: setFavicon, setTitle: setTitle, picFor: picFor, linkChat: linkChat, unlinkChat: unlinkChat, chatsOf: chatsOf, chatsForClick: chatsForClick, editTodo: editTodo, editFollow: editFollow, removeFollow: removeFollow, outreachRemoveClick: outreachRemoveClick, setPics: setPics, startFlash: startFlash, quickBlink: quickBlink, engine: engine, initTheme: initTheme, mountDataTools: mountDataTools, mountCsvTools: mountCsvTools, csvExport: csvExport, maybeAutoBackup: maybeAutoBackup, setAutoBackup: setAutoBackup, setGoalSec: setGoalSec, GOALS: GOALS,
+    setFavicon: setFavicon, setTitle: setTitle, picFor: picFor, linkChat: linkChat, addLinksByKeys: addLinksByKeys, pinLink: pinLink, editLink: editLink, linkIcon: linkIcon, linkKind: linkKind, KIND_EMOJI: KIND_EMOJI, unlinkChat: unlinkChat, chatsOf: chatsOf, chatsForClick: chatsForClick, editTodo: editTodo, editFollow: editFollow, removeFollow: removeFollow, outreachRemoveClick: outreachRemoveClick, setPics: setPics, startFlash: startFlash, quickBlink: quickBlink, engine: engine, initTheme: initTheme, mountDataTools: mountDataTools, mountCsvTools: mountCsvTools, csvExport: csvExport, maybeAutoBackup: maybeAutoBackup, setAutoBackup: setAutoBackup, setGoalSec: setGoalSec, GOALS: GOALS,
     dailySummary: dailySummary, sendSummary: sendSummary,
     KEY: KEY, CHRONO_KEY: CHRONO_KEY
   };
