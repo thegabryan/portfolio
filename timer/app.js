@@ -590,7 +590,9 @@
     if (it.chats.length >= 40) return false;
     var kind = KIND_EMOJI[extra.kind] ? extra.kind : linkKind(url);
     it.chats.push({ url: url, title: String(title || '').replace(/\s+/g, ' ').trim().slice(0, 120), ts: Date.now(), kind: kind,
-      icon: /^https?:\/\//i.test(extra.icon || '') ? String(extra.icon).slice(0, 400) : '', note: '', pin: false });
+      icon: /^https?:\/\//i.test(extra.icon || '') ? String(extra.icon).slice(0, 400) : '', note: '', pin: false,
+      thumb: /^https:\/\/i\.ytimg\.com\//.test(extra.thumb || '') ? String(extra.thumb).slice(0, 300) : '',
+      published: +extra.published > 0 ? +extra.published : 0, commented: +extra.commented > 0 ? +extra.commented : 0 });
     save(); return true;
   }
   function unlinkChat(id, url) {
@@ -625,7 +627,7 @@
       return picKeys(x.name, x.url).some(function (k) { return keys.indexOf(k) >= 0 && k.charAt(0) !== 'n'; });
     })[0];
     if (!it) return false;
-    var any = false; (links || []).forEach(function (l) { if (linkChat(it.id, l.url, l.title, { icon: l.icon })) any = true; });
+    var any = false; (links || []).forEach(function (l) { if (linkChat(it.id, l.url, l.title, { icon: l.icon, kind: l.kind, thumb: l.thumb, published: l.published, commented: l.commented })) any = true; });
     return any;
   }
   /* Editing. A "To reach out" entry: name, link, note. */
