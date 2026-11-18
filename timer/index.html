@@ -408,12 +408,17 @@
   var editId = '';
   var dkey = function (ms) { var d = new Date(ms); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); };
   var noteHtml = function (x) { return x.note ? '<div class="lnote">' + esc(x.note).replace(/\n/g, '<br>') + '</div>' : ''; };
+  var chatBtns = function (x) {
+    var cs = TSA.chatsOf(x);
+    return cs.map(function (c, i) { return '<a class="ghost chatlink" href="' + esc(c.url) + '" target="_blank" rel="noopener" title="' + esc(c.title || c.url) + '">💬 Chat' + (cs.length > 1 ? ' ' + (i + 1) : '') + '</a>'; }).join('');
+  };
   var pencil = function (id) { return '<button type="button" class="ghost" data-edit="' + id + '" title="Edit or delete">✏️ Edit</button>'; };
   /* inline edit form for one entry (kind: 'todo' or 'follow') */
   function editForm(x, kind) {
     var f = kind === 'follow', i = function (id, v, ph) { return '<input id="' + id + '" type="text" maxlength="' + (id === 'edUrl' ? 300 : 120) + '" value="' + esc(v) + '" placeholder="' + ph + '">'; };
     return '<form class="editform" data-kind="' + kind + '" data-id="' + x.id + '">' +
       '<label>Name' + i('edName', x.name || '', 'Name') + '</label><label>Channel link' + i('edUrl', x.url || '', 'https://www.youtube.com/@…') + '</label>' +
+      (TSA.chatsOf(x).length ? '<div class="edchats"><span class="muted">Linked chats</span>' + TSA.chatsOf(x).map(function (c) { return '<div class="edchat"><a href="' + esc(c.url) + '" target="_blank" rel="noopener">💬 ' + esc(c.title || c.url) + '</a><button type="button" class="ghost" data-chat-del="' + esc(c.url) + '" data-chat-for="' + x.id + '" title="Unlink">✕</button></div>'; }).join('') + '</div>' : '') +
       '<label>Note<textarea id="edNote" maxlength="1000" rows="3" placeholder="Note about this outreach">' + esc(x.note || '') + '</textarea></label>' +
       (f ? '<div class="edrow"><label>Outreach date<input id="edDate" type="date" value="' + dkey(x.started) + '"></label>' +
         '<label>Follow-ups done<select id="edCount">' + [0, 1, 2, 3].map(function (n) { return '<option value="' + n + '"' + (n === x.count ? ' selected' : '') + '>' + n + ' / ' + TSA.FOLLOW_MAX + '</option>'; }).join('') + '</select></label>' +
@@ -423,7 +428,7 @@
   }
   function row(x, kind, muted, btns) {
     if (editId === x.id) return '<div class="lrow editing"><div class="lmain">' + leadHtml(x) + editForm(x, kind) + '</div></div>';
-    return '<div class="lrow"><div class="lmain">' + leadHtml(x) + '<div class="muted">' + muted + '</div>' + noteHtml(x) + '</div><div class="lbtns">' + btns + pencil(x.id) + '</div></div>';
+    return '<div class="lrow"><div class="lmain">' + leadHtml(x) + '<div class="muted">' + muted + '</div>' + noteHtml(x) + '</div><div class="lbtns">' + chatBtns(x) + btns + pencil(x.id) + '</div></div>';
   }
   function paintLists() {
     var now = Date.now(), html = '';
@@ -471,6 +476,7 @@
       var t = e.target.closest('button'); if (!t) { if (e.target === $('lstDlg')) $('lstDlg').close(); return; }
       var d = t.dataset;
       var stopEdit = function () { editId = ''; lastLstHtml = ''; if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); };
+      if (d.chatDel) { TSA.unlinkChat(d.chatFor, d.chatDel); S = TSA.get(); lastLstHtml = ''; paintLists(); return; }
       if (d.edit) { editId = d.edit; lastLstHtml = ''; S = TSA.get(); paintLists(); var en = $('edName'); if (en) en.focus(); return; }
       if (d.editCancel) { stopEdit(); S = TSA.get(); paintLists(); return; }
       if (d.editDel) {
@@ -515,6 +521,13 @@
       var m = e.data;
       if (e.origin !== location.origin || !m || m.channel !== 'timer-bridge' || m.from !== 'userscript' || m.type !== 'pics') return;
       if (TSA.setPics(m.pics)) { S = TSA.get(); lastLstHtml = ''; renderFollow(); }
+    });
+    window.addEventListener('message', function (e) {   // 💬 button on the capsule: link a web page (an AI chat) to a channel
+      var m = e.data;
+      if (e.origin !== location.origin || !m || m.channel !== 'timer-bridge' || m.from !== 'userscript' || m.type !== 'chat-link') return;
+      var ok = m.op === 'remove' ? TSA.unlinkChat(m.id, m.url) : TSA.linkChat(m.id, m.url, m.title);
+      S = TSA.get(); lastLstHtml = ''; renderFollow();
+      window.postMessage({ channel: 'timer-bridge', from: 'page', type: 'chat-link-ok', qid: m.qid, ok: ok }, location.origin);
     });
     window.addEventListener('tsa-open-lists', function (e) { open((e.detail && e.detail.tab) || 'todo'); });
     if (/#(todo|follow|done)\b/.test(location.hash)) { open(location.hash === '#follow' ? 'follow' : location.hash === '#done' ? 'done' : 'todo'); }

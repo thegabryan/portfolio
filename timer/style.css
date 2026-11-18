@@ -366,3 +366,11 @@ dialog.lstdlg[open] { display: flex; }
 .nav .reachchip[hidden] { display: none; }
 
 .nav .reachchip.followup { border-color: #2f6df6; background: rgba(47,109,246,.12); }
+
+/* linked AI chats */
+a.chatlink { text-decoration: none; }
+.lstdlg .lbtns a.chatlink { display: inline-block; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line); font-size: 13px; color: var(--text); }
+.onote + .chatlink, .nx .chatlink { font-size: 12px; margin-left: 6px; padding: 1px 6px; border: 1px solid var(--line); border-radius: 999px; color: var(--text); }
+.lstdlg .edchats { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.lstdlg .edchat { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+.lstdlg .edchat a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
