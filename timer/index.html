@@ -93,7 +93,7 @@
   <h2>📋 Outreach lists</h2>
   <div class="htabs" id="lstTabs"><button type="button" class="ghost on" data-t="follow">Follow-ups</button><button type="button" class="ghost" data-t="todo">To reach out</button><button type="button" class="ghost" data-t="done">Finished</button></div>
   <div id="lstBody" class="lstbody"></div>
-  <div class="drow"><button type="button" class="primary" id="lstClose">Close</button></div>
+  <div class="drow"><a id="clipBm" class="ghost chatlink" href="#" title="Drag this to your bookmarks bar. On any page, select text and click it to add the text to a channel's note.">📎 Outreach clip</a><button type="button" class="primary" id="lstClose">Close</button></div>
 </dialog>
 
 <dialog id="linksDlg" class="lstdlg linksdlg">
@@ -101,6 +101,17 @@
   <div class="linkbar"><button type="button" class="ghost" id="lkOpenAll">Open all</button><button type="button" class="ghost" id="lkCopyAll">Copy all</button><span class="muted" id="lkMsg"></span></div>
   <div id="linksBody" class="lstbody"></div>
   <div class="drow"><button type="button" class="primary" id="linksClose">Close</button></div>
+</dialog>
+
+<dialog id="clipDlg" class="lstdlg clipdlg">
+  <h2>📎 Add selected text to a channel</h2>
+  <textarea id="clipText" rows="4" maxlength="1000" aria-label="Selected text"></textarea>
+  <label class="chk" id="clipMailRow" hidden><input type="checkbox" id="clipMail" checked> <span id="clipMailTxt"></span></label>
+  <label class="chk" id="clipSrcRow" hidden><input type="checkbox" id="clipSrc"> <span id="clipSrcTxt"></span></label>
+  <input type="text" id="clipSearch" placeholder="Search channel…" aria-label="Search channel">
+  <div id="clipList" class="cliplist"></div>
+  <p class="muted" id="clipMsg"></p>
+  <div class="drow"><button type="button" class="ghost" id="clipCancel">Cancel</button><button type="button" class="primary" id="clipSave">Add to note</button></div>
 </dialog>
 
 <dialog id="gDlg">
@@ -544,15 +555,24 @@
     });
     /* 📁 Links popup: everything linked to one creator */
     var linksFor = '', linkEdit = '', hostOf = function (u) { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return u; } };
-    var KIND_LABEL = { chat: 'AI chat', job: 'Job page', site: 'Website', social: 'Social', video: 'YouTube', other: 'Other' };
+    var KIND_LABEL = { chat: 'AI chat', job: 'Job page', site: 'Website', social: 'Social', video: 'YouTube', mail: 'Gmail', other: 'Other' };
     var shortDay = function (ms) { var d = new Date(ms); return d.getDate() + ' ' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()] + ' ' + d.getFullYear(); };
     function paintLinks() {
       var x = TSA.todoList().concat(TSA.followList()).filter(function (y) { return y.id === linksFor; })[0];
       if (!x) { $('linksDlg').close(); return; }
       $('linksHead').innerHTML = '<h2>📁 ' + esc(x.name || 'Creator') + '</h2><div class="lrow" style="border-top:0">' + '<div class="lmain">' + leadHtml(x) + noteHtml(x) + '</div>' +
         '<div class="lbtns">' + (/^https?:\/\//i.test(x.url || '') ? '<a class="ghost chatlink" href="' + esc(x.url) + '" target="_blank" rel="noopener">Open channel ↗</a>' : '') + '</div></div>';
-      var cs = TSA.chatsOf(x);
-      $('linksBody').innerHTML = cs.length ? cs.map(function (c) {
+      var cs = TSA.chatsOf(x), gm = TSA.gmailFor(x);
+      var gmRow = function (q, url, extra) {
+        return '<div class="linkrow gmrow" ' + (url ? 'data-url="' + esc(url) + '"' : 'data-virtual="1"') + '><span class="fav" data-l="✉️"></span><div class="lkmain"><div class="muted">' + extra + '</div>' +
+          '<div class="gmbox"><span class="muted gmpre">mail.google.com/mail/u/' + TSA.gmailU() + '/#search/</span><input type="text" class="gmq" maxlength="200" value="' + esc(q) + '" aria-label="Gmail search"></div></div>' +
+          '<div class="lbtns"><button type="button" class="ghost chatlink" data-gm-open="1">Search Gmail ↗</button>' + (url ? '<button type="button" class="ghost" data-lk-del="' + esc(url) + '" title="Remove this link">✕</button>' : '') + '</div></div>';
+      };
+      var mails = cs.filter(function (c) { return c.kind === 'mail' && c.q != null; });
+      var gmHtml = gmRow(gm.q, '', '✉️ Find their email in Gmail <span class="gmacct">account /u/<input type="number" id="gmU" min="0" max="19" value="' + TSA.gmailU() + '" aria-label="Gmail account number"></span>') +
+        mails.map(function (c) { return gmRow(c.q, c.url, '✉️ Gmail search for the email you clipped · ' + shortDay(c.ts)); }).join('');
+      cs = cs.filter(function (c) { return !(c.kind === 'mail' && c.q != null); });
+      $('linksBody').innerHTML = gmHtml + (cs.length ? cs.map(function (c) {
         var ic = TSA.linkIcon(c), em = TSA.KIND_EMOJI[c.kind] || '🔗';
         if (linkEdit === c.url) return '<form class="lkedit linkrow" data-url="' + esc(c.url) + '"><label>Label<input id="lkTitle" type="text" maxlength="120" value="' + esc(c.title || '') + '"></label>' +
           '<label>Type<select id="lkKind">' + Object.keys(KIND_LABEL).map(function (k) { return '<option value="' + k + '"' + (k === (c.kind || 'other') ? ' selected' : '') + '>' + TSA.KIND_EMOJI[k] + ' ' + KIND_LABEL[k] + '</option>'; }).join('') + '</select></label>' +
@@ -564,7 +584,7 @@
           '<div class="lbtns"><button type="button" class="ghost' + (c.pin ? ' on' : '') + '" data-lk-pin="' + esc(c.url) + '" title="' + (c.pin ? 'Unpin' : 'Pin to the top') + '">' + (c.pin ? '📌 Pinned' : '📌 Pin') + '</button>' +
           '<a class="ghost chatlink" href="' + esc(c.url) + '" target="_blank" rel="noopener">Open</a>' +
           '<button type="button" class="ghost" data-lk-edit="' + esc(c.url) + '">✏️</button><button type="button" class="ghost" data-lk-del="' + esc(c.url) + '" title="Remove this link">✕</button></div></div>';
-      }).join('') : '<p class="muted">Nothing linked yet. On any page, use the 📁 button on the timer capsule and pick this creator.</p>';
+      }).join('') : '<p class="muted">Nothing else linked yet. On any page, use the 📁 button on the timer capsule and pick this creator.</p>');
     }
     function openLinks(id) { linksFor = id; linkEdit = ''; $('lkMsg').textContent = ''; paintLinks(); if (!$('linksDlg').open) $('linksDlg').showModal(); }
     var linksOf = function () { var x = TSA.todoList().concat(TSA.followList()).filter(function (y) { return y.id === linksFor; })[0]; return x ? TSA.chatsOf(x) : []; };
@@ -584,12 +604,78 @@
       else if (d.lkDel) { if (confirm('Remove this link from the creator?')) { TSA.unlinkChat(linksFor, d.lkDel); upd(); } }
       else if (d.lkEdit) { linkEdit = d.lkEdit; paintLinks(); var ti = $('lkTitle'); if (ti) ti.focus(); }
       else if (d.lkCancel) { linkEdit = ''; paintLinks(); }
+      else if (d.gmOpen) { openGmail(t.closest('.gmrow')); }
+    });
+    function openGmail(row) {
+      var inp = row.querySelector('.gmq'); saveGmail(row);
+      window.open(TSA.gmailUrl(inp.value), '_blank', 'noopener');
+    }
+    function saveGmail(row) {
+      var v = row.querySelector('.gmq').value;
+      if (row.dataset.virtual) TSA.setGmailQ(linksFor, v); else TSA.editLink(linksFor, row.dataset.url, { q: v });
+      S = TSA.get();
+    }
+    $('linksDlg').addEventListener('change', function (e) {
+      var t = e.target;
+      if (t.classList.contains('gmq')) { saveGmail(t.closest('.gmrow')); lastLstHtml = ''; paintLinks(); }
+      else if (t.id === 'gmU') { TSA.setGmailU(t.value); S = TSA.get(); paintLinks(); }
+    });
+    $('linksDlg').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && e.target.classList && e.target.classList.contains('gmq')) { e.preventDefault(); openGmail(e.target.closest('.gmrow')); }
     });
     $('linksDlg').addEventListener('submit', function (e) {
       var f = e.target; if (!f.classList.contains('lkedit')) return; e.preventDefault();
       TSA.editLink(linksFor, f.dataset.url, { title: $('lkTitle').value, kind: $('lkKind').value, note: $('lkNote').value });
       linkEdit = ''; S = TSA.get(); lastLstHtml = ''; renderFollow(); paintLinks();
     });
+    (function () {   // the bookmarklet (drag it to the bookmarks bar)
+      var base = location.origin + location.pathname.replace(/[^\/]*$/, '');
+      var code = "(function(){var s=String(window.getSelection?window.getSelection():'');if(!s){var e=document.activeElement;if(e&&e.selectionStart!=null)s=e.value.slice(e.selectionStart,e.selectionEnd)}s=s.trim().slice(0,1000);if(!s){alert('Select some text first');return}var d={t:s,u:location.href.slice(0,400),ti:document.title.slice(0,120)};window.open('" + base + "#clip='+encodeURIComponent(JSON.stringify(d)),'tsaclip','width=520,height=700')})();";
+      var a = $('clipBm'); if (a) { a.href = 'javascript:' + code; a.addEventListener('click', function (e) { e.preventDefault(); }); }
+    })();
+    /* 📎 clip: the bookmarklet opens this page with #clip={t:text,u:page,ti:title}; pick a channel, the text becomes a note line */
+    (function () {
+      var m = /^#clip=(.*)$/.exec(location.hash), clip = null, pick = '';
+      if (!m) return;
+      try { clip = JSON.parse(decodeURIComponent(m[1])); } catch (e) { return; }
+      if (!clip || typeof clip.t !== 'string') return;
+      var EMAIL = /[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}/i, dlg = $('clipDlg');
+      var src = /^https?:\/\//i.test(clip.u || '') ? String(clip.u).slice(0, 400) : '';
+      var paintList = function () {
+        var q = $('clipSearch').value.trim().toLowerCase(), all = TSA.todoList().map(function (x) { return { x: x, g: 'To reach out' }; })
+          .concat(TSA.followList().map(function (x) { return { x: x, g: x.status === 'active' ? 'Follow-ups' : 'Finished' }; })), out = '', last = '';
+        ['To reach out', 'Follow-ups', 'Finished'].forEach(function (g) {
+          var rows = all.filter(function (r) { return r.g === g && (!q || (r.x.name || r.x.url || '').toLowerCase().indexOf(q) >= 0); });
+          if (!rows.length) return;
+          out += '<div class="cliphd">' + g + '</div>' + rows.map(function (r) { return '<button type="button" class="clipitem' + (r.x.id === pick ? ' sel' : '') + '" data-id="' + r.x.id + '">' + esc(r.x.name || r.x.url) + '</button>'; }).join('');
+        });
+        $('clipList').innerHTML = out || '<p class="muted" style="padding:8px">No channels found.</p>';
+      };
+      var paintMail = function () {
+        var em = EMAIL.exec($('clipText').value); $('clipMailRow').hidden = !em;
+        if (em) $('clipMailTxt').textContent = 'It has an email: also add a Gmail search link for ' + em[0];
+      };
+      $('clipText').value = clip.t.slice(0, 1000); paintMail();
+      if (src) { $('clipSrcRow').hidden = false; $('clipSrcTxt').textContent = 'Also link the page it came from' + (clip.ti ? ' (' + String(clip.ti).slice(0, 50) + ')' : ''); }
+      $('clipText').addEventListener('input', paintMail);
+      $('clipSearch').addEventListener('input', paintList);
+      $('clipList').addEventListener('click', function (e) { var b = e.target.closest('[data-id]'); if (b) { pick = b.dataset.id; paintList(); } });
+      var done = function () { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {} };
+      $('clipCancel').addEventListener('click', function () { dlg.close(); done(); if (window.opener) window.close(); });
+      $('clipSave').addEventListener('click', function () {
+        var text = $('clipText').value.trim(), em = EMAIL.exec(text);
+        if (!text) { $('clipMsg').textContent = 'The text is empty.'; return; }
+        if (!pick) { $('clipMsg').textContent = 'Pick a channel first.'; return; }
+        TSA.addNoteLine(pick, text);
+        if (em && $('clipMail').checked && !$('clipMailRow').hidden) TSA.linkMail(pick, em[0]);
+        if (src && $('clipSrc').checked) TSA.linkChat(pick, src, clip.ti || '');
+        S = TSA.get(); lastLstHtml = ''; renderFollow();
+        var it = TSA.todoList().concat(TSA.followList()).filter(function (y) { return y.id === pick; })[0];
+        $('clipMsg').textContent = 'Added to ' + (it ? it.name || it.url : 'the channel') + ' ✓'; $('clipSave').disabled = true; done();
+        setTimeout(function () { if (window.opener) window.close(); else dlg.close(); }, 1200);
+      });
+      paintList(); dlg.showModal(); $('clipText').focus();
+    })();
     window.addEventListener('tsa-open-lists', function (e) { open((e.detail && e.detail.tab) || 'todo'); });
     if (/#(todo|follow|done)\b/.test(location.hash)) { open(location.hash === '#follow' ? 'follow' : location.hash === '#done' ? 'done' : 'todo'); }
     renderFollow(); setInterval(renderFollow, 60000);

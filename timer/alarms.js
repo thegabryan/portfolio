@@ -59,6 +59,13 @@
     var list = read(); list.push({ id: uid(), h: h, m: m, label: String(label || '').slice(0, 60), repeat: repeat === 'daily' ? 'daily' : 'once', at: nextAt(h, m) });
     write(list); refreshUi();
   }
+  function update(id, h, m, label, repeat) {
+    var list = read(); list.forEach(function (a) {
+      if (a.id !== id) return;
+      a.h = h; a.m = m; a.label = String(label || '').slice(0, 60); a.repeat = repeat === 'daily' ? 'daily' : 'once'; a.at = nextAt(h, m); a.auto = false;
+    });
+    write(list); refreshUi();
+  }
   function remove(id) { write(read().filter(function (a) { return a.id !== id; })); refreshUi(); }
   /* Set by the userscript (id 'claude-reset'): one alarm at an exact time that is replaced when a new time arrives. */
   function upsertAt(id, at, label) {
@@ -79,7 +86,7 @@
     listEl.innerHTML = list.length ? list.map(function (a) {
       return '<div class="alrow"><b>' + pad(new Date(a.at).getHours()) + ':' + pad(new Date(a.at).getMinutes()) + '</b>' +
         '<span class="almeta">' + esc(a.label || (a.auto ? 'Claude limit resets' : 'Alarm')) + ' · ' + (a.repeat === 'daily' ? 'every day · next ' : '') + when(a.at) + (a.auto ? ' · set by the userscript' : '') + '</span>' +
-        '<button type="button" class="ghost" data-del="' + a.id + '">Delete</button></div>';
+        '<button type="button" class="ghost" data-edit="' + a.id + '" title="Edit this alarm">✏️ Edit</button><button type="button" class="ghost" data-del="' + a.id + '">Delete</button></div>';
     }).join('') : '<p class="muted">No alarms yet.</p>';
   }
   /* Header chips for the outreach lists, read from the site data so they work on every page:
@@ -125,20 +132,31 @@
       '<div class="alform"><select id="alH" aria-label="Hour">' + opts(24) + '</select><b>:</b><select id="alM" aria-label="Minute">' + opts(60) + '</select>' +
       '<input id="alLabel" type="text" maxlength="60" placeholder="Label (optional)" aria-label="Label">' +
       '<select id="alRep" aria-label="Repeat"><option value="once">Once</option><option value="daily">Every day</option></select>' +
-      '<button type="button" class="primary" id="alAdd">Add</button></div>' +
+      '<button type="button" class="primary" id="alAdd">Add</button><button type="button" class="ghost" id="alCancel" hidden>Cancel</button></div>' +
       '<div id="alList"></div><div class="drow"><button type="button" class="primary" id="alClose">Close</button></div>';
     document.body.appendChild(dlg);
     listEl = dlg.querySelector('#alList'); hSel = dlg.querySelector('#alH'); mSel = dlg.querySelector('#alM');
     btn.addEventListener('click', function () {
       var n = new Date(Date.now() + 3600e3); hSel.value = n.getHours(); mSel.value = 0;
-      refreshUi(); dlg.showModal();
+      endEdit(); refreshUi(); dlg.showModal();
     });
-    dlg.querySelector('#alAdd').addEventListener('click', function () {
-      add(+hSel.value, +mSel.value, dlg.querySelector('#alLabel').value.trim(), dlg.querySelector('#alRep').value);
-      dlg.querySelector('#alLabel').value = '';
+    var editId = '', addBtn = dlg.querySelector('#alAdd'), cancelBtn = dlg.querySelector('#alCancel');
+    var endEdit = function () { editId = ''; addBtn.textContent = 'Add'; cancelBtn.hidden = true; dlg.querySelector('#alLabel').value = ''; dlg.querySelector('#alRep').value = 'once'; };
+    addBtn.addEventListener('click', function () {
+      var label = dlg.querySelector('#alLabel').value.trim(), rep = dlg.querySelector('#alRep').value;
+      if (editId) update(editId, +hSel.value, +mSel.value, label, rep); else add(+hSel.value, +mSel.value, label, rep);
+      endEdit();
     });
+    cancelBtn.addEventListener('click', endEdit);
     dlg.addEventListener('click', function (e) {
-      var d = e.target.closest('[data-del]'); if (d) { remove(d.dataset.del); return; }
+      var ed = e.target.closest('[data-edit]');
+      if (ed) {                                              // put the alarm in the form; Save changes it in place
+        var al = read().filter(function (a) { return a.id === ed.dataset.edit; })[0]; if (!al) return;
+        editId = al.id; hSel.value = al.h; mSel.value = al.m;
+        dlg.querySelector('#alLabel').value = al.label || ''; dlg.querySelector('#alRep').value = al.repeat === 'daily' ? 'daily' : 'once';
+        addBtn.textContent = 'Save changes'; cancelBtn.hidden = false; dlg.querySelector('#alLabel').focus(); return;
+      }
+      var d = e.target.closest('[data-del]'); if (d) { if (editId === d.dataset.del) endEdit(); remove(d.dataset.del); return; }
       if (e.target === dlg) dlg.close();
     });
     dlg.querySelector('#alClose').addEventListener('click', function () { dlg.close(); });
@@ -154,5 +172,5 @@
       window.postMessage({ channel: 'timer-bridge', from: 'page', type: 'alarm-ok', id: m.id, at: at }, location.origin);
     });
   }
-  window.TSAAlarms = { init: init, add: add, remove: remove, upsertAt: upsertAt };
+  window.TSAAlarms = { init: init, add: add, update: update, remove: remove, upsertAt: upsertAt };
 })();

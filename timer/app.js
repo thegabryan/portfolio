@@ -530,14 +530,14 @@
     S.outreach.todo = S.outreach.todo.filter(function (t) { return leadKey(t.name, t.url) !== key; });
     var note = cleanNote((opts && opts.note) || (old && old.note));          // a note written in "To reach out" moves along
     var ms = outreachAdd(now, [name, url].filter(Boolean).join(' ').slice(0, 200), note);
-    if (!(opts && opts.noFollow)) startFollow(name, url, now, { note: note, ms: ms, chats: old && old.chats });
+    if (!(opts && opts.noFollow)) startFollow(name, url, now, { note: note, ms: ms, chats: old && old.chats, gmailQ: old && old.gmailQ });
     return ms;
   }
   function startFollow(name, url, now, extra) {
     now = now || Date.now();
     var key = leadKey(name, url);
     if (!key || S.outreach.follow.some(function (f) { return f.status === 'active' && leadKey(f.name, f.url) === key; })) return false;
-    S.outreach.follow.push({ id: uid(), name: name || '', url: url || '', note: cleanNote(extra && extra.note), chats: (extra && Array.isArray(extra.chats) ? extra.chats.slice() : []), ms: (extra && +extra.ms) || 0, started: now, count: 0, due: due2(now), status: 'active', log: [] });
+    S.outreach.follow.push({ id: uid(), name: name || '', url: url || '', note: cleanNote(extra && extra.note), chats: (extra && Array.isArray(extra.chats) ? extra.chats.slice() : []), gmailQ: extra && extra.gmailQ != null ? extra.gmailQ : undefined, ms: (extra && +extra.ms) || 0, started: now, count: 0, due: due2(now), status: 'active', log: [] });
     save(); return true;
   }
   function followList() { return S.outreach.follow.slice(); }
@@ -564,6 +564,7 @@
   function linkKind(url) {
     var h = ''; try { h = new URL(url).hostname.replace(/^www\./, '').toLowerCase(); } catch (e) { return 'other'; }
     if (/(^|\.)(claude\.ai|chatgpt\.com|chat\.openai\.com|gemini\.google\.com|perplexity\.ai|grok\.com|copilot\.microsoft\.com|chat\.deepseek\.com|poe\.com|aistudio\.google\.com)$/.test(h)) return 'chat';
+    if (/(^|\.)mail\.google\.com$/.test(h)) return 'mail';
     if (/(^|\.)ytjobs\.co$/.test(h)) return 'job';
     if (/(^|\.)(youtube\.com|youtu\.be)$/.test(h)) return 'video';
     if (/(^|\.)(instagram\.com|x\.com|twitter\.com|linkedin\.com|tiktok\.com|facebook\.com|threads\.net|discord\.gg|discord\.com|patreon\.com|twitch\.tv|reddit\.com)$/.test(h)) return 'social';
@@ -613,6 +614,7 @@
     if (f.title != null) c.title = String(f.title).replace(/\s+/g, ' ').trim().slice(0, 120);
     if (f.note != null) c.note = cleanNote(f.note);
     if (f.kind && KIND_EMOJI[f.kind]) c.kind = f.kind;
+    if (f.q != null && c.kind === 'mail') { c.q = String(f.q).trim().slice(0, 200); c.url = gmailUrl(c.q); }
     save(); return true;
   }
   /* links of the follow-up that belongs to a counted outreach (for the dashboard log) */
@@ -620,6 +622,41 @@
     var f = S.outreach.follow.filter(function (x) { return x.ms === +ms; })[0];
     return f ? chatsOf(f) : [];
   }
+  /* Gmail: a search link per creator, to find their email. The search text starts as the name without filler words
+     ("The Home Rebuild" -> Home Rebuild) and is editable; edits are saved on the creator. */
+  var GM_SKIP = { the: 1, a: 1, an: 1, of: 1, and: 1, mr: 1, mrs: 1, ms: 1, dr: 1, official: 1 };
+  var GM_WEAK = { real: 1, estate: 1, home: 1, homes: 1, house: 1, houses: 1, my: 1, our: 1, your: 1, channel: 1, tv: 1, studio: 1, studios: 1, media: 1, productions: 1, vlog: 1, vlogs: 1, with: 1, by: 1, daily: 1, best: 1, top: 1, new: 1 };
+  function gmailQuery(name) {
+    var words = String(name || '').replace(/[^\w\u00C0-\u024F' -]+/g, ' ').split(/\s+/).filter(function (w) { return w && !GM_SKIP[w.toLowerCase()]; });
+    if (!words.length) return String(name || '').trim();
+    var out = [words[0]], i = 1, weak = function (w) { w = w.toLowerCase(); return w.length < 4 || !!GM_WEAK[w]; };
+    while (i < words.length && out.length < 3 && weak(out[out.length - 1])) out.push(words[i++]);
+    return out.join(' ');
+  }
+  function gmailU() { var n = parseInt(S.outreach.gmailU, 10); return n >= 0 && n < 20 ? n : 0; }
+  function gmailUrl(q) { return 'https://mail.google.com/mail/u/' + gmailU() + '/#search/' + encodeURIComponent(String(q || '').trim()); }
+  function gmailFor(it) { var q = it && it.gmailQ != null ? it.gmailQ : gmailQuery(it && it.name); return { q: q, url: gmailUrl(q) }; }
+  function setGmailQ(id, q) { var it = leadById(id); if (!it) return false; it.gmailQ = String(q || '').replace(/\s+/g, ' ').trim().slice(0, 200); save(); return true; }
+  function setGmailU(n) {
+    S.outreach.gmailU = Math.max(0, Math.min(19, parseInt(n, 10) || 0));
+    S.outreach.todo.concat(S.outreach.follow).forEach(function (it) { (it.chats || []).forEach(function (c) { if (c.kind === 'mail' && c.q != null) c.url = gmailUrl(c.q); }); });
+    save(); return true;
+  }
+  function linkMail(id, email) {
+    email = String(email || '').trim(); var it = leadById(id); if (!it || !email) return false;
+    if (!linkChat(id, gmailUrl(email), 'Gmail: ' + email, { kind: 'mail' })) return false;
+    var k = chatNorm(gmailUrl(email)); (it.chats || []).forEach(function (c) { if (chatNorm(c.url) === k) { c.q = email; c.kind = 'mail'; } });
+    save(); return true;
+  }
+  /* a selected text added to a creator's note: a new line '19 Nov 10:50 · text'; the oldest lines go when the note is full */
+  function addNoteLine(id, text) {
+    var it = leadById(id); text = String(text || '').replace(/\s+/g, ' ').trim(); if (!it || !text) return false;
+    var d = new Date(), M = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getMonth()], p = function (n) { return (n < 10 ? '0' : '') + n; };
+    var lines = String(it.note || '').split('\n').filter(Boolean); lines.push(d.getDate() + ' ' + M + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ' · ' + text);
+    while (lines.join('\n').length > NOTE_MAX && lines.length > 1) lines.shift();
+    it.note = lines.join('\n').slice(-NOTE_MAX); save(); return true;
+  }
+
   /* links found on a channel's YouTube About page: added to the list entry whose channel handle matches */
   function addLinksByKeys(keys, links) {
     keys = (keys || []).map(function (k) { return String(k).toLowerCase(); });
@@ -1239,7 +1276,7 @@
     todayTotals: todayTotals, todayPoints: todayPoints, analyze: analyze,
     exportAll: exportAll, importText: importText,
     audio: audio, audioReady: audioReady, beep: beep, nudgeBeep: nudgeBeep, alarmStart: alarmStart, alarmStop: alarmStop,
-    setFavicon: setFavicon, setTitle: setTitle, picFor: picFor, linkChat: linkChat, addLinksByKeys: addLinksByKeys, pinLink: pinLink, editLink: editLink, linkIcon: linkIcon, linkKind: linkKind, KIND_EMOJI: KIND_EMOJI, unlinkChat: unlinkChat, chatsOf: chatsOf, chatsForClick: chatsForClick, editTodo: editTodo, editFollow: editFollow, removeFollow: removeFollow, outreachRemoveClick: outreachRemoveClick, setPics: setPics, startFlash: startFlash, quickBlink: quickBlink, engine: engine, initTheme: initTheme, mountDataTools: mountDataTools, mountCsvTools: mountCsvTools, csvExport: csvExport, maybeAutoBackup: maybeAutoBackup, setAutoBackup: setAutoBackup, setGoalSec: setGoalSec, GOALS: GOALS,
+    setFavicon: setFavicon, setTitle: setTitle, picFor: picFor, linkChat: linkChat, gmailQuery: gmailQuery, gmailFor: gmailFor, gmailUrl: gmailUrl, gmailU: gmailU, setGmailQ: setGmailQ, setGmailU: setGmailU, linkMail: linkMail, addNoteLine: addNoteLine, addLinksByKeys: addLinksByKeys, pinLink: pinLink, editLink: editLink, linkIcon: linkIcon, linkKind: linkKind, KIND_EMOJI: KIND_EMOJI, unlinkChat: unlinkChat, chatsOf: chatsOf, chatsForClick: chatsForClick, editTodo: editTodo, editFollow: editFollow, removeFollow: removeFollow, outreachRemoveClick: outreachRemoveClick, setPics: setPics, startFlash: startFlash, quickBlink: quickBlink, engine: engine, initTheme: initTheme, mountDataTools: mountDataTools, mountCsvTools: mountCsvTools, csvExport: csvExport, maybeAutoBackup: maybeAutoBackup, setAutoBackup: setAutoBackup, setGoalSec: setGoalSec, GOALS: GOALS,
     dailySummary: dailySummary, sendSummary: sendSummary,
     KEY: KEY, CHRONO_KEY: CHRONO_KEY
   };

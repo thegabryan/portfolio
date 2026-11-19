@@ -393,3 +393,17 @@ a.chatlink { text-decoration: none; }
 
 .linksdlg .lkthumb { flex: none; width: 96px; height: 54px; border-radius: 6px; overflow: hidden; background: var(--line); }
 .linksdlg .lkthumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* Gmail search rows in the Links popup */
+.linksdlg .gmbox { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+.linksdlg .gmpre { font-size: 11px; white-space: nowrap; }
+.linksdlg .gmq { flex: 1; min-width: 140px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: inherit; font: inherit; }
+.linksdlg .gmacct { margin-left: 8px; font-size: 11px; }
+.linksdlg .gmacct input { width: 44px; padding: 2px 4px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: inherit; font: inherit; }
+.clipdlg textarea, .clipdlg input[type=text] { width: 100%; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: inherit; font: inherit; box-sizing: border-box; }
+.clipdlg .cliplist { max-height: 220px; overflow: auto; margin: 6px 0; border: 1px solid var(--line); border-radius: 8px; }
+.clipdlg .clipitem { display: flex; gap: 8px; align-items: center; padding: 6px 8px; cursor: pointer; width: 100%; text-align: left; background: none; border: 0; color: inherit; font: inherit; border-top: 1px solid var(--line); }
+.clipdlg .clipitem:first-child { border-top: 0; }
+.clipdlg .clipitem.sel { background: var(--accent); color: var(--accent-ink); }
+.clipdlg .cliphd { font-size: 12px; color: var(--muted); padding: 4px 8px; background: var(--line); }
+.clipdlg label.chk { display: flex; gap: 6px; align-items: center; margin: 6px 0; font-size: 13px; }
