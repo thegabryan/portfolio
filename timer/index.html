@@ -272,7 +272,7 @@
   });
   $('beepMin').addEventListener('change', function () { S.settings.beepMinutes = +$('beepMin').value; TSA.save(); });
   document.querySelectorAll('[data-bell]').forEach(function (c) {
-    c.addEventListener('change', function () { S.settings.beep[c.dataset.bell] = c.checked; TSA.save(); });
+    c.addEventListener('change', function () { S.settings.beep[c.dataset.bell] = c.checked; TSA.save(); if (c.checked) TSA.beep(784, .16, .4); });
   });
 
   /* ---------- switching timers and notes ---------- */

@@ -133,8 +133,12 @@
       '<input id="alLabel" type="text" maxlength="60" placeholder="Label (optional)" aria-label="Label">' +
       '<select id="alRep" aria-label="Repeat"><option value="once">Once</option><option value="daily">Every day</option></select>' +
       '<button type="button" class="primary" id="alAdd">Add</button><button type="button" class="ghost" id="alCancel" hidden>Cancel</button></div>' +
-      '<div id="alList"></div><div class="drow"><button type="button" class="primary" id="alClose">Close</button></div>';
+      '<div id="alList"></div><p class="muted" id="alTestMsg" style="margin:8px 0 0"></p><div class="drow"><button type="button" class="ghost" id="alTest">🔊 Test sound</button><button type="button" class="primary" id="alClose">Close</button></div>';
     document.body.appendChild(dlg);
+    dlg.querySelector('#alTest').addEventListener('click', function () {
+      var m = dlg.querySelector('#alTestMsg'); m.textContent = 'Playing…';
+      if (window.TSA && TSA.testSound) TSA.testSound().then(function (r) { m.textContent = r.text; }); else m.textContent = 'Sound test is not available on this page.';
+    });
     listEl = dlg.querySelector('#alList'); hSel = dlg.querySelector('#alH'); mSel = dlg.querySelector('#alM');
     btn.addEventListener('click', function () {
       var n = new Date(Date.now() + 3600e3); hSel.value = n.getHours(); mSel.value = 0;

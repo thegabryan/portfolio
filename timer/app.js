@@ -973,25 +973,61 @@
 
   /* ---------- sound ---------- */
   var ac = null, alarmTimer = null, alarmBox = null, hintEl = null;
+  var soundBadSince = 0, lastRebuild = 0, missedSounds = 0;
+  /* One audio context, resumed whenever it is not running. A context the browser keeps suspended (muted/unmuted tab,
+     sleep, autoplay rules) is replaced by a fresh one, which is what a page refresh used to do. */
   function audio() {
     try {
-      if (!ac) ac = new (root.AudioContext || root.webkitAudioContext)();
-      if (ac.state === 'suspended') ac.resume();
+      if (ac && ac.state === 'closed') ac = null;
+      if (!ac) {
+        ac = new (root.AudioContext || root.webkitAudioContext)();
+        ac.onstatechange = function () { if (ac && ac.state === 'running') { soundBadSince = 0; } updateHint(); };
+      }
+      if (ac.state !== 'running' && ac.resume) { var p = ac.resume(); if (p && p.catch) p.catch(function () {}); }
     } catch (e) {}
     return ac;
   }
   function audioReady() { return !!ac && ac.state === 'running'; }
+  /* Watchdog, run every second: if sound has not been running for 3 s, rebuild the context (at most every 8 s). */
+  function soundWatch(now) {
+    if (audioReady()) { soundBadSince = 0; return; }
+    if (!soundBadSince) soundBadSince = now;
+    audio();
+    if (now - soundBadSince > 3000 && now - lastRebuild > 8000) {
+      lastRebuild = now;
+      try { if (ac) ac.close(); } catch (e) {}
+      ac = null; audio();
+    }
+  }
+  /* Runs fn now if sound is running; otherwise resumes first and runs it as soon as it is (or counts it as missed). */
+  function whenRunning(fn) {
+    var a = audio(); if (!a) { missedSounds++; return; }
+    if (a.state === 'running') { fn(a); return; }
+    var done = false, go = function () { if (done) return; done = true; if (a.state === 'running') fn(a); else { missedSounds++; updateHint(); } };
+    try { var p = a.resume(); if (p && p.then) p.then(go, go); else setTimeout(go, 250); } catch (e) { go(); }
+    setTimeout(go, 700);
+  }
   function beep(freq, dur, vol) {
-    var a = audio();
-    if (!a || a.state !== 'running') return;
-    var level = (S && S.settings.volume != null ? S.settings.volume : 0.5) * (vol / 0.5);
-    if (level <= 0) return;
-    var o = a.createOscillator(), g = a.createGain();
-    o.type = 'square'; o.frequency.value = freq;
-    g.gain.setValueAtTime(Math.min(1, level), a.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + dur);
-    o.connect(g); g.connect(a.destination);
-    o.start(); o.stop(a.currentTime + dur);
+    whenRunning(function (a) {
+      var level = (S && S.settings.volume != null ? S.settings.volume : 0.5) * (vol / 0.5);
+      if (level <= 0) return;
+      var o = a.createOscillator(), g = a.createGain();
+      o.type = 'square'; o.frequency.value = freq;
+      g.gain.setValueAtTime(Math.min(1, level), a.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + dur);
+      o.connect(g); g.connect(a.destination);
+      o.start(); o.stop(a.currentTime + dur);
+    });
+  }
+  /* Manual check: plays the alarm sound once and says what state sound is in. */
+  function testSound() {
+    var a = audio(); alarmPattern();
+    return new Promise(function (res) {
+      setTimeout(function () {
+        res(audioReady() ? { ok: true, text: '✓ Sound is on. You should have heard the alarm. If not, check the tab/system volume.' }
+                         : { ok: false, text: '🔇 The browser is blocking sound. Click anywhere on this page, then test again.' });
+      }, 900);
+    });
   }
   function alarmPattern() {
     beep(880, .18, .5);
@@ -1006,6 +1042,7 @@
   function clearRing() { try { root.localStorage.removeItem(RING_KEY); } catch (e) {} }
   function alarmStart(text) {
     alarmStop(); alarmPattern();
+    setTimeout(function () { if (alarmTimer && !audioReady()) { lastRebuild = 0; soundBadSince = Date.now() - 4000; soundWatch(Date.now()); alarmPattern(); } }, 700);   // check: if sound was blocked, rebuild it and ring again
     ringText = text || '⏰ Time’s up — point added!'; writeRing(); startFlash(0);
     alarmTimer = setInterval(function () { alarmPattern(); writeRing(); }, 1600);
     if (!alarmBox) {
@@ -1061,7 +1098,6 @@
   function setTitle(t) { baseTitle = t; if (!flashTimer || !flashPhase) root.document.title = t; }
   /* A short two-tone beep for the idle nudge. */
   function nudgeBeep() {
-    if (!audioReady()) return;
     quickBlink();
     beep(660, 0.14, 0.4); setTimeout(function () { beep(880, 0.18, 0.4); }, 190);
   }
@@ -1072,10 +1108,11 @@
   }
   function updateHint() {
     var need = !audioReady();
+    if (!need) missedSounds = 0;
     if (need && !hintEl) {
       hintEl = root.document.createElement('div');
       hintEl.className = 'notice warn';
-      hintEl.textContent = 'Click anywhere on the page once so the beeps and the alarm are allowed to play.';
+      hintEl.textContent = '🔇 Sound is blocked right now. Click anywhere on the page so beeps and alarms can play.';
       var w = root.document.querySelector('.wrap');
       if (w) w.insertBefore(hintEl, w.children[1] || null);
     }
@@ -1125,6 +1162,7 @@
       root.document.addEventListener(ev, function () { audio(); }, { passive: true });
     });
     audio();
+    ['visibilitychange', 'focus', 'online'].forEach(function (ev) { (ev === 'visibilitychange' ? root.document : root).addEventListener(ev, function () { audio(); soundWatch(Date.now()); }); });
     root.addEventListener('pagehide', function () { heartbeat(Date.now(), true); });
     root.addEventListener('pageshow', function (e) {
       if (e.persisted) { boot(Date.now(), {}); sync(Date.now()); onEvent('refresh'); }
@@ -1147,7 +1185,7 @@
           if (lead && BEEP_ACTS.indexOf(S.active) >= 0 && S.settings.beep[S.active] !== false) reminderBeep();
         }
       }
-      setFavicon(S.active); heartbeat(now); updateHint();
+      setFavicon(S.active); heartbeat(now); soundWatch(now); updateHint();
       onEvent('tick');
     }, 250);
     setFavicon(S.active); updateHint();
@@ -1275,7 +1313,7 @@
     outreachToday: outreachToday, outreachAdd: outreachAdd, outreachUndo: outreachUndo, setOutreachDay: setOutreachDay, setOutreachName: setOutreachName, setOutreachNote: setOutreachNote, todoList: todoList, addTodo: addTodo, removeTodo: removeTodo, markReached: markReached, startFollow: startFollow, followList: followList, followDue: followDue, followDone: followDone, followStop: followStop, leadFromScript: leadFromScript, FOLLOW_MAX: FOLLOW_MAX, outreachLog: outreachLog, projectList: projectList, renameProject: renameProject, projectTime: projectTime, actByHour: actByHour, setGoal: setGoal,
     todayTotals: todayTotals, todayPoints: todayPoints, analyze: analyze,
     exportAll: exportAll, importText: importText,
-    audio: audio, audioReady: audioReady, beep: beep, nudgeBeep: nudgeBeep, alarmStart: alarmStart, alarmStop: alarmStop,
+    audio: audio, audioReady: audioReady, testSound: testSound, beep: beep, nudgeBeep: nudgeBeep, alarmStart: alarmStart, alarmStop: alarmStop,
     setFavicon: setFavicon, setTitle: setTitle, picFor: picFor, linkChat: linkChat, gmailQuery: gmailQuery, gmailFor: gmailFor, gmailUrl: gmailUrl, gmailU: gmailU, setGmailQ: setGmailQ, setGmailU: setGmailU, linkMail: linkMail, addNoteLine: addNoteLine, addLinksByKeys: addLinksByKeys, pinLink: pinLink, editLink: editLink, linkIcon: linkIcon, linkKind: linkKind, KIND_EMOJI: KIND_EMOJI, unlinkChat: unlinkChat, chatsOf: chatsOf, chatsForClick: chatsForClick, editTodo: editTodo, editFollow: editFollow, removeFollow: removeFollow, outreachRemoveClick: outreachRemoveClick, setPics: setPics, startFlash: startFlash, quickBlink: quickBlink, engine: engine, initTheme: initTheme, mountDataTools: mountDataTools, mountCsvTools: mountCsvTools, csvExport: csvExport, maybeAutoBackup: maybeAutoBackup, setAutoBackup: setAutoBackup, setGoalSec: setGoalSec, GOALS: GOALS,
     dailySummary: dailySummary, sendSummary: sendSummary,
     KEY: KEY, CHRONO_KEY: CHRONO_KEY
