@@ -735,7 +735,7 @@
     var seen = S.outreach.seen;
     if (seen.indexOf(m.id) >= 0) return true;
     var ts = +m.ts > 0 && +m.ts <= Date.now() + 60000 ? +m.ts : Date.now();
-    if (m.kind === 'done') markReached(m.name, m.url, ts, { note: 'From the YouTube channel page' });
+    if (m.kind === 'done') markReached(m.name, m.url, ts, {});
     else if (m.kind === 'todo') addTodo(m.name, m.url, ts);
     else return false;
     if (m.pic) { var pm = {}; picKeys(m.name, m.url).forEach(function (k) { pm[k] = m.pic; }); setPics(pm); }

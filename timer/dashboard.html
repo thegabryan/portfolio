@@ -342,6 +342,13 @@
     $('noteInput').focus(); $('noteInput').setSelectionRange($('noteInput').value.length, $('noteInput').value.length);   // caret at the end, so typing adds to the note
   }
   $('noteDel').addEventListener('click', function () { $('noteDlg').close('delete'); });
+  /* click outside the note box = save what is written and close (empty text: just close) */
+  $('noteDlg').addEventListener('mousedown', function (e) {
+    if (e.target !== this) return;
+    var r = this.getBoundingClientRect();
+    if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) return;
+    this.close($('noteInput').value.trim() ? 'save' : '');
+  });
   $('noteDlg').addEventListener('close', function () {
     var v = this.returnValue;
     if (v === 'save') TSA.setNoteAt(this.dataset.act, +this.dataset.start, $('noteInput').value, $('projRow').hidden ? undefined : $('projInput').value);

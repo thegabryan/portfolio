@@ -114,6 +114,22 @@
   <div class="drow"><button type="button" class="ghost" id="clipCancel">Cancel</button><button type="button" class="primary" id="clipSave">Add to note</button></div>
 </dialog>
 
+<dialog id="whenDlg">
+  <form method="dialog">
+    <h2>When did you reach out?</h2>
+    <p id="whenName" class="muted" style="margin:0 0 10px"></p>
+    <input id="whenInput" type="datetime-local" style="width:100%">
+    <div class="drow" style="justify-content:flex-start;margin-top:8px;flex-wrap:wrap">
+      <button type="button" class="ghost" data-ago="0">Now</button>
+      <button type="button" class="ghost" data-ago="1">Yesterday</button>
+      <button type="button" class="ghost" data-ago="2">2 days ago</button>
+      <button type="button" class="ghost" data-ago="3">3 days ago</button>
+    </div>
+    <p class="hint">Follow-up reminders count from this date.</p>
+    <div class="drow"><button class="primary" value="save">Save</button></div>
+  </form>
+</dialog>
+
 <dialog id="gDlg">
   <form method="dialog">
     <h2 id="gTitle">Daily goal</h2>
@@ -265,7 +281,7 @@
     var when = t.live ? 'running since ' + clock(t.start)
       : TSA.keyToDate(TSA.dayKey(t.start)).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ', ' + clock(t.start) + '–' + clock(t.end);
     $('noteTitle').textContent = META[t.act].icon + ' ' + META[t.act].label + ' · ' + when;
-    $('noteInfo').textContent = auto ? 'Session saved. Add a note if you like (Esc skips it).' : 'Save with empty text to remove the note. Esc cancels.';
+    $('noteInfo').textContent = auto ? 'Session saved. Add a note if you like (Esc skips it, clicking outside saves).' : 'Save with empty text to remove the note. Esc cancels, clicking outside saves.';
     setNoteText(t.note || '');
     var isProj = TSA.NOTE_ACTS.indexOf(t.act) >= 0;
     $('projRow').hidden = !isProj;
@@ -298,6 +314,13 @@
     var n = parseInt(e.key, 10);
     if (n >= 1 && n <= ACTS.length) { e.preventDefault(); refs[ACTS[n - 1]].btn.click(); }
     else if (e.key === 'n' || e.key === 'N') { var nb = refs[S.active].nbtn; if (!nb.disabled) { e.preventDefault(); nb.click(); } }
+  });
+  /* click outside the note box = save what is written and close (empty text: just close) */
+  $('noteDlg').addEventListener('mousedown', function (e) {
+    if (e.target !== this) return;
+    var r = this.getBoundingClientRect();
+    if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) return;
+    this.close($('noteInput').value.trim() ? 'save' : '');
   });
   $('noteDlg').addEventListener('close', function () {
     if (this.returnValue === 'save') { TSA.setNoteAt(this.dataset.act, +this.dataset.start, $('noteInput').value, $('projRow').hidden ? undefined : $('projInput').value); S = TSA.get(); renderAll(); }
@@ -505,11 +528,31 @@
       }
       if (d.fuDone) TSA.followDone(d.fuDone); else if (d.fuRep) TSA.followStop(d.fuRep, 'replied'); else if (d.fuStop) TSA.followStop(d.fuStop, 'stopped');
       else if (d.tdDel) TSA.removeTodo(d.tdDel);
-      else if (d.tdReach) { var it = TSA.todoList().filter(function (x) { return x.id === d.tdReach; })[0]; if (it) { TSA.markReached(it.name, it.url, Date.now(), {}); renderOutreach(Date.now()); } }
+      else if (d.tdReach) { var it = TSA.todoList().filter(function (x) { return x.id === d.tdReach; })[0]; if (it) askWhen(it); return; }
       else return;
       S = TSA.get(); renderFollow();
     });
-    $('lstDlg').addEventListener('submit', function (e) {
+    /* "Outreached ✓": ask when it happened (default now), then count it at that time */
+  var whenItem = null;
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  function localStamp(ms) { var d = new Date(ms); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + 'T' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
+  function askWhen(it) {
+    whenItem = it; $('whenName').textContent = it.name || it.url || '';
+    $('whenInput').max = localStamp(Date.now()); $('whenInput').value = localStamp(Date.now());
+    $('whenDlg').returnValue = ''; $('whenDlg').showModal();
+  }
+  $('whenDlg').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-ago]'); if (!b) return;
+    var now = new Date(); now.setDate(now.getDate() - (+b.dataset.ago)); if (+b.dataset.ago === 0) now = new Date();
+    $('whenInput').value = localStamp(now.getTime());
+  });
+  $('whenDlg').addEventListener('close', function () {
+    if (this.returnValue !== 'save' || !whenItem) { whenItem = null; return; }
+    var ts = new Date($('whenInput').value).getTime(); if (!(ts > 0) || ts > Date.now()) ts = Date.now();
+    TSA.markReached(whenItem.name, whenItem.url, ts, {}); whenItem = null;
+    S = TSA.get(); renderOutreach(Date.now()); renderFollow();
+  });
+  $('lstDlg').addEventListener('submit', function (e) {
       if (e.target.classList.contains('editform')) {
         e.preventDefault();
         var fm = e.target, v = { name: $('edName').value, url: $('edUrl').value, note: $('edNote').value }, ok;
