@@ -615,7 +615,14 @@
       var gmHtml = gmRow(gm.q, '', '✉️ Find their email in Gmail <span class="gmacct">account /u/<input type="number" id="gmU" min="0" max="19" value="' + TSA.gmailU() + '" aria-label="Gmail account number"></span>') +
         mails.map(function (c) { return gmRow(c.q, c.url, '✉️ Gmail search for the email you clipped · ' + shortDay(c.ts)); }).join('');
       cs = cs.filter(function (c) { return !(c.kind === 'mail' && c.q != null); });
-      $('linksBody').innerHTML = gmHtml + (cs.length ? cs.map(function (c) {
+      var ytHtml = '';
+      if (/^https?:\/\//i.test(x.url || '')) {
+        var isYt = /(^|\.)youtube\.com$|(^|\.)youtu\.be$/i.test(hostOf(x.url));
+        ytHtml = '<div class="linkrow gmrow ytrow" data-virtual="1"><span class="fav" data-l="' + (isYt ? '▶️' : '🔗') + '"></span><div class="lkmain"><div class="muted">' + (isYt ? '▶️ Their YouTube channel' : '🔗 Their channel link') + '</div>' +
+          '<div class="gmbox"><span class="muted gmpre ytpre">' + esc(String(x.url).replace(/^https?:\/\/(www\.)?/i, '')) + '</span></div></div>' +
+          '<div class="lbtns"><a class="ghost chatlink" href="' + esc(x.url) + '" target="_blank" rel="noopener">' + (isYt ? 'Open YouTube ↗' : 'Open channel ↗') + '</a><button type="button" class="ghost" data-yt-copy="1" title="Copy the channel link">Copy</button></div></div>';
+      }
+      $('linksBody').innerHTML = ytHtml + gmHtml + (cs.length ? cs.map(function (c) {
         var ic = TSA.linkIcon(c), em = TSA.KIND_EMOJI[c.kind] || '🔗';
         if (linkEdit === c.url) return '<form class="lkedit linkrow" data-url="' + esc(c.url) + '"><label>Label<input id="lkTitle" type="text" maxlength="120" value="' + esc(c.title || '') + '"></label>' +
           '<label>Type<select id="lkKind">' + Object.keys(KIND_LABEL).map(function (k) { return '<option value="' + k + '"' + (k === (c.kind || 'other') ? ' selected' : '') + '>' + TSA.KIND_EMOJI[k] + ' ' + KIND_LABEL[k] + '</option>'; }).join('') + '</select></label>' +
@@ -643,6 +650,7 @@
     $('linksDlg').addEventListener('click', function (e) {
       var t = e.target.closest('button'); if (!t) { if (e.target === $('linksDlg')) $('linksDlg').close(); return; }
       var d = t.dataset, upd = function () { S = TSA.get(); lastLstHtml = ''; renderFollow(); paintLinks(); };
+      if (d.ytCopy) { var xx = TSA.todoList().concat(TSA.followList()).filter(function (y) { return y.id === linksFor; })[0]; if (xx && navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(xx.url).then(function () { $('lkMsg').textContent = 'Channel link copied ✓'; }, function () { $('lkMsg').textContent = 'Could not copy'; }); return; }
       if (d.lkPin) { var c = linksOf().filter(function (z) { return z.url === d.lkPin; })[0]; TSA.pinLink(linksFor, d.lkPin, !(c && c.pin)); upd(); }
       else if (d.lkDel) { if (confirm('Remove this link from the creator?')) { TSA.unlinkChat(linksFor, d.lkDel); upd(); } }
       else if (d.lkEdit) { linkEdit = d.lkEdit; paintLinks(); var ti = $('lkTitle'); if (ti) ti.focus(); }

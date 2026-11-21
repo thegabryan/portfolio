@@ -407,3 +407,5 @@ a.chatlink { text-decoration: none; }
 .clipdlg .clipitem.sel { background: var(--accent); color: var(--accent-ink); }
 .clipdlg .cliphd { font-size: 12px; color: var(--muted); padding: 4px 8px; background: var(--line); }
 .clipdlg label.chk { display: flex; gap: 6px; align-items: center; margin: 6px 0; font-size: 13px; }
+
+.linksdlg .ytpre { overflow-wrap: anywhere; white-space: normal; }
