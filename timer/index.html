@@ -298,22 +298,32 @@
     TSA.setGoalSec(this.dataset.act, Math.min(sec, 86399)); S = TSA.get(); renderAll();
   });
   /* keyboard: 1-7 = click that card, N or Enter = note for the running timer (not while typing or in a box) */
+  /* 1-7 switch timers and Enter / N opens a note, from anywhere on this page (also over open popups), unless you are
+     typing in a text field. The note box opens on top of any popup and returns to it. */
+  var NOT_TEXT = /^(checkbox|radio|range|button|submit|reset|image|color|file)$/i;
+  function typingIn(t) {
+    if (!t || !t.tagName) return false;
+    if (t.isContentEditable || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT') return true;
+    return t.tagName === 'INPUT' && !NOT_TEXT.test(t.type || 'text');
+  }
+  function noteButton() {
+    var b = S.active && refs[S.active] && refs[S.active].nbtn;
+    if (b && !b.disabled) return b;
+    var best = null;                                                  // no timer running: the most recent run
+    S.segments.forEach(function (g) { if (g && refs[g.act] && !refs[g.act].nbtn.disabled && (!best || g.start > best.start)) best = g; });
+    return best ? refs[best.act].nbtn : null;
+  }
   document.addEventListener('keydown', function (e) {
     if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.repeat) return;
-    var t = e.target, tag = t && t.tagName;
-    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return;
-    if (document.querySelector('dialog[open]')) return;
-    /* Enter = note of the running timer (never "press the button that has focus"); nothing when no timer runs */
-    if (e.key === 'Enter') {
-      if (tag === 'A') return;
-      e.preventDefault();
-      var rb = S.active && refs[S.active] && refs[S.active].nbtn;
-      if (rb && !rb.disabled) rb.click();
+    if (typingIn(e.target) || $('noteDlg').open) return;
+    if (e.key === 'Enter' || e.key === 'n' || e.key === 'N') {
+      var nb = noteButton();
+      e.preventDefault();                                              // Enter never "presses the focused button"
+      if (nb) nb.click();
       return;
     }
     var n = parseInt(e.key, 10);
     if (n >= 1 && n <= ACTS.length) { e.preventDefault(); refs[ACTS[n - 1]].btn.click(); }
-    else if (e.key === 'n' || e.key === 'N') { var nb = refs[S.active].nbtn; if (!nb.disabled) { e.preventDefault(); nb.click(); } }
   });
   /* click outside the note box = save what is written and close (empty text: just close) */
   $('noteDlg').addEventListener('mousedown', function (e) {
@@ -609,7 +619,7 @@
       var gmRow = function (q, url, extra) {
         return '<div class="linkrow gmrow" ' + (url ? 'data-url="' + esc(url) + '"' : 'data-virtual="1"') + '><span class="fav" data-l="✉️"></span><div class="lkmain"><div class="muted">' + extra + '</div>' +
           '<div class="gmbox"><span class="muted gmpre">mail.google.com/mail/u/' + TSA.gmailU() + '/#search/</span><input type="text" class="gmq" maxlength="200" value="' + esc(q) + '" aria-label="Gmail search"></div></div>' +
-          '<div class="lbtns"><button type="button" class="ghost chatlink" data-gm-open="1">Search Gmail ↗</button>' + (url ? '<button type="button" class="ghost" data-lk-del="' + esc(url) + '" title="Remove this link">✕</button>' : '') + '</div></div>';
+          '<div class="lbtns"><a class="ghost chatlink" data-gm-open="1" href="' + esc(TSA.gmailUrl(q)) + '" target="_blank" rel="noopener" title="Middle-click or Ctrl+click opens it in a background tab">Search Gmail ↗</a>' + (url ? '<button type="button" class="ghost" data-lk-del="' + esc(url) + '" title="Remove this link">✕</button>' : '') + '</div></div>';
       };
       var mails = cs.filter(function (c) { return c.kind === 'mail' && c.q != null; });
       var gmHtml = gmRow(gm.q, '', '✉️ Find their email in Gmail <span class="gmacct">account /u/<input type="number" id="gmU" min="0" max="19" value="' + TSA.gmailU() + '" aria-label="Gmail account number"></span>') +
@@ -668,8 +678,21 @@
     }
     $('linksDlg').addEventListener('change', function (e) {
       var t = e.target;
-      if (t.classList.contains('gmq')) { saveGmail(t.closest('.gmrow')); lastLstHtml = ''; paintLinks(); }
-      else if (t.id === 'gmU') { TSA.setGmailU(t.value); S = TSA.get(); paintLinks(); }
+      /* no repaint here: replacing the Gmail link while you click it would lose the click (and a middle-click) */
+      if (t.classList.contains('gmq')) { saveGmail(t.closest('.gmrow')); lastLstHtml = ''; }
+      else if (t.id === 'gmU') {
+        TSA.setGmailU(t.value); S = TSA.get(); lastLstHtml = '';
+        $('linksBody').querySelectorAll('.gmrow').forEach(function (r) { syncGmailLink(r); });
+      }
+    });
+    function syncGmailLink(row) {
+      var a = row.querySelector('a[data-gm-open]'), inp = row.querySelector('.gmq'); if (!a || !inp) return;
+      a.href = TSA.gmailUrl(inp.value);
+      var pre = row.querySelector('.gmpre'); if (pre) pre.textContent = 'mail.google.com/mail/u/' + TSA.gmailU() + '/#search/';
+    }
+    $('linksDlg').addEventListener('input', function (e) { if (e.target.classList && e.target.classList.contains('gmq')) syncGmailLink(e.target.closest('.gmrow')); });
+    $('linksDlg').addEventListener('mousedown', function (e) {   // remember the text just before the link is clicked (left or middle button)
+      var a = e.target.closest && e.target.closest('a[data-gm-open]'); if (a) saveGmail(a.closest('.gmrow'));
     });
     $('linksDlg').addEventListener('keydown', function (e) {
       if (e.key === 'Enter' && e.target.classList && e.target.classList.contains('gmq')) { e.preventDefault(); openGmail(e.target.closest('.gmrow')); }

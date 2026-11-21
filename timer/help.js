@@ -12,7 +12,8 @@
     '<li><b>Paused</b> starts by itself when nothing else runs and the page is open (from the first time you open the site each day). Closed time is counted as Paused when you come back.</li>' +
     '<li><b>Sleep</b> keeps counting even with the page closed or the computer asleep, until you stop it.</li>' +
     '<li>If the page is closed or hidden for more than about 30 seconds, the running timer is stopped at the last moment it was seen (Sleep excepted).</li>' +
-    '<li><b>Enter</b> (when you are not typing in a box) opens the note of the running timer; the number keys 1–7 start the timers.</li>' +
+    '<li><b>Enter</b> or <b>N</b> (when you are not typing in a text box) opens a note for the running timer, or for the most recent run if none is running; the number keys 1–7 switch timers. Both work anywhere on this page, also while a popup is open (the note opens on top of it).</li>' +
+    '<li><b>Click outside a popup</b> to close it. In the Links popup, <b>Search Gmail</b> and the other links are real links: middle-click or Ctrl+click opens them in a background tab. The pill at the bottom of Dashboard and Review takes you back to this page.</li>' +
     '<li>The <b>tab icon</b> (favicon) shows an emoji for the running timer.</li>' +
     '<li>Blocks that cross midnight are split between the two days.</li>' +
     '</ul>' +

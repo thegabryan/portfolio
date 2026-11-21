@@ -138,8 +138,17 @@
     if (S.active === 'work' && S.timer.mode === 'running') t = 'time left ' + hms(Math.max(0, Math.ceil((S.timer.endAt - now) / 1000)));
     else t = hms(Math.max(0, Math.floor((now - S.activeSince) / 1000)));
     el.style.setProperty('--c', 'var(' + m.color + ')');
-    el.innerHTML = m.icon + ' <strong>' + m.label + '</strong> · <b>' + t + '</b>';
+    if (!el.firstChild || el.dataset.act !== S.active) {
+      el.dataset.act = S.active;
+      el.innerHTML = '<span class="ri"></span><strong class="rl"></strong> · <b class="rt"></b>';
+      el.querySelector('.ri').textContent = m.icon + ' '; el.querySelector('.rl').textContent = m.label;
+    }
+    el.querySelector('.rt').textContent = t;   // only the text changes, so a click on the pill is never lost
   }
+  $('runpop').addEventListener('click', function (e) {
+    if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey) return;   // middle / Ctrl+click keep their normal meaning
+    e.preventDefault(); location.href = 'index.html';
+  });
 
   function render() {
     var A = TSA.analyze(), P = period(A), now = Date.now();

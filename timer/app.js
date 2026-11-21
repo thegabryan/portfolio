@@ -1299,6 +1299,16 @@
       var el = root.document.activeElement;
       if (isText(el) && el.closest('dialog, #whoBox')) { e.preventDefault(); e.stopPropagation(); }
     }, true);
+    /* clicking outside any popup closes it (the note box has its own rule: it saves first). A popup that is in the middle of
+       an edit form with typed text stays open, so nothing typed is thrown away. */
+    root.document.addEventListener('mousedown', function (e) {
+      var d = e.target;
+      if (!d || d.tagName !== 'DIALOG' || !d.open || d.id === 'noteDlg' || d.dataset.keepOpen) return;
+      var r = d.getBoundingClientRect();
+      if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) return;
+      if ([].some.call(d.querySelectorAll('textarea'), function (t) { return t.value.trim(); })) return;
+      d.close();
+    }, true);
     root.document.addEventListener('cancel', function (e) {      // the popup's own Esc handling
       var d = e.target;
       if (d && d.querySelectorAll && [].some.call(d.querySelectorAll('textarea, input'), function (el) { return isText(el) && el.value.trim(); })) e.preventDefault();
