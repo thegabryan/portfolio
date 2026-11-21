@@ -112,7 +112,7 @@ details.menu .pop hr { border: 0; border-top: 1px solid var(--line); margin: 4px
 .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
 .chip[aria-pressed="true"] small { color: inherit; opacity: .8; }
 
-/* groups, tag row, stamps, popup editor */
+/* groups, tag row, popup editor */
 .groupbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px; }
 .groupbar:empty { display: none; }
 .groupbar .sp { flex: 1; }
@@ -126,7 +126,6 @@ details.menu .pop hr { border: 0; border-top: 1px solid var(--line); margin: 4px
 .tagrow .chip.pinnedtag { border-color: var(--accent); }
 .tagrow .hint { font-size: 12px; color: var(--muted); }
 .tagrow select.gpick { font: inherit; font-size: 13px; border: 1px solid var(--line); background: var(--card); color: var(--fg); border-radius: 8px; padding: 2px 6px; }
-.stamp { color: var(--muted); font-size: .8em; font-variant-numeric: tabular-nums; }
 .grip { cursor: grab; color: var(--muted); margin-right: 6px; user-select: none; }
 .gbadge { border: 1px solid var(--line); background: var(--card); color: var(--muted); border-radius: 999px; padding: 0 8px; font-size: 12px; margin-left: 8px; }
 .selbox { margin-right: 8px; }
@@ -147,6 +146,19 @@ details.menu .pop hr { border: 0; border-top: 1px solid var(--line); margin: 4px
   padding: 12px 14px 8px; margin-bottom: 12px;
 }
 .message.pinned { border-left: 4px solid var(--pin); }
+.ytwrap { display: flex; gap: 12px; align-items: flex-start; }
+.ytmain { flex: 1; min-width: 0; }
+.ytthumb { flex: none; display: block; margin-top: 4px; }
+.ytthumb img { display: block; width: 112px; height: 63px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); }
+.ythead { display: flex; gap: 12px; align-items: center; margin: 22px 0 10px; }
+.ythead:first-child { margin-top: 4px; }
+.ytbig { flex: none; }
+.ytbig img { display: block; width: 128px; height: 72px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); }
+.ytinfo { min-width: 0; }
+.yttitle { font-weight: 600; font-size: 16px; color: var(--fg); text-decoration: none; overflow-wrap: anywhere; }
+.yttitle:hover { text-decoration: underline; }
+.ytmeta { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+@media (max-width: 560px) { .ytthumb img { width: 84px; height: 47px; } .ytbig img { width: 96px; height: 54px; } }
 .message.hl-card { border-left: 4px solid var(--mark); }
 .meta { font-size: 12.5px; color: var(--muted); margin-bottom: 4px; }
 .meta a { color: var(--muted); }
@@ -265,7 +277,7 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
   </header>
 
   <section class="composer">
-    <textarea id="composer" rows="1" placeholder="Write a note…  (Ctrl+Enter to save, #tags and - [ ] tasks work)"></textarea>
+    <textarea id="composer" rows="1" placeholder="Write a note…  (Enter to save, Shift+Enter for a new line, #tags and - [ ] tasks work)"></textarea>
     <select class="btn" id="composerGroup" title="Group for the new note" hidden></select>
     <button class="btn primary" id="addBtn">Add</button>
   </section>
@@ -298,6 +310,7 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
     <button class="tab" id="tabAll" aria-pressed="false">All</button>
     <button class="tab" id="tabNotes" aria-pressed="true">Notes</button>
     <button class="tab" id="tabTimer" aria-pressed="false">⏱ Timer</button>
+    <button class="tab" id="tabYt" aria-pressed="false">▶ YouTube</button>
     <button class="tab" id="tabHl" aria-pressed="false">Highlights</button>
     <button class="tab" id="tabTrash" aria-pressed="false">Trash</button>
     <span class="spacer"></span>
@@ -347,7 +360,7 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
     <h3>4. In the app</h3>
     <ul>
       <li><b>Tabs:</b> <i>All</i> mixes your notes and highlights by time (pinned notes stay on top), <i>Notes</i>, <i>Highlights</i> and <i>Trash</i>. The tab you were on is remembered.</li>
-      <li><b>Date and time:</b> every line you start in a note gets <code>21 Nov(11) 2026 19:12 · </code> in front (stamped at your first character; old lines stay as they were). A note that arrives from the URL opens centered in a popup, ready to edit.</li>
+      <li><b>Popup editor:</b> a note that arrives from the URL opens centered in a popup, ready to edit. Press <kbd>Enter</kbd> to finish; <kbd>Shift</kbd>+<kbd>Enter</kbd> or <kbd>Ctrl</kbd>+<kbd>Enter</kbd> makes a new line.</li>
       <li><b>Tag row:</b> while editing, a row of your tags (pinned first, then most used) sits under the text: click one to add it. Typing <code>#ab</code> narrows the row to matching tags; <kbd>Tab</kbd> takes the first. <b>🏷 Tags</b> pins tags and renames or merges them (fixes a typo in every note, with Undo).</li>
       <li><b>Groups:</b> a group is a folder; a note in a group still shows in its normal tab. Pick it in the editor (or the box next to Add), add <code>&amp;group=Work</code> to the URL, drag a note's ⠿ onto a group, or use <b>☑ Select</b> to move many. 📌 Pinned groups stay in the bar at the top with their note counts. Manage them with <b>📁 Groups</b>.</li>
       <li><b>Click a note</b> to edit it — it saves automatically. <kbd>Esc</kbd> or click away to finish.</li>
@@ -406,17 +419,19 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
     <p><b>What it adds to this site</b> (the script v2.5 or newer):</p>
     <ul>
       <li><b>Send to this site:</b> on any page press <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>N</kbd> (or use the script's <i>Send to site</i> button / Tampermonkey menu). The selected quote, your note, the page link and a tag for the site's domain are queued, and arrive here the next time this page is open (instantly if it's open already). On YouTube the link opens the video at the moment you sent it.</li>
+      <li><b>▶ YouTube tab:</b> notes sent from the YouTube Timestamp Comments script (title, video link, then <code>[12:34] comment</code> with its link), grouped by video with the thumbnail, newest video first. They are kept out of the Notes tab but still appear in All, where they show a small thumbnail too.</li>
       <li><b>⏱ Timer tab:</b> notes and day summaries sent by your timer site (through the userscript), grouped by day, with a chip per timer (Work, Workflow, …) and one for summaries. They are kept out of the Notes tab but still appear in All; search and tags work as usual.</li>
       <li><b>Highlights tab:</b> a read-only, searchable view of everything you highlighted with the script, grouped by page. <i>Open page</i> jumps to the highlighted text when the browser supports it. Edit highlights on the page itself.</li>
       <li>The script's <b>All notes</b> panel can show these notes too (Highlights / Site notes / Both), refreshed whenever this page is open.</li>
-      <li>The JSON export also includes your highlights (when linked), so the script's own Import can read the same file.</li>
+      <li>The JSON backup also includes your highlights while the script is linked on this page (a warning appears if it is not). <b>Importing</b> a backup here puts the highlights back into the script (merged, duplicates skipped, nothing deleted); this needs Highlights script 3.1 or newer. The script's own Import reads the same file.</li>
     </ul>
 
     <h3>Shortcuts</h3>
     <table>
       <tr><td><kbd>/</kbd></td><td>Search</td></tr>
       <tr><td><kbd>n</kbd></td><td>New note</td></tr>
-      <tr><td><kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd></td><td>Save the new note (or finish editing)</td></tr>
+      <tr><td><kbd>Enter</kbd></td><td>Save the new note (or finish editing)</td></tr>
+      <tr><td><kbd>Shift</kbd> + <kbd>Enter</kbd> &nbsp;or&nbsp; <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd></td><td>New line inside a note</td></tr>
       <tr><td><kbd>?</kbd></td><td>Open this help</td></tr>
     </table>
   </div>
@@ -424,9 +439,9 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
 
 <!-- Full source of the companion userscript. Shown and copied from the help dialog. -->
 <script type="text/plain" id="userscriptSrc">// ==UserScript==
-// @name         Make Highlights & Notes
+// @name         🟨 Make Highlights & Notes
 // @namespace    local.make-highlights-notes
-// @version      2.6
+// @version      3.1
 // @description  Highlight selected text, attach notes, and browse, search, import, and export notes across pages. Works on single-page apps like YouTube. Can send notes to your Url Notes site.
 // @match        *://*/*
 // @run-at       document-idle
@@ -2307,7 +2322,7 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
     const title = (document.title || '').trim();
     const { url, stamp } = linkForNote();
     parts.push([title, stamp ? `▶ ${stamp}` : '', url].filter(Boolean).join('\n'));
-    parts.push(`#${domainTag(location.hostname)}`);
+    parts.push([`#${domainTag(location.hostname)}`].concat(runningTimerTags()).join(' '));
 
     return parts.join('\n\n');
   }
@@ -2381,6 +2396,40 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
           outboxKey,
           readList(outboxKey).filter(item => !done.has(String(item?.id)))
         );
+      } else if (data.type === 'restore' && data.pages && typeof data.pages === 'object' && !Array.isArray(data.pages)) {
+        // Highlights from a notes-site backup: merged in, duplicates skipped, nothing is ever deleted.
+        const store = readStore();
+        let added = 0;
+
+        for (const [url, saved] of Object.entries(data.pages)) {
+          let parsedUrl;
+          try {
+            parsedUrl = new URL(url);
+          } catch {
+            continue;
+          }
+          if (!/^https?:$/.test(parsedUrl.protocol)) continue;
+
+          const incoming = normalizeAnnotations(saved);
+          if (!incoming.length) continue;
+
+          const existing = normalizeAnnotations(store[url]);
+          const merged = mergeAnnotations(existing, incoming);
+
+          added += merged.length - existing.length;
+          store[url] = serializeAnnotations(merged);
+        }
+
+        if (added) {
+          writeStore(store);
+          loadAnnotationsForPage();
+          restoreAnnotations();
+          renderAnnotations();
+          if (allNotesPanel.style.display !== 'none') renderAllNotes();
+        }
+
+        post({ type: 'restored', added });
+        sendState();
       } else if (data.type === 'snapshot' && Array.isArray(data.notes)) {
         writeValue(snapshotKey, {
           syncedAt: Date.now(),
@@ -2403,6 +2452,22 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
     }
 
     sendState();
+  }
+
+
+  // Tags for the running timer (#work, #my-project). The "Focus Timer Capsule" script leaves the running
+  // timer on the page in a data-focus-timer attribute; without that script this adds nothing.
+  function runningTimerTags() {
+    try {
+      const info = JSON.parse(document.documentElement.getAttribute('data-focus-timer') || 'null');
+      if (!info || !/^[a-z]+$/.test(String(info.act || ''))) return [];
+      const tags = [`#${info.act}`];
+      const project = String(info.project || '').toLowerCase().replace(/\s+/g, '-').replace(/[^\p{L}\p{N}_-]/gu, '').replace(/^-+|-+$/g, '');
+      if (project) tags.push(`#${project}`);
+      return tags;
+    } catch {
+      return [];
+    }
   }
 
   function openInterface(passedRange) {
@@ -2559,7 +2624,7 @@ const ICON = {
 };
 
 /* ---------- data & state ---------- */
-const VIEWS = ['all', 'notes', 'timer', 'highlights', 'trash'];
+const VIEWS = ['all', 'notes', 'timer', 'youtube', 'highlights', 'trash'];
 const SORTS = ['manual', 'newest', 'oldest', 'edited'];
 function stored(key, allowed, fallback) {
   try {
@@ -2585,8 +2650,25 @@ const isTimerNote = n => typeof n.id === 'string' && n.id.startsWith('tm-');
 const timerKind = n => { const m = /^tm-([a-z]+)-/.exec(n.id || ''); return m ? m[1] : 'other'; };
 // When the session happened (start time in the id), else when the note was created.
 const timerWhen = n => { const m = /^tm-[a-z]+-(\d{10,})/.exec(n.id || ''); return m ? Number(m[1]) : n.created; };
-const plainNotes = () => notes.filter(n => !isTimerNote(n));
+// Notes sent by the YouTube Timestamp Comments script have this layout:
+//   video title / video link / blank line / [12:34] comment / link to that moment / ...
+const YT_LINE = /^https?:\/\/(?:www\.)?youtube\.com\/watch\?v=([\w-]{11})$/;
+const YT_COMMENT = /^\[\d+(?::\d+)*(?: -> \d+(?::\d+)*)?\]/;
+const ytMemo = new Map();
+function ytInfo(n) {
+  const t = n.text, hit = ytMemo.get(n.id);
+  if (hit && hit.t === t) return hit.info;
+  let info = null;
+  const lines = t.split('\n'), m = lines.length >= 4 && YT_LINE.exec((lines[1] || '').trim());
+  if (m && lines.slice(2).some(l => YT_COMMENT.test(l))) info = { id: m[1], title: lines[0].trim(), url: lines[1].trim() };
+  ytMemo.set(n.id, { t, info });
+  return info;
+}
+const isYtNote = n => !!ytInfo(n);
+const ytThumb = id => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`;
+const plainNotes = () => notes.filter(n => !isTimerNote(n) && !isYtNote(n));
 const timerNotes = () => notes.filter(isTimerNote);
+const ytNotes = () => notes.filter(isYtNote);
 let visibleLimit = PAGE_SIZE;
 
 // userscript bridge state
@@ -2730,15 +2812,6 @@ function appendRich(parent, text, words) {
   if (last < text.length) appendMarked(parent, text.slice(last), words);
 }
 
-function appendStamped(parent, text, words) {
-  const m = STAMP_RE.exec(text);
-  if (!m) { appendRich(parent, text, words); return; }
-  const st = el('span', 'stamp');
-  appendMarked(st, m[0], words);
-  parent.appendChild(st);
-  appendRich(parent, text.slice(m[0].length), words);
-}
-
 // Line by line, so "- [ ] task" lines become real checkboxes (when onToggle is given).
 function appendBody(parent, text, words, onToggle) {
   const lines = text.split('\n');
@@ -2753,10 +2826,10 @@ function appendBody(parent, text, words, onToggle) {
       box.addEventListener('change', () => onToggle(i, box.checked));
       parent.appendChild(box);
       const span = el('span', box.checked ? 'todo-text done' : 'todo-text');
-      appendStamped(span, m[3], words);
+      appendRich(span, m[3], words);
       parent.appendChild(span);
     } else {
-      appendStamped(parent, line, words);
+      appendRich(parent, line, words);
     }
     if (i < lines.length - 1) parent.appendChild(document.createTextNode('\n'));
   });
@@ -2864,66 +2937,23 @@ function toast(msg, actionLabel, action, ms = 6000) {
   toastTimer = setTimeout(() => t.classList.remove('show'), ms);
 }
 
-/* ---------- date/time stamps ----------
-   Every line you start in a note gets "21 Nov(11) 2026 19:12 · " in front of it (stamped at your first character,
-   old lines untouched). Checklist lines get it after the "- [ ] ". */
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const STAMP_RE = /^\d{1,2} [A-Z][a-z]{2}\(\d{1,2}\) \d{4} \d{2}:\d{2} · /;
-const CHECK_PREFIX = /^(\s*[-*]\s+\[[ xX]\]\s?)/;
-function stampNow() {
-  const d = new Date(), p = x => String(x).padStart(2, '0');
-  return `${d.getDate()} ${MONTHS[d.getMonth()]}(${d.getMonth() + 1}) ${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())} · `;
-}
-function stampLine(line) {
-  const m = CHECK_PREFIX.exec(line), pre = m ? m[1] : '', rest = line.slice(pre.length);
-  if (!rest.trim() || STAMP_RE.test(rest)) return line;
-  return pre + stampNow() + rest;
-}
-function stampFirst(text) {
-  const lines = text.split('\n'), i = lines.findIndex(l => l.trim());
-  if (i < 0) return text;
-  lines[i] = stampLine(lines[i]);
-  return lines.join('\n');
-}
-function attachStamper(ta) {
-  let prev = ta.value;
-  ta.addEventListener('beforeinput', () => { prev = ta.value; });
-  ta.addEventListener('input', () => {
-    const v = ta.value, caret = ta.selectionStart;
-    const ls = v.lastIndexOf('\n', caret - 1) + 1;
-    let le = v.indexOf('\n', caret); if (le < 0) le = v.length;
-    const line = v.slice(ls, le);
-    const idx = (v.slice(0, ls).match(/\n/g) || []).length;
-    const before = prev.split('\n')[idx];
-    if (line.trim() && (before === undefined || !before.trim())) {
-      const nl = stampLine(line);
-      if (nl !== line) {
-        ta.value = v.slice(0, ls) + nl + v.slice(le);
-        const pos = caret + (nl.length - line.length);
-        ta.setSelectionRange(pos, pos);
-      }
-    }
-    // typed "- [ ] " after the stamp was already put in: move the stamp behind the checkbox so it stays a checkbox
-    {
-      const v2 = ta.value, c2 = ta.selectionStart;
-      const s2 = v2.lastIndexOf('\n', c2 - 1) + 1;
-      let e2 = v2.indexOf('\n', c2); if (e2 < 0) e2 = v2.length;
-      const ln = v2.slice(s2, e2), m = /^(\d{1,2} [A-Z][a-z]{2}\(\d{1,2}\) \d{4} \d{2}:\d{2} · )(\s*[-*]\s+\[[ xX]\]\s)/.exec(ln);
-      if (m) {
-        ta.value = v2.slice(0, s2) + m[2] + m[1] + ln.slice(m[0].length) + v2.slice(e2);
-        ta.setSelectionRange(c2, c2);
-      }
-    }
-    prev = ta.value;
-  });
-}
-// a programmatic change that the stamper should treat like typing
+/* ---------- text box helpers ---------- */
+// a programmatic change that counts like typing
 function typeInto(ta, text, from, to) {
-  ta.dispatchEvent(new Event('beforeinput'));
   ta.value = ta.value.slice(0, from) + text + ta.value.slice(to);
   ta.setSelectionRange(from + text.length, from + text.length);
   ta.dispatchEvent(new Event('input', { bubbles: true }));
   ta.focus();
+}
+// Enter = save/send; Shift+Enter and Ctrl+Enter = new line
+function enterKeys(ta, onEnter) {
+  ta.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' || e.isComposing) return;
+    if (e.shiftKey) return;   // the browser inserts the new line
+    e.preventDefault();
+    if (e.ctrlKey || e.metaKey) { typeInto(ta, '\n', ta.selectionStart, ta.selectionEnd); return; }
+    onEnter();
+  });
 }
 
 /* ---------- groups (folders) and the hashtag row ---------- */
@@ -3212,7 +3242,6 @@ function openEditPopup(n) {
   slot.textContent = '';
   const ta = el('textarea', 'edit');
   ta.value = n.text;
-  attachStamper(ta);
   const row = buildTagRow(ta, { note: n, getGroup: () => n.group || '', setGroup: g => { if (g) n.group = g; else delete n.group; persist(); } });
   slot.append(ta, row);
   let timer;
@@ -3221,7 +3250,7 @@ function openEditPopup(n) {
     n.text = ta.value; n.updated = Date.now(); grow();
     clearTimeout(timer); timer = setTimeout(() => { persist(); renderTags(); }, 300);
   });
-  ta.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); dlg.close(); } });
+  enterKeys(ta, () => dlg.close());
   dlg.onclose = () => {
     clearTimeout(timer);
     if (!ta.value.trim()) { n.text = ta.value; deleteNote(n); return; }
@@ -3233,7 +3262,7 @@ function openEditPopup(n) {
 
 /* ---------- actions ---------- */
 function addNote(text, group) {
-  text = stampFirst(text.trim());
+  text = text.trim();
   if (!text) return false;
   const n = { id: uid(), text, created: Date.now(), pinned: false };
   const g = ensureGroup(group);
@@ -3387,7 +3416,6 @@ function enterEdit(card, n) {
   const ta = el('textarea', 'edit');
   ta.value = n.text;
   body.replaceWith(ta);
-  attachStamper(ta);
   const row = buildTagRow(ta, { note: n, getGroup: () => n.group || '', setGroup: g => { if (g) n.group = g; else delete n.group; persist(); } });
   ta.after(row);
   autosize(ta);
@@ -3404,9 +3432,8 @@ function enterEdit(card, n) {
     clearTimeout(timer);
     timer = setTimeout(() => { persist(); renderTags(); }, 300);
   });
-  ta.addEventListener('keydown', e => {
-    if (e.key === 'Escape' || (e.key === 'Enter' && (e.ctrlKey || e.metaKey))) { e.preventDefault(); ta.blur(); }
-  });
+  enterKeys(ta, () => ta.blur());
+  ta.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); ta.blur(); } });
   const finish = () => {
     if (done) return;
     done = true;
@@ -3461,7 +3488,16 @@ function makeCard(n, opts) {
   const body = el('div', 'body');
   fillBody(body, n);
   if (view !== 'trash') bindBody(body, card, n);
-  card.appendChild(body);
+  const yt = ytInfo(n);
+  if (yt && !opts.noThumb) {
+    const wrap = el('div', 'ytwrap'), main = el('div', 'ytmain');
+    const a = el('a', 'ytthumb'); a.href = yt.url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.title = yt.title;
+    const img = el('img'); img.src = ytThumb(yt.id); img.alt = ''; img.loading = 'lazy'; img.onerror = () => a.remove();
+    a.appendChild(img);
+    main.appendChild(body);
+    wrap.append(a, main);
+    card.appendChild(wrap);
+  } else card.appendChild(body);
 
   const actions = el('div', 'actions');
   if (view !== 'trash') {
@@ -3499,6 +3535,8 @@ function renderTabs() {
   $('tabNotes').textContent = `Notes (${plainNotes().length})`;
   $('tabTimer').textContent = `⏱ Timer (${timerNotes().length})`;
   $('tabTimer').setAttribute('aria-pressed', view === 'timer');
+  $('tabYt').textContent = `▶ YouTube (${ytNotes().length})`;
+  $('tabYt').setAttribute('aria-pressed', view === 'youtube');
   $('tabHl').textContent = bridgeConnected ? `Highlights (${hlCount})` : 'Highlights';
   $('tabTrash').textContent = `Trash (${trash.length})`;
   $('tabAll').setAttribute('aria-pressed', view === 'all');
@@ -3637,6 +3675,48 @@ function renderTimerView() {
   if (sorted.length > shown.length) appendMore(box, sorted.length - shown.length);
 }
 
+// YouTube tab: notes from the YouTube script, grouped by video (video with the newest note first)
+function renderYtView() {
+  const box = $('messages');
+  box.textContent = '';
+  const q = parseQuery(query);
+  const all = ytNotes();
+  const list = collectNotes(q, all);
+  $('status').textContent = q.active ? `Showing ${list.length} of ${all.length}` : '';
+  if (!list.length) {
+    box.appendChild(el('div', 'empty', q.active
+      ? 'No YouTube notes match.'
+      : 'No YouTube notes yet. Notes you send from the YouTube Timestamp Comments script (↗) arrive here.'));
+    return;
+  }
+  const vids = new Map();
+  list.forEach(n => {
+    const info = ytInfo(n);
+    let v = vids.get(info.id);
+    if (!v) { v = { info, notes: [], latest: 0 }; vids.set(info.id, v); }
+    v.notes.push(n);
+    v.latest = Math.max(v.latest, n.updated || n.created);
+    if (n.created >= (v.titleAt || 0)) { v.info = info; v.titleAt = n.created; }   // newest title wins
+  });
+  const sorted = [...vids.values()].sort((a, b) => b.latest - a.latest);
+  let drawn = 0;
+  for (const v of sorted) {
+    if (drawn >= visibleLimit) break;
+    const head = el('div', 'ythead');
+    const a = el('a', 'ytbig'); a.href = v.info.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+    const img = el('img'); img.src = ytThumb(v.info.id); img.alt = ''; img.loading = 'lazy'; img.onerror = () => a.remove();
+    a.appendChild(img);
+    const txt = el('div', 'ytinfo');
+    const t = el('a', 'yttitle', v.info.title || v.info.url); t.href = v.info.url; t.target = '_blank'; t.rel = 'noopener noreferrer';
+    txt.append(t, el('div', 'ytmeta', `${v.notes.length} note${v.notes.length === 1 ? '' : 's'} · last ${fmt(v.latest)}`));
+    head.append(a, txt);
+    box.appendChild(head);
+    v.notes.slice().sort((x, y) => y.created - x.created).forEach(n => { box.appendChild(makeCard(n, { noThumb: true })); drawn++; });
+  }
+  const total = list.length;
+  if (drawn < total) appendMore(box, total - drawn);
+}
+
 // All tab: notes + highlights mixed by time, pinned notes on top
 function renderAllView() {
   const box = $('messages');
@@ -3689,6 +3769,7 @@ function render() {
   if (view === 'highlights') renderHighlights();
   else if (view === 'all') renderAllView();
   else if (view === 'timer') renderTimerView();
+  else if (view === 'youtube') renderYtView();
   else renderNotesView();
   $('sort').value = sortMode;
 }
@@ -3723,8 +3804,9 @@ const stampTime = () => {
   const d = new Date(), p = x => String(x).padStart(2, '0');
   return `${stamp()}_${p(d.getHours())}-${p(d.getMinutes())}`;
 };
-function exportJson() {
+function exportJson(auto) {
   const data = buildExport();
+  if (!bridgeConnected && !auto) toast('Backup downloaded WITHOUT highlights: the Highlights script is not connected on this page.', null, null, 8000);
   download(`url-notes-${stampTime()}.json`, JSON.stringify(data, null, 2), 'application/json');
   markBackedUp(data);
 }
@@ -3762,8 +3844,8 @@ function checkDailyBackup() {
   const data = buildExport();
   if (!data.notes.length && !data.trash.length) return;
   if (rec.sig === dataSignature(data)) return;       // nothing new since the last backup
-  exportJson();                                      // downloads by itself (no question)
-  toast('Backup downloaded automatically: new or changed notes since the last one.', null, null, 8000);
+  exportJson(true);                                  // downloads by itself (no question)
+  toast('Backup downloaded automatically: new or changed notes since the last one.' + (bridgeConnected ? '' : ' Note: it has NO highlights, because the Highlights script is not connected.'), null, null, 9000);
 }
 function exportTxt() {
   const out = notes.map(n =>
@@ -3784,10 +3866,10 @@ function importData(text) {
   let data;
   try { data = JSON.parse(text); } catch (e) { toast('That file is not valid JSON.'); return; }
   const incomingNotes = Array.isArray(data) ? data : (Array.isArray(data && data.notes) ? data.notes : null);
+  const pages = data && data.pages && typeof data.pages === 'object' && !Array.isArray(data.pages) ? data.pages : null;
+  if (pages) restoreHighlights(pages);
   if (!incomingNotes) {
-    toast(data && data.pages
-      ? 'That file only holds highlights. Import it in the userscript’s All notes panel.'
-      : 'No notes found in that file.');
+    if (!pages) toast('No notes found in that file.');
     return;
   }
   const incomingTrash = Array.isArray(data && data.trash) ? data.trash : [];
@@ -3811,7 +3893,21 @@ function importData(text) {
   syncGroups(); saveGroups();
   persist();
   render();
-  toast(`Imported ${added} note${added === 1 ? '' : 's'}, skipped ${skipped} duplicate${skipped === 1 ? '' : 's'}.`);
+  lastImportMsg = `Imported ${added} note${added === 1 ? '' : 's'}, skipped ${skipped} duplicate${skipped === 1 ? '' : 's'}.`;
+  toast(lastImportMsg);
+}
+
+// Highlights inside a backup file go back into the Highlights script (it merges them and skips duplicates).
+let lastImportMsg = '';
+function restoreHighlights(pages) {
+  const n = Object.values(pages).reduce((sum, l) => sum + (Array.isArray(l) ? l.length : 0), 0);
+  if (!n) return;
+  if (!bridgeConnected) {
+    toast('This file has highlights, but the Highlights script is not connected here. Install Highlights 3.1, reload this page and import the file again.', null, null, 10000);
+    return;
+  }
+  lastImportMsg = '';
+  toScript({ type: 'restore', pages });
 }
 
 /* ---------- auto-backup to a file (Chrome / Edge) ---------- */
@@ -4118,6 +4214,11 @@ window.addEventListener('message', e => {
   if (!d || d.channel !== CHANNEL || d.from !== 'userscript') return;
   // 'outbox' = notes only (sent by the Focus Timer Capsule script); it must not touch the highlights.
   if (d.type === 'outbox') { ingestOutbox(d.items); return; }
+  if (d.type === 'restored') {
+    const n = Number(d.added) || 0;
+    toast((lastImportMsg ? lastImportMsg + ' ' : '') + (n ? `${n} highlight${n === 1 ? '' : 's'} restored into your Highlights script.` : 'Highlights: nothing new to restore.'), null, null, 7000);
+    return;
+  }
   if (d.type !== 'state') return;
   const first = !bridgeConnected;
   bridgeConnected = true;
@@ -4284,20 +4385,17 @@ function renderHighlights() {
 
 /* ---------- wiring ---------- */
 const composer = $('composer');
-attachStamper(composer);
 composer.addEventListener('input', () => { composer.style.height = 'auto'; composer.style.height = composer.scrollHeight + 2 + 'px'; });
 function submitComposer() {
   if (addNote(composer.value, $('composerGroup').value || null)) {
     composer.value = '';
     composer.style.height = 'auto';
     if (view === 'all' || view === 'notes') render();
-    else setView('notes');   // (a note typed on the Timer tab is a normal note, so it opens Notes)
+    else setView(isYtNote(notes[0]) ? 'youtube' : 'notes');   // (a note typed on the Timer tab is a normal note, so it opens Notes)
   }
 }
 $('addBtn').addEventListener('click', () => { submitComposer(); composer.focus(); });
-composer.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); submitComposer(); }
-});
+enterKeys(composer, submitComposer);
 
 let searchTimer;
 $('search').addEventListener('input', e => {
@@ -4314,6 +4412,7 @@ $('sort').addEventListener('change', e => {
 $('tabAll').addEventListener('click', () => setView('all'));
 $('tabNotes').addEventListener('click', () => setView('notes'));
 $('tabTimer').addEventListener('click', () => setView('timer'));
+$('tabYt').addEventListener('click', () => setView('youtube'));
 $('tabHl').addEventListener('click', () => setView('highlights'));
 $('tabTrash').addEventListener('click', () => setView('trash'));
 
@@ -4371,7 +4470,7 @@ const incoming = params.get('q') ?? params.get('text');
 let addedFromUrl = false, arrived = null;
 if (incoming !== null && incoming.trim() !== '') {
   addedFromUrl = addNote(incoming, params.get('group'));
-  if (addedFromUrl) { arrived = notes[0]; view = 'notes'; activeTag = null; activeGroup = null; saveView(); }   // show the note that was just added
+  if (addedFromUrl) { arrived = notes[0]; view = isYtNote(arrived) ? 'youtube' : 'notes'; activeTag = null; activeGroup = null; saveView(); }   // show the note that was just added
 }
 if (params.has('q') || params.has('text') || params.has('group')) {
   history.replaceState({}, '', location.pathname);   // so a refresh doesn't add it twice
