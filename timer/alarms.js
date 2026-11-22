@@ -113,9 +113,29 @@
     var arr = function (v) { return Array.isArray(v) ? v : []; };
     var reach = make('reachChip', 'reachto', after, 'todo', function (o) { return arr(o.todo).slice().sort(function (a, b) { return a.added - b.added; }); }, '📌 Reach out: ', 'To reach out');
     var fu = make('followChip', 'followup', reach, 'follow', function (o) { var n = Date.now(); return arr(o.follow).filter(function (f) { return f.status === 'active' && f.due <= n; }).sort(function (a, b) { return a.due - b.due; }); }, '🔁 Follow up: ', 'Follow-ups due');
-    var paint = function () { reach.paint(); fu.paint(); };
+    /* amber-green "Daily ask": today's person until you press Sent; afterwards, a reminder only when an answer is overdue */
+    var ask = document.createElement('button'); ask.type = 'button'; ask.className = 'ghost hbtn reachchip dailyask'; ask.id = 'askChip'; ask.hidden = true; fu.after(ask);
+    ask.paint = function () {
+      var a = window.TSA && TSA.askPeek ? TSA.askPeek() : null;
+      if (!a) { ask.hidden = true; return; }
+      var fire = a.stats.streak ? ' · 🔥' + a.stats.streak : '';
+      if (!a.sent) {
+        ask.hidden = false;
+        ask.textContent = '🎯 Daily ask: ' + (a.person ? a.person.name : 'add someone') + fire;
+        ask.title = 'Send one message today to someone you admire' + (a.person && a.person.topic ? ' (about: ' + a.person.topic + ')' : '') + '\nStreak ' + a.stats.streak + ' · this week ' + a.stats.week + '\n\nClick to open';
+      } else if (a.overdue.length) {
+        ask.hidden = false;
+        ask.textContent = '💬 No reply yet: ' + a.overdue[0].name + (a.overdue.length > 1 ? ' +' + (a.overdue.length - 1) : '');
+        ask.title = 'Asked 7+ days ago, no answer logged:\n' + a.overdue.map(function (l) { return l.name; }).join('\n') + '\n\nClick to open';
+      } else ask.hidden = true;
+    };
+    ask.addEventListener('click', function () {
+      if (document.getElementById('askDlg')) window.dispatchEvent(new CustomEvent('tsa-open-ask'));
+      else location.href = 'index.html#ask';
+    });
+    var paint = function () { reach.paint(); fu.paint(); ask.paint(); };
     window.addEventListener('storage', function (e) { if (e.key === 'tsa2_data') paint(); });
-    window.addEventListener('tsa-lists-changed', paint);
+    window.addEventListener('tsa-lists-changed', paint); window.addEventListener('tsa-ask-changed', paint);
     setInterval(paint, 3000); paint();
   }
 

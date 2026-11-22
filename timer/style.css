@@ -425,3 +425,19 @@ dialog.edpop textarea { resize: vertical; min-height: 120px; }
 dialog.edpop .edfoot { display: flex; gap: 8px; align-items: center; position: sticky; bottom: -22px; background: var(--card); padding: 12px 0 2px; margin-top: 4px; border-top: 1px solid var(--line); }
 dialog.edpop .edsp { flex: 1; }
 @media (max-width: 640px) { dialog.edpop .edcols { grid-template-columns: 1fr; } }
+
+/* ----- Daily ask ----- */
+.nav .reachchip.dailyask { border-color: #17a673; background: rgba(23,166,115,.13); }
+.askdlg .askperson { padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; margin-bottom: 10px; }
+.askdlg .askwho { font-size: 16px; margin-bottom: 4px; }
+.askdlg .askpick { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.askdlg .askpick select { flex: 1; min-width: 160px; font: inherit; font-size: 14px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--text); }
+.askdlg .askform { display: grid; gap: 8px; }
+.askdlg .askform label { display: grid; gap: 3px; font-size: 12px; color: var(--muted); }
+.askdlg .askform input[type=text], .askdlg .askform textarea, .askdlg #askLearn { font: inherit; font-size: 14px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--text); box-sizing: border-box; width: 100%; }
+.askdlg .askform textarea { resize: vertical; line-height: 1.4; }
+.askdlg #askLearn { margin: 6px 0; display: block; }
+.askdlg .askdone { margin: 0 0 10px; padding: 8px 10px; border-radius: 8px; background: rgba(23,166,115,.13); }
+.askdlg .askok { color: #17a673; font-weight: 600; }
+.askdlg .asklate { color: #d9534f; font-weight: 600; }
+.askstats { margin: 0 0 10px; }

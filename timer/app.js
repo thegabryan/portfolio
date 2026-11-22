@@ -67,7 +67,8 @@
       segments: [],              // finished stretches: { act, start, end, [id, note] }
       sessions: [],              // finished work rounds (= points)
       outreach: { clicks: [], goal: 3, adj: {}, names: {}, notes: {}, todo: [], follow: [], seen: [], pics: {} },   // click times of the outreach counter + hand corrections per day
-      days: {}                   // 'YYYY-MM-DD' -> { firstOpen }
+      days: {},                  // 'YYYY-MM-DD' -> { firstOpen }
+      ask: { people: [], log: [], me: { who: '', doing: '' }, today: { day: '', pid: '' } }   // Daily ask: people you admire, messages sent, your intro, today's pick
     };
   }
   function normalize(o) {
@@ -99,6 +100,13 @@
     if (!oc.pics || typeof oc.pics !== 'object' || Array.isArray(oc.pics)) oc.pics = {};          // channel profile picture links, by channel key
     ['todo', 'follow', 'seen'].forEach(function (k) { if (!Array.isArray(oc[k])) oc[k] = []; });   // 'To reach out' list, follow-up reminders, ids already applied from the userscript
     if (!r.days || typeof r.days !== 'object') r.days = {};
+    var ak = r.ask = (r.ask && typeof r.ask === 'object') ? r.ask : {};
+    if (!Array.isArray(ak.people)) ak.people = [];
+    if (!Array.isArray(ak.log)) ak.log = [];
+    if (!ak.me || typeof ak.me !== 'object') ak.me = {};
+    ak.me.who = String(ak.me.who || ''); ak.me.doing = String(ak.me.doing || '');
+    if (!ak.today || typeof ak.today !== 'object') ak.today = {};
+    ak.today.day = String(ak.today.day || ''); ak.today.pid = String(ak.today.pid || '');
     if (!r.timer || !r.timer.mode) r.timer = { mode: 'idle' };
     r.segments.forEach(function (g) { if (g && g.act === 'family') { g.act = 'paused'; delete g.id; delete g.note; } });   // the removed Family timer counts as Paused
     if (ACTS.indexOf(r.active) < 0) r.active = 'paused';
@@ -922,6 +930,78 @@
     };
   }
 
+  /* ---------- Daily ask: one message a day to someone you admire ---------- */
+  var ASK_REPLY_DAYS = 7;   // an unanswered message is flagged after this many days
+  function askLastSent(pid) { var m = 0; S.ask.log.forEach(function (l) { if (l.pid === pid && l.ms > m) m = l.ms; }); return m; }
+  function askPerson(id) { return S.ask.people.filter(function (p) { return p.id === id; })[0] || null; }
+  /* Today's person: the saved pick for today if still valid, otherwise the one asked longest ago (never asked first, oldest added first). */
+  function askPick(now) {
+    var k = dayKey(now), t = S.ask.today;
+    if (t.day === k && askPerson(t.pid)) return askPerson(t.pid);
+    var list = S.ask.people.slice().sort(function (a, b) { return askLastSent(a.id) - askLastSent(b.id) || a.added - b.added; });
+    return list[0] || null;
+  }
+  function askStats(now) {
+    var days = {}, week = 0, k = dayKey(now), ws = addDays(k, -keyToDate(k).getDay());
+    S.ask.log.forEach(function (l) { var d = dayKey(l.ms); days[d] = (days[d] || 0) + 1; if (d >= ws && d <= k) week++; });
+    var cur = 0, c = days[k] ? k : addDays(k, -1);
+    while (days[c]) { cur++; c = addDays(c, -1); }
+    var best = 0, run = 0, keys = Object.keys(days).sort();
+    keys.forEach(function (d, i) { run = i && addDays(keys[i - 1], 1) === d ? run + 1 : 1; if (run > best) best = run; });
+    return { streak: cur, best: best, week: week, total: S.ask.log.length, sentToday: !!days[k], replies: S.ask.log.filter(function (l) { return l.replied; }).length };
+  }
+  function askOverdue(now) { return S.ask.log.filter(function (l) { return !l.replied && !l.nofu && now - l.ms >= ASK_REPLY_DAYS * 864e5; }).sort(function (a, b) { return a.ms - b.ms; }); }
+  /* What the header chip and popup show. */
+  function askToday(now) {
+    now = now || Date.now();
+    var st = askStats(now), od = askOverdue(now), p = askPick(now);
+    return { person: p, stats: st, overdue: od, sent: st.sentToday, empty: !S.ask.people.length };
+  }
+  /* Same as askToday, but from the saved data (for other pages / tabs where the live copy may be older). */
+  function askPeek() {
+    var keep = S;
+    try { var raw = JSON.parse(root.localStorage.getItem(KEY) || 'null'); if (!raw) return null; S = normalize(raw); return askToday(Date.now()); }
+    catch (e) { return null; } finally { S = keep; }
+  }
+  function askSwap(now) {
+    now = now || Date.now();
+    var cur = askPick(now), list = S.ask.people.slice().sort(function (a, b) { return askLastSent(a.id) - askLastSent(b.id) || a.added - b.added; });
+    if (list.length < 2) return false;
+    var i = cur ? list.indexOf(askPerson(cur.id)) : -1;
+    S.ask.today = { day: dayKey(now), pid: list[(i + 1) % list.length].id };
+    save(); return true;
+  }
+  function askSetToday(id, now) { if (!askPerson(id)) return false; S.ask.today = { day: dayKey(now || Date.now()), pid: id }; save(); return true; }
+  function askSave(id, f) {
+    var name = String(f.name || '').trim().slice(0, 100); if (!name) return null;
+    var o = { name: name, link: String(f.link || '').trim().slice(0, 300), why: String(f.why || '').trim().slice(0, 500), topic: String(f.topic || '').trim().slice(0, 200) };
+    var p = id ? askPerson(id) : null;
+    if (p) Object.assign(p, o); else { p = Object.assign({ id: uid(), added: Date.now() }, o); S.ask.people.push(p); }
+    save(); return p.id;
+  }
+  function askRemove(id) {
+    S.ask.people = S.ask.people.filter(function (p) { return p.id !== id; });
+    if (S.ask.today.pid === id) S.ask.today = { day: '', pid: '' };
+    save();
+  }
+  function askMe(who, doing) { S.ask.me.who = String(who || '').slice(0, 300); S.ask.me.doing = String(doing || '').slice(0, 500); save(); }
+  /* Logs a message sent to a person (the date can be set; default now). */
+  function askSend(pid, msg, now) {
+    var p = askPerson(pid); if (!p) return null;
+    var l = { id: uid(), ms: now || Date.now(), pid: p.id, name: p.name, msg: String(msg || '').slice(0, 3000), replied: 0, learned: '' };
+    S.ask.log.push(l); S.ask.log.sort(function (a, b) { return a.ms - b.ms; });
+    S.ask.today = { day: '', pid: '' };   // tomorrow picks fresh; today's chip is done
+    save(); return l.id;
+  }
+  function askReply(id, learned, now) {
+    var l = S.ask.log.filter(function (x) { return x.id === id; })[0]; if (!l) return false;
+    l.replied = now || Date.now(); l.learned = String(learned || '').slice(0, 3000); save(); return true;
+  }
+  function askUnreply(id) { var l = S.ask.log.filter(function (x) { return x.id === id; })[0]; if (!l) return false; l.replied = 0; save(); return true; }
+  function askNoFollow(id) { var l = S.ask.log.filter(function (x) { return x.id === id; })[0]; if (!l) return false; l.nofu = true; save(); return true; }
+  function askDelLog(id) { S.ask.log = S.ask.log.filter(function (x) { return x.id !== id; }); save(); }
+  function askLog() { return S.ask.log.slice().sort(function (a, b) { return b.ms - a.ms; }); }
+
   /* ---------- backup ---------- */
   /* Alarms live under their own key (see alarms.js) but travel in the backup file. */
   var ALARMS_KEY = 'tsa2_alarms';
@@ -1362,6 +1442,7 @@
     switchTo: switchTo, setNote: setNote, setNoteAt: setNoteAt, noteTarget: noteTarget, allNotes: allNotes, heartbeat: heartbeat, tick: tick,
     outreachToday: outreachToday, outreachAdd: outreachAdd, outreachUndo: outreachUndo, setOutreachDay: setOutreachDay, setOutreachName: setOutreachName, setOutreachNote: setOutreachNote, todoList: todoList, addTodo: addTodo, removeTodo: removeTodo, markReached: markReached, startFollow: startFollow, followList: followList, followDue: followDue, followDone: followDone, followStop: followStop, leadFromScript: leadFromScript, FOLLOW_MAX: FOLLOW_MAX, outreachLog: outreachLog, projectList: projectList, renameProject: renameProject, projectTime: projectTime, actByHour: actByHour, setGoal: setGoal,
     todayTotals: todayTotals, todayPoints: todayPoints, analyze: analyze,
+    askToday: askToday, askPeek: askPeek, askSwap: askSwap, askSetToday: askSetToday, askSave: askSave, askRemove: askRemove, askMe: askMe, askSend: askSend, askReply: askReply, askUnreply: askUnreply, askNoFollow: askNoFollow, askDelLog: askDelLog, askLog: askLog, askStats: askStats, askPeople: function () { return S.ask.people.slice(); }, askMeGet: function () { return { who: S.ask.me.who, doing: S.ask.me.doing }; },
     exportAll: exportAll, importText: importText,
     audio: audio, audioReady: audioReady, testSound: testSound, beep: beep, nudgeBeep: nudgeBeep, alarmStart: alarmStart, alarmStop: alarmStop,
     setFavicon: setFavicon, setTitle: setTitle, picFor: picFor, linkChat: linkChat, gmailQuery: gmailQuery, gmailFor: gmailFor, gmailUrl: gmailUrl, gmailU: gmailU, setGmailQ: setGmailQ, setGmailU: setGmailU, linkMail: linkMail, setSleepAfter: setSleepAfter, addNoteLine: addNoteLine, entryIdByKeys: entryIdByKeys, addNoteByKeys: addNoteByKeys, addLinksByKeys: addLinksByKeys, pinLink: pinLink, editLink: editLink, linkIcon: linkIcon, linkKind: linkKind, KIND_EMOJI: KIND_EMOJI, unlinkChat: unlinkChat, chatsOf: chatsOf, chatsForClick: chatsForClick, editTodo: editTodo, editFollow: editFollow, removeFollow: removeFollow, outreachRemoveClick: outreachRemoveClick, setPics: setPics, startFlash: startFlash, quickBlink: quickBlink, engine: engine, initTheme: initTheme, mountDataTools: mountDataTools, mountCsvTools: mountCsvTools, csvExport: csvExport, maybeAutoBackup: maybeAutoBackup, setAutoBackup: setAutoBackup, setGoalSec: setGoalSec, GOALS: GOALS,

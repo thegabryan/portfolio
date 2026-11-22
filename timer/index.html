@@ -96,6 +96,14 @@
   <div class="drow"><a id="clipBm" class="ghost chatlink" href="#" title="Drag this to your bookmarks bar. On any page, select text and click it to add the text to a channel's note.">📎 Outreach clip</a><button type="button" class="primary" id="lstClose">Close</button></div>
 </dialog>
 
+<dialog id="askDlg" class="lstdlg askdlg">
+  <h2>🎯 Daily ask</h2>
+  <p class="muted" id="askStat" style="margin:0 0 8px"></p>
+  <div class="htabs" id="askTabs"><button type="button" class="ghost on" data-t="today">Today</button><button type="button" class="ghost" data-t="people">People</button><button type="button" class="ghost" data-t="log">Log</button></div>
+  <div id="askBody" class="lstbody"></div>
+  <div class="drow"><button type="button" class="primary" id="askClose">Close</button></div>
+</dialog>
+
 <dialog id="edDlg" class="edpop"><div id="edBody"></div></dialog>
 
 <dialog id="linksDlg" class="lstdlg linksdlg">
@@ -792,6 +800,138 @@
     window.addEventListener('tsa-open-lists', function (e) { open((e.detail && e.detail.tab) || 'todo'); });
     if (/#(todo|follow|done)\b/.test(location.hash)) { open(location.hash === '#follow' ? 'follow' : location.hash === '#done' ? 'done' : 'todo'); }
     renderFollow(); setInterval(renderFollow, 60000);
+  })();
+
+  /* ---------- Daily ask ---------- */
+  (function () {
+    var tab = 'today', F = { pid: '', why: '', ask: '', msg: '', manual: false, flash: '' }, editing = '', replyFor = '';
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'ghost'; b.id = 'askBtn'; b.textContent = '🎯 Daily ask';
+    $('tools').appendChild(b);
+    var first = function (n) { return String(n || '').trim().split(/\s+/)[0] || 'there'; };
+    var when = function (ms) { var d = new Date(ms); return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ' ' + clock(ms); };
+    var changed = function () { window.dispatchEvent(new Event('tsa-ask-changed')); };
+    var linkOf = function (u) { u = String(u || '').trim(); if (!u) return ''; return /^https?:\/\//i.test(u) ? u : (/^[\w-]+(\.[\w-]+)+/.test(u) ? 'https://' + u : ''); };
+    function build(p) {
+      var me = TSA.askMeGet();
+      var who = me.who.trim() || '[who I am]', doing = me.doing.trim() || '[what I am working on]';
+      var why = F.why.trim() || (p.topic ? 'Your experience with ' + p.topic + ' is relevant to what I am doing because [why].' : 'Your insight is relevant to what I am doing because [why].');
+      var ask = F.ask.trim() || '[my specific question]';
+      return 'Hi ' + first(p.name) + ',\n\nI am ' + who + '. ' + doing + '\n\n' + why + '\n\n' + ask + '\n\nI respect your opinion, and I would really appreciate your input on this.\n\nThank you,';
+    }
+    function pickPerson() { var t = TSA.askToday(); if (F.pid && TSA.askPeople().some(function (x) { return x.id === F.pid; })) return TSA.askPeople().filter(function (x) { return x.id === F.pid; })[0]; return t.person; }
+    function head() {
+      var t = TSA.askToday(), st = t.stats;
+      $('askStat').textContent = (st.sentToday ? '✅ Sent today' : '⏳ Not sent today') + ' · 🔥 streak ' + st.streak + ' (best ' + st.best + ') · this week ' + st.week + ' · total ' + st.total + ' · replies ' + st.replies;
+    }
+    function paintToday() {
+      var t = TSA.askToday(), p = pickPerson(), people = TSA.askPeople(), me = TSA.askMeGet();
+      if (!people.length) { $('askBody').innerHTML = '<p>Add someone you admire first (a person who has an insight into your life).</p><button type="button" class="primary" data-go="people">Add the first person</button>'; return; }
+      if (p && F.pid !== p.id) { F.pid = p.id; F.why = ''; F.ask = ''; F.manual = false; }
+      if (!F.manual) F.msg = build(p);
+      var opts = people.map(function (x) { return '<option value="' + x.id + '"' + (x.id === p.id ? ' selected' : '') + '>' + esc(x.name) + '</option>'; }).join('');
+      var lk = linkOf(p.link);
+      $('askBody').innerHTML =
+        (t.sent ? '<p class="askdone">✅ You already sent one today. Want to send another? Pick a person below.</p>' : '') +
+        (F.flash ? '<p class="askdone">' + esc(F.flash) + '</p>' : '') +
+        '<div class="askperson"><div class="askwho"><b>' + esc(p.name) + '</b>' + (lk ? ' <a href="' + esc(lk) + '" target="_blank" rel="noopener">open link ↗</a>' : '') + '</div>' +
+        (p.why ? '<div class="muted">Why I admire them: ' + esc(p.why) + '</div>' : '') + (p.topic ? '<div class="muted">Could advise me on: ' + esc(p.topic) + '</div>' : '') +
+        '<div class="askpick"><select id="askSel" aria-label="Who to ask">' + opts + '</select><button type="button" class="ghost" data-act="next">↻ Next person</button></div></div>' +
+        '<div class="askform"><label>Who I am<input type="text" id="askWho" maxlength="300" value="' + esc(me.who) + '" placeholder="e.g. a 19-year-old building ..."></label>' +
+        '<label>What I am doing<input type="text" id="askDoing" maxlength="500" value="' + esc(me.doing) + '" placeholder="e.g. I am learning to ... and building ..."></label>' +
+        '<label>Why their insight matters<input type="text" id="askWhy" maxlength="400" value="' + esc(F.why) + '" placeholder="' + esc(p.topic ? 'Your experience with ' + p.topic + ' ...' : 'Your insight is relevant because ...') + '"></label>' +
+        '<label>My specific ask<input type="text" id="askAsk" maxlength="400" value="' + esc(F.ask) + '" placeholder="One clear question they can answer in a few lines"></label>' +
+        '<label>Message (edit freely)<textarea id="askMsg" rows="8" maxlength="3000">' + esc(F.msg) + '</textarea></label></div>' +
+        '<div class="drow" style="justify-content:flex-start;margin-top:8px"><button type="button" class="ghost" data-act="copy">📋 Copy message</button><button type="button" class="primary" data-act="sent">✅ I sent it</button><span class="muted" id="askMsgNote"></span></div>';
+    }
+    function paintPeople() {
+      var people = TSA.askPeople(), ed = people.filter(function (x) { return x.id === editing; })[0] || { name: '', link: '', why: '', topic: '' };
+      var t = TSA.askLog(), last = {}; t.forEach(function (l) { if (!last[l.pid]) last[l.pid] = l.ms; });
+      $('askBody').innerHTML =
+        '<form id="askPF" class="askform" autocomplete="off"><label>Name<input type="text" id="apName" maxlength="100" value="' + esc(ed.name) + '"></label>' +
+        '<label>Link or email (optional)<input type="text" id="apLink" maxlength="300" value="' + esc(ed.link) + '"></label>' +
+        '<label>Why I admire them<input type="text" id="apWhy" maxlength="500" value="' + esc(ed.why) + '"></label>' +
+        '<label>What they could advise me on<input type="text" id="apTopic" maxlength="200" value="' + esc(ed.topic) + '"></label>' +
+        '<div class="drow" style="justify-content:flex-start"><button type="submit" class="primary">' + (editing ? 'Save changes' : '+ Add person') + '</button>' + (editing ? '<button type="button" class="ghost" data-act="pcancel">Cancel</button>' : '') + '</div></form>' +
+        (people.length ? people.map(function (x) {
+          var lk = linkOf(x.link);
+          return '<div class="lrow"><div class="lmain"><b>' + esc(x.name) + '</b>' + (lk ? ' <a href="' + esc(lk) + '" target="_blank" rel="noopener">link ↗</a>' : '') +
+            '<div class="muted">' + (x.topic ? esc(x.topic) + ' · ' : '') + (last[x.id] ? 'last asked ' + when(last[x.id]) : 'never asked') + '</div>' + (x.why ? '<div class="muted">' + esc(x.why) + '</div>' : '') + '</div>' +
+            '<div class="lbtns"><button type="button" class="ghost" data-today="' + x.id + '">Ask today</button><button type="button" class="ghost" data-pedit="' + x.id + '">✏️ Edit</button><button type="button" class="ghost" data-pdel="' + x.id + '">Delete</button></div></div>';
+        }).join('') : '<p class="muted">Nobody yet. Add people whose opinion you respect and who could shape your path.</p>');
+    }
+    function paintLog() {
+      var log = TSA.askLog(), now = Date.now();
+      $('askBody').innerHTML = log.length ? log.map(function (l) {
+        var late = !l.replied && !l.nofu && now - l.ms >= 7 * 864e5;
+        var status = l.replied ? '<span class="askok">Replied ' + when(l.replied) + '</span>' : late ? '<span class="asklate">No reply yet (' + Math.floor((now - l.ms) / 864e5) + ' days)</span>' : l.nofu ? '<span class="muted">No follow-up needed</span>' : '<span class="muted">Waiting</span>';
+        return '<div class="lrow"><div class="lmain"><b>' + esc(l.name) + '</b> <span class="muted">' + when(l.ms) + '</span> · ' + status +
+          (l.learned ? '<div class="onote">💡 ' + esc(l.learned) + '</div>' : '') +
+          (l.msg ? '<details><summary class="muted">Message</summary><div class="onote">' + esc(l.msg) + '</div></details>' : '') +
+          (replyFor === l.id ? '<textarea id="askLearn" rows="3" maxlength="3000" placeholder="What did you learn? (optional, Ctrl+Enter saves)"></textarea><div class="lbtns"><button type="button" class="primary" data-lsave="' + l.id + '">Save reply</button><button type="button" class="ghost" data-lcancel="1">Cancel</button></div>' : '') + '</div>' +
+          '<div class="lbtns">' + (l.replied ? '<button type="button" class="ghost" data-lre="' + l.id + '">Edit reply</button>' : '<button type="button" class="ghost" data-lre="' + l.id + '">Got a reply</button>') +
+          (!l.replied && !l.nofu ? '<button type="button" class="ghost" data-lnf="' + l.id + '">No follow-up</button>' : '') + '<button type="button" class="ghost" data-ldel="' + l.id + '">Delete</button></div></div>';
+      }).join('') : '<p class="muted">Nothing logged yet. Press "I sent it" on the Today tab after you send a message.</p>';
+      if (replyFor && $('askLearn')) { var l = log.filter(function (x) { return x.id === replyFor; })[0]; $('askLearn').value = (l && l.learned) || ''; $('askLearn').focus(); }
+    }
+    function paint() {
+      [].forEach.call($('askTabs').children, function (x) { x.classList.toggle('on', x.dataset.t === tab); });
+      head(); (tab === 'today' ? paintToday : tab === 'people' ? paintPeople : paintLog)();
+    }
+    function open(t) { tab = t || 'today'; F.flash = ''; paint(); if (!$('askDlg').open) $('askDlg').showModal(); }
+    b.addEventListener('click', function () { open(); });
+    window.addEventListener('tsa-open-ask', function () { open(); });
+    if (/#ask\b/.test(location.hash)) open();
+    $('askClose').addEventListener('click', function () { $('askDlg').close(); });
+    $('askTabs').addEventListener('click', function (e) { var t = e.target.closest('button'); if (t) { tab = t.dataset.t; editing = ''; replyFor = ''; F.flash = ''; paint(); } });
+    var live = function () {
+      var p = pickPerson(); if (!p) return;
+      F.why = $('askWhy').value; F.ask = $('askAsk').value;
+      TSA.askMe($('askWho').value, $('askDoing').value);
+      if (!F.manual) { F.msg = build(p); $('askMsg').value = F.msg; }
+    };
+    $('askBody').addEventListener('input', function (e) {
+      if (e.target.id === 'askMsg') { F.manual = true; F.msg = e.target.value; }
+      else if (/^ask(Who|Doing|Why|Ask)$/.test(e.target.id)) { if (F.manual && e.target.id !== 'askWho' && e.target.id !== 'askDoing') { F.manual = false; } live(); }
+    });
+    $('askBody').addEventListener('change', function (e) {
+      if (e.target.id === 'askSel') { F.pid = ''; TSA.askSetToday(e.target.value); F.pid = e.target.value; F.why = ''; F.ask = ''; F.manual = false; paint(); changed(); }
+    });
+    $('askBody').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && e.target.id === 'askLearn' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); var sv = $('askBody').querySelector('[data-lsave]'); if (sv) sv.click(); }
+    });
+    $('askBody').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var id = TSA.askSave(editing, { name: $('apName').value, link: $('apLink').value, why: $('apWhy').value, topic: $('apTopic').value });
+      if (!id) { $('apName').focus(); return; }
+      editing = ''; paint(); changed();
+    });
+    $('askBody').addEventListener('click', function (e) {
+      var t = e.target.closest('button'); if (!t) return; var d = t.dataset;
+      if (d.go) { tab = d.go; paint(); return; }
+      if (d.act === 'next') { TSA.askSwap(); var p = TSA.askToday().person; F.pid = ''; F.why = ''; F.ask = ''; F.manual = false; paint(); changed(); return; }
+      if (d.act === 'copy') {
+        var ta = $('askMsg'), done = function () { $('askMsgNote').textContent = 'Copied ✓'; };
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ta.value).then(done, function () { ta.select(); document.execCommand('copy'); done(); });
+        else { ta.select(); document.execCommand('copy'); done(); }
+        return;
+      }
+      if (d.act === 'sent') {
+        var p2 = pickPerson(); if (!p2) return;
+        TSA.askSend(p2.id, $('askMsg').value);
+        var st = TSA.askToday().stats; F = { pid: '', why: '', ask: '', msg: '', manual: false, flash: '🎉 Logged: ' + p2.name + '. Streak ' + st.streak + ' day' + (st.streak === 1 ? '' : 's') + ', ' + st.week + ' this week.' };
+        paint(); changed(); return;
+      }
+      if (d.act === 'pcancel') { editing = ''; paintPeople(); return; }
+      if (d.today) { TSA.askSetToday(d.today); F.pid = ''; tab = 'today'; paint(); changed(); return; }
+      if (d.pedit) { editing = d.pedit; paintPeople(); $('apName').focus(); return; }
+      if (d.pdel) { if (confirm('Delete this person? Their log entries stay.')) { TSA.askRemove(d.pdel); F.pid = ''; paint(); changed(); } return; }
+      if (d.lre) { replyFor = d.lre; paintLog(); return; }
+      if (d.lcancel) { replyFor = ''; paintLog(); return; }
+      if (d.lsave) { TSA.askReply(d.lsave, $('askLearn').value); replyFor = ''; paint(); changed(); return; }
+      if (d.lnf) { TSA.askNoFollow(d.lnf); paint(); changed(); return; }
+      if (d.ldel) { if (confirm('Delete this log entry? It will also lower your streak if it was the only one that day.')) { TSA.askDelLog(d.ldel); paint(); changed(); } return; }
+    });
+    $('askDlg').addEventListener('click', function (e) { if (e.target === $('askDlg')) $('askDlg').close(); });
   })();
 
   /* ---------- run ---------- */

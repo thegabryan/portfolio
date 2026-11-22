@@ -123,6 +123,11 @@
   </section>
 
   <section class="card">
+    <div class="head"><h2>🎯 Daily ask</h2></div>
+    <div id="askCard"></div>
+  </section>
+
+  <section class="card">
     <div class="head">
       <h2>Sessions (every start and stop)</h2>
       <select id="segAct" aria-label="Activity"></select>
@@ -578,6 +583,13 @@
     $('autoBk').checked = TSA.get().settings.autoBackup;
     var lb = TSA.get().lastBackup;
     $('bkInfo').textContent = lb ? 'Last automatic backup: ' + fmtDay(TSA.dayKey(lb), true) + ', ' + clock(lb) + '. If your browser asks where to save it or blocks it, keep using "Export all data" too.' : 'No automatic backup yet. If your browser asks where to save files or blocks automatic downloads, keep using "Export all data".';
+
+    /* daily ask */
+    var ast = TSA.askStats(Date.now()), alog = TSA.askLog();
+    $('askCard').innerHTML = '<div class="askstats"><b>🔥 ' + ast.streak + '</b> day streak (best ' + ast.best + ') · <b>' + ast.week + '</b> this week · <b>' + ast.total + '</b> total · <b>' + ast.replies + '</b> replies' + (ast.sentToday ? ' · sent today ✓' : ' · not sent today') + '</div>' +
+      (alog.length ? alog.slice(0, 15).map(function (l) {
+        return '<div class="nrow"><span class="nt">' + fmtDay(TSA.dayKey(l.ms), true) + ' · ' + clock(l.ms) + '</span><span>🎯 Ask</span><span class="nx">' + esc(l.name) + (l.replied ? ' · <b>replied</b>' : '') + (l.learned ? '<div class="onote">💡 ' + esc(l.learned) + '</div>' : '') + '</span></div>';
+      }).join('') : '<div class="empty-msg">No messages logged yet. Use 🎯 Daily ask on the timer page.</div>');
 
     /* outreach log */
     var olq = $('olQ').value.trim().toLowerCase();
