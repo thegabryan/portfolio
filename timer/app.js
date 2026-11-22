@@ -649,14 +649,29 @@
     save(); return true;
   }
   /* a selected text added to a creator's note: a new line '19 Nov 10:50 · text'; the oldest lines go when the note is full */
-  function addNoteLine(id, text) {
-    var it = leadById(id); text = String(text || '').replace(/\s+/g, ' ').trim(); if (!it || !text) return false;
+  function addNoteLine(id, text, keepLines) {
+    var it = leadById(id); text = keepLines ? String(text || '').replace(/\r\n?/g, '\n').replace(/[ \t]+/g, ' ').trim() : String(text || '').replace(/\s+/g, ' ').trim(); if (!it || !text) return false;
     var d = new Date(), M = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getMonth()], p = function (n) { return (n < 10 ? '0' : '') + n; };
     var lines = String(it.note || '').split('\n').filter(Boolean); lines.push(d.getDate() + ' ' + M + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ' · ' + text);
     while (lines.join('\n').length > NOTE_MAX && lines.length > 1) lines.shift();
     it.note = lines.join('\n').slice(-NOTE_MAX); save(); return true;
   }
 
+  /* The list entry (To reach out first, else the newest follow-up) whose channel handle is one of keys. */
+  function entryByKeys(keys) {
+    keys = (keys || []).map(function (k) { return String(k).toLowerCase(); });
+    var match = function (x) { return picKeys(x.name, x.url).some(function (k) { return keys.indexOf(k) >= 0 && k.charAt(0) !== 'n'; }); };
+    var t = S.outreach.todo.filter(match)[0]; if (t) return t;
+    return S.outreach.follow.filter(match).sort(function (a, b) { return ((b.status === 'active') - (a.status === 'active')) || (b.started - a.started); })[0] || null;
+  }
+  function entryIdByKeys(keys) { var it = entryByKeys(keys); return it ? it.id : ''; }
+  /* a note written on the YouTube pill: a new dated line on the creator's note (also copied to the linked +1 in the log) */
+  function addNoteByKeys(keys, text) {
+    var it = entryByKeys(keys);
+    if (!it || !addNoteLine(it.id, text, true)) return false;
+    if (it.ms && S.outreach.clicks.indexOf(it.ms) >= 0) { S.outreach.notes[it.ms] = it.note; save(); }
+    return true;
+  }
   /* links found on a channel's YouTube About page: added to the list entry whose channel handle matches */
   function addLinksByKeys(keys, links) {
     keys = (keys || []).map(function (k) { return String(k).toLowerCase(); });
@@ -735,8 +750,8 @@
     var seen = S.outreach.seen;
     if (seen.indexOf(m.id) >= 0) return true;
     var ts = +m.ts > 0 && +m.ts <= Date.now() + 60000 ? +m.ts : Date.now();
-    if (m.kind === 'done') markReached(m.name, m.url, ts, {});
-    else if (m.kind === 'todo') addTodo(m.name, m.url, ts);
+    if (m.kind === 'done') markReached(m.name, m.url, ts, { note: m.note });
+    else if (m.kind === 'todo') addTodo(m.name, m.url, ts, m.note);
     else return false;
     if (m.pic) { var pm = {}; picKeys(m.name, m.url).forEach(function (k) { pm[k] = m.pic; }); setPics(pm); }
     seen.push(m.id); S.outreach.seen = seen.slice(-300); save(); return true;
@@ -1324,7 +1339,7 @@
     todayTotals: todayTotals, todayPoints: todayPoints, analyze: analyze,
     exportAll: exportAll, importText: importText,
     audio: audio, audioReady: audioReady, testSound: testSound, beep: beep, nudgeBeep: nudgeBeep, alarmStart: alarmStart, alarmStop: alarmStop,
-    setFavicon: setFavicon, setTitle: setTitle, picFor: picFor, linkChat: linkChat, gmailQuery: gmailQuery, gmailFor: gmailFor, gmailUrl: gmailUrl, gmailU: gmailU, setGmailQ: setGmailQ, setGmailU: setGmailU, linkMail: linkMail, addNoteLine: addNoteLine, addLinksByKeys: addLinksByKeys, pinLink: pinLink, editLink: editLink, linkIcon: linkIcon, linkKind: linkKind, KIND_EMOJI: KIND_EMOJI, unlinkChat: unlinkChat, chatsOf: chatsOf, chatsForClick: chatsForClick, editTodo: editTodo, editFollow: editFollow, removeFollow: removeFollow, outreachRemoveClick: outreachRemoveClick, setPics: setPics, startFlash: startFlash, quickBlink: quickBlink, engine: engine, initTheme: initTheme, mountDataTools: mountDataTools, mountCsvTools: mountCsvTools, csvExport: csvExport, maybeAutoBackup: maybeAutoBackup, setAutoBackup: setAutoBackup, setGoalSec: setGoalSec, GOALS: GOALS,
+    setFavicon: setFavicon, setTitle: setTitle, picFor: picFor, linkChat: linkChat, gmailQuery: gmailQuery, gmailFor: gmailFor, gmailUrl: gmailUrl, gmailU: gmailU, setGmailQ: setGmailQ, setGmailU: setGmailU, linkMail: linkMail, addNoteLine: addNoteLine, entryIdByKeys: entryIdByKeys, addNoteByKeys: addNoteByKeys, addLinksByKeys: addLinksByKeys, pinLink: pinLink, editLink: editLink, linkIcon: linkIcon, linkKind: linkKind, KIND_EMOJI: KIND_EMOJI, unlinkChat: unlinkChat, chatsOf: chatsOf, chatsForClick: chatsForClick, editTodo: editTodo, editFollow: editFollow, removeFollow: removeFollow, outreachRemoveClick: outreachRemoveClick, setPics: setPics, startFlash: startFlash, quickBlink: quickBlink, engine: engine, initTheme: initTheme, mountDataTools: mountDataTools, mountCsvTools: mountCsvTools, csvExport: csvExport, maybeAutoBackup: maybeAutoBackup, setAutoBackup: setAutoBackup, setGoalSec: setGoalSec, GOALS: GOALS,
     dailySummary: dailySummary, sendSummary: sendSummary,
     KEY: KEY, CHRONO_KEY: CHRONO_KEY
   };

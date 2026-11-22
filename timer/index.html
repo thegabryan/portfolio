@@ -600,6 +600,15 @@
       S = TSA.get(); lastLstHtml = ''; renderFollow(); if (linksFor) paintLinks();
       window.postMessage({ channel: 'timer-bridge', from: 'page', type: 'chat-link-ok', qid: m.qid, ok: ok }, location.origin);
     });
+    window.addEventListener('message', function (e) {   // a note written on the YouTube pill
+      var m = e.data;
+      if (e.origin !== location.origin || !m || m.channel !== 'timer-bridge' || m.from !== 'userscript' || m.type !== 'note-add') return;
+      if (TSA.addNoteByKeys(m.keys, m.text)) {
+        S = TSA.get(); lastLstHtml = ''; renderFollow(); if (linksFor) paintLinks();
+        showNotice('Note added to the creator');
+        window.postMessage({ channel: 'timer-bridge', from: 'page', type: 'note-ok', qid: m.qid }, location.origin);
+      }
+    });
     window.addEventListener('message', function (e) {   // links found on a YouTube About page
       var m = e.data;
       if (e.origin !== location.origin || !m || m.channel !== 'timer-bridge' || m.from !== 'userscript' || m.type !== 'links-add') return;
@@ -647,6 +656,13 @@
       }).join('') : '<p class="muted">Nothing else linked yet. On any page, use the 📁 button on the timer capsule and pick this creator.</p>');
     }
     function openLinks(id) { linksFor = id; linkEdit = ''; $('lkMsg').textContent = ''; paintLinks(); if (!$('linksDlg').open) $('linksDlg').showModal(); }
+    var lm = /[?&]links=([^&]+)/.exec(location.search);   // the 📁 Links button of the YouTube pill
+    if (lm) {
+      var lk = lm[1]; try { lk = decodeURIComponent(lk); } catch (e) {}
+      var lid = TSA.entryIdByKeys([lk]);
+      if (lid) openLinks(lid); else showNotice('That creator is not in your lists yet.');
+      try { history.replaceState(null, '', location.pathname + location.hash); } catch (e) {}
+    }
     var linksOf = function () { var x = TSA.todoList().concat(TSA.followList()).filter(function (y) { return y.id === linksFor; })[0]; return x ? TSA.chatsOf(x) : []; };
     $('linksClose').addEventListener('click', function () { $('linksDlg').close(); });
     $('linksDlg').addEventListener('close', function () { linksFor = ''; linkEdit = ''; });
