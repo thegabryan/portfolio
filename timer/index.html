@@ -21,9 +21,8 @@
     </nav>
   </header>
 
-  <div id="notice" class="notice" hidden></div>
+  <div id="notice" class="notice" hidden><span id="noticeTxt"></span><button id="noticeX" class="nx" type="button" aria-label="Close" title="Close">×</button></div>
 
-  <div id="fuBar" class="notice fubar" hidden><span id="fuTxt"></span> <button id="fuOpen" class="ghost" type="button">Open</button></div>
   <section id="cards" class="cards" aria-label="Timers"></section>
 
   <section class="card bar" aria-label="Settings">
@@ -38,6 +37,7 @@
         </select>
       </label>
       <label class="sel" title="If Paused has run less than this when you start a timer, that Paused time moves to the new timer. 0 = off.">Short pause <input id="shortPause" type="number" min="0" max="600" inputmode="numeric" style="width:64px"> s</label>
+      <label class="sel" title="If the page was closed (or the computer asleep) after this time, the time after it counts as Sleep instead of Paused. Clear the box to turn it off.">Auto-sleep after <input id="sleepAfter" type="time" style="width:110px"></label>
       <label class="sel" title="If Paused runs this long with the page open, a bar and a short beep ask what you're doing. 0 = off.">Idle nudge <input id="idleNudge" type="number" min="0" max="600" inputmode="numeric" style="width:64px"> min</label>
       <span class="bells">🔔
         <label><input type="checkbox" data-bell="paused"> Paused</label>
@@ -95,6 +95,8 @@
   <div id="lstBody" class="lstbody"></div>
   <div class="drow"><a id="clipBm" class="ghost chatlink" href="#" title="Drag this to your bookmarks bar. On any page, select text and click it to add the text to a channel's note.">📎 Outreach clip</a><button type="button" class="primary" id="lstClose">Close</button></div>
 </dialog>
+
+<dialog id="edDlg" class="edpop"><div id="edBody"></div></dialog>
 
 <dialog id="linksDlg" class="lstdlg linksdlg">
   <div id="linksHead"></div>
@@ -179,7 +181,8 @@
 
   function hms(sec) { sec = Math.max(0, Math.floor(sec)); return pad(Math.floor(sec / 3600)) + ':' + pad(Math.floor((sec % 3600) / 60)) + ':' + pad(sec % 60); }
   function clock(ms) { return new Date(ms).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); }
-  function showNotice(msg) { var n = $('notice'); n.textContent = msg; n.hidden = false; }
+  function showNotice(msg) { var n = $('notice'); $('noticeTxt').textContent = msg; n.hidden = false; }
+  $('noticeX').addEventListener('click', function () { $('notice').hidden = true; });
 
   /* ---------- cards ---------- */
   var cardsEl = $('cards'), refs = {};
@@ -255,6 +258,7 @@
     $('beepMin').value = String(S.settings.beepMinutes);
     $('shortPause').value = S.settings.shortPauseSec;
     $('idleNudge').value = S.settings.idleNudgeMin;
+    (function (m) { $('sleepAfter').value = m >= 0 ? ('0' + Math.floor(m / 60)).slice(-2) + ':' + ('0' + (m % 60)).slice(-2) : ''; })(S.settings.sleepAfter);
     document.querySelectorAll('[data-bell]').forEach(function (c) { c.checked = S.settings.beep[c.dataset.bell] !== false; });
     renderLive();
     $('todayLbl').textContent = TSA.keyToDate(TSA.dayKey(Date.now())).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
@@ -262,6 +266,10 @@
   $('auto').addEventListener('change', function () { S.settings.autoRestart = $('auto').checked; TSA.save(); });
   $('vol').addEventListener('input', function () { S.settings.volume = $('vol').value / 100; $('volVal').textContent = $('vol').value + '%'; TSA.save(); });
   $('vol').addEventListener('change', function () { TSA.beep(1000, .22, .4); });
+  $('sleepAfter').addEventListener('change', function () {
+    var v = $('sleepAfter').value, p = v.split(':');
+    TSA.setSleepAfter(p.length === 2 ? (+p[0]) * 60 + (+p[1]) : -1);
+  });
   $('idleNudge').addEventListener('change', function () {
     var v = Math.round(+$('idleNudge').value);
     S.settings.idleNudgeMin = v >= 0 && v <= 600 ? v : 30; $('idleNudge').value = S.settings.idleNudgeMin; TSA.save(); nudgeFor = null;
@@ -450,13 +458,10 @@
   };
   function renderFollow() {
     var now = Date.now(), due = TSA.followDue(now), todo = TSA.todoList().length;
-    $('fuBar').hidden = !due.length;
-    if (due.length) $('fuTxt').textContent = '📋 ' + due.length + ' follow-up' + (due.length === 1 ? '' : 's') + ' due: ' + due.slice(0, 3).map(function (f) { return f.name || f.url; }).join(', ') + (due.length > 3 ? '…' : '');
     var b = $('lstBtn'); if (b) b.textContent = '📋 Outreach lists' + (due.length ? ' (' + due.length + ' due)' : todo ? ' (' + todo + ')' : '');
     window.dispatchEvent(new Event('tsa-lists-changed'));
     if ($('lstDlg').open) paintLists();
   }
-  var editId = '';
   var dkey = function (ms) { var d = new Date(ms); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); };
   var noteHtml = function (x) { return x.note ? '<div class="lnote">' + esc(x.note).replace(/\n/g, '<br>') + '</div>' : ''; };
   var chatBtns = function (x) {
@@ -465,20 +470,32 @@
       '<button type="button" class="ghost chatlink" data-links="' + x.id + '" title="Everything linked to this creator">📁 Links' + (cs.length ? ' ' + cs.length : '') + '</button>';
   };
   var pencil = function (id) { return '<button type="button" class="ghost" data-edit="' + id + '" title="Edit or delete">✏️ Edit</button>'; };
-  /* inline edit form for one entry (kind: 'todo' or 'follow') */
+  /* edit popup for one entry (kind: 'todo' or 'follow'): two columns, Save / Cancel / Delete always visible */
   function editForm(x, kind) {
     var f = kind === 'follow', i = function (id, v, ph) { return '<input id="' + id + '" type="text" maxlength="' + (id === 'edUrl' ? 300 : 120) + '" value="' + esc(v) + '" placeholder="' + ph + '">'; };
-    return '<form class="editform" data-kind="' + kind + '" data-id="' + x.id + '">' +
-      '<label>Name' + i('edName', x.name || '', 'Name') + '</label><label>Channel link' + i('edUrl', x.url || '', 'https://www.youtube.com/@…') + '</label>' +
-      '<label>Note<textarea id="edNote" maxlength="1000" rows="3" placeholder="Note about this outreach">' + esc(x.note || '') + '</textarea></label>' +
-      (f ? '<div class="edrow"><label>Outreach date<input id="edDate" type="date" value="' + dkey(x.started) + '"></label>' +
+    var right = f
+      ? '<label>Outreach date<input id="edDate" type="date" value="' + dkey(x.started) + '"></label>' +
         '<label>Follow-ups done<select id="edCount">' + [0, 1, 2, 3].map(function (n) { return '<option value="' + n + '"' + (n === x.count ? ' selected' : '') + '>' + n + ' / ' + TSA.FOLLOW_MAX + '</option>'; }).join('') + '</select></label>' +
-        '<label>Status<select id="edStatus">' + [['active', 'Active'], ['replied', 'Replied'], ['stopped', 'Stopped'], ['done', 'Finished']].map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === x.status ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></label></div>' +
-        (x.ms && S.outreach.clicks.indexOf(x.ms) >= 0 ? '<label class="chk"><input id="edScore" type="checkbox"> When deleting, also remove its +1 from the outreach score</label>' : '') : '') +
-      '<div class="lbtns"><button class="primary" type="submit">Save</button><button type="button" class="ghost" data-edit-cancel="1">Cancel</button><button type="button" class="ghost danger" data-edit-del="' + x.id + '">Delete…</button></div></form>';
+        '<label>Status<select id="edStatus">' + [['active', 'Active'], ['replied', 'Replied'], ['stopped', 'Stopped'], ['done', 'Finished']].map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === x.status ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></label>' +
+        (x.ms && S.outreach.clicks.indexOf(x.ms) >= 0 ? '<label class="chk"><input id="edScore" type="checkbox"> When deleting, also remove its +1 from the outreach score</label>' : '')
+      : '<div class="muted">In “To reach out” since ' + dayLbl(x.added || Date.now()) + '.</div>';
+    return '<form class="editform" data-kind="' + kind + '" data-id="' + x.id + '"><h2>✏️ Edit ' + (f ? 'outreach' : 'channel') + '</h2>' +
+      '<div class="edcols"><div class="edcol">' +
+      '<label>Name' + i('edName', x.name || '', 'Name') + '</label><label>Channel link' + i('edUrl', x.url || '', 'https://www.youtube.com/@…') + '</label>' +
+      '<label>Note<textarea id="edNote" maxlength="1000" rows="7" placeholder="Note about this outreach (Enter saves, Shift+Enter = new line)">' + esc(x.note || '') + '</textarea></label>' +
+      '</div><div class="edcol">' + right + '</div></div>' +
+      '<div class="lbtns edfoot"><button class="primary" type="submit">Save</button><button type="button" class="ghost" data-edit-cancel="1">Cancel</button><span class="edsp"></span><button type="button" class="ghost danger" data-edit-del="' + x.id + '">Delete…</button></div></form>';
+  }
+  function openEdit(id) {
+    S = TSA.get();
+    var t = TSA.todoList().filter(function (x) { return x.id === id; })[0], kind = 'todo';
+    if (!t) { t = TSA.followList().filter(function (x) { return x.id === id; })[0]; kind = 'follow'; }
+    if (!t) return;
+    $('edBody').innerHTML = editForm(t, kind);
+    if (!$('edDlg').open) $('edDlg').showModal();
+    $('edName').focus();
   }
   function row(x, kind, muted, btns) {
-    if (editId === x.id) return '<div class="lrow editing"><div class="lmain">' + leadHtml(x) + editForm(x, kind) + '</div></div>';
     return '<div class="lrow"><div class="lmain">' + leadHtml(x) + '<div class="muted">' + muted + '</div>' + noteHtml(x) + '</div><div class="lbtns">' + chatBtns(x) + btns + pencil(x.id) + '</div></div>';
   }
   function paintLists() {
@@ -502,7 +519,6 @@
       var lab = { done: 'finished (3 follow-ups)', replied: 'replied', stopped: 'stopped' };
       html = fin.length ? fin.map(function (f) { return row(f, 'follow', lab[f.status] + ' · ' + f.count + ' follow-up' + (f.count === 1 ? '' : 's') + ' · outreach ' + dayLbl(f.started), ''); }).join('') : '<p class="muted">Nothing finished yet.</p>';
     }
-    if (editId && $('lstBody').contains(document.activeElement) && document.activeElement.closest && document.activeElement.closest('.editform') && lstTab === lastLstTab) return;   // never rebuild under a form being typed in
     if (html === lastLstHtml && lstTab === lastLstTab) return;   // nothing changed: do not rebuild (it would drop the typing focus)
     var ae = document.activeElement, keep = null;
     if (ae && $('lstBody').contains(ae) && ae.id) keep = { id: ae.id, v: ae.value, a: ae.selectionStart, b: ae.selectionEnd };
@@ -520,27 +536,46 @@
     $('tools').appendChild(b);
     var open = function (tab) { lstTab = tab || lstTab; lastLstHtml = ''; paintLists(); if (!$('lstDlg').open) $('lstDlg').showModal(); };
     b.addEventListener('click', function () { open(); });
-    $('fuOpen').addEventListener('click', function () { open('follow'); });
     $('lstClose').addEventListener('click', function () { $('lstDlg').close(); });
     $('lstTabs').addEventListener('click', function (e) { var t = e.target.closest('button'); if (t) { lstTab = t.dataset.t; paintLists(); } });
     $('lstDlg').addEventListener('click', function (e) {
       var t = e.target.closest('button'); if (!t) { if (e.target === $('lstDlg')) $('lstDlg').close(); return; }
       var d = t.dataset;
-      var stopEdit = function () { editId = ''; lastLstHtml = ''; if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); };
       if (d.links) { openLinks(d.links); return; }
-      if (d.edit) { editId = d.edit; lastLstHtml = ''; S = TSA.get(); paintLists(); var en = $('edName'); if (en) en.focus(); return; }
-      if (d.editCancel) { stopEdit(); S = TSA.get(); paintLists(); return; }
-      if (d.editDel) {
-        var fm = t.closest('form'), kind = fm.dataset.kind, sc = $('edScore') && $('edScore').checked;
-        if (!confirm('Delete this entry completely?' + (sc ? '\nIts +1 will also be removed from the outreach score.' : ''))) return;
-        if (kind === 'follow') TSA.removeFollow(d.editDel, sc); else TSA.removeTodo(d.editDel);
-        stopEdit(); S = TSA.get(); renderOutreach(Date.now()); renderFollow(); return;
-      }
+      if (d.edit) { openEdit(d.edit); return; }
       if (d.fuDone) TSA.followDone(d.fuDone); else if (d.fuRep) TSA.followStop(d.fuRep, 'replied'); else if (d.fuStop) TSA.followStop(d.fuStop, 'stopped');
       else if (d.tdDel) TSA.removeTodo(d.tdDel);
       else if (d.tdReach) { var it = TSA.todoList().filter(function (x) { return x.id === d.tdReach; })[0]; if (it) askWhen(it); return; }
       else return;
       S = TSA.get(); renderFollow();
+    });
+    /* edit popup */
+    var closeEd = function () { $('edDlg').close(); lastLstHtml = ''; S = TSA.get(); renderOutreach(Date.now()); renderFollow(); };
+    $('edDlg').addEventListener('click', function (e) {
+      if (e.target === $('edDlg')) return;   // (clicking outside is handled by the generic popup rule)
+      var t = e.target.closest('button'); if (!t) return;
+      var d = t.dataset;
+      if (d.editCancel) { $('edDlg').close(); return; }
+      if (d.editDel) {
+        var fm = t.closest('form'), kind = fm.dataset.kind, sc = $('edScore') && $('edScore').checked;
+        if (!confirm('Delete this entry completely?' + (sc ? '\nIts +1 will also be removed from the outreach score.' : ''))) return;
+        if (kind === 'follow') TSA.removeFollow(d.editDel, sc); else TSA.removeTodo(d.editDel);
+        closeEd();
+      }
+    });
+    $('edDlg').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && !e.shiftKey && e.target.id === 'edNote' && !e.isComposing) { e.preventDefault(); e.target.form.requestSubmit(); }
+    });
+    $('edDlg').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var fm = e.target, v = { name: $('edName').value, url: $('edUrl').value, note: $('edNote').value }, ok;
+      if (fm.dataset.kind === 'follow') {
+        var dd = $('edDate').value.split('-'), st = dd.length === 3 ? new Date(+dd[0], +dd[1] - 1, +dd[2], 12).getTime() : 0;
+        v.started = st; v.count = $('edCount').value; v.status = $('edStatus').value;
+        ok = TSA.editFollow(fm.dataset.id, v);
+      } else ok = TSA.editTodo(fm.dataset.id, v);
+      if (!ok) { showNotice('Give it a name or a link.'); return; }
+      closeEd();
     });
     /* "Outreached ✓": ask when it happened (default now), then count it at that time */
   var whenItem = null;
@@ -563,18 +598,6 @@
     S = TSA.get(); renderOutreach(Date.now()); renderFollow();
   });
   $('lstDlg').addEventListener('submit', function (e) {
-      if (e.target.classList.contains('editform')) {
-        e.preventDefault();
-        var fm = e.target, v = { name: $('edName').value, url: $('edUrl').value, note: $('edNote').value }, ok;
-        if (fm.dataset.kind === 'follow') {
-          var dd = $('edDate').value.split('-'), st = dd.length === 3 ? new Date(+dd[0], +dd[1] - 1, +dd[2], 12).getTime() : 0;
-          v.started = st; v.count = $('edCount').value; v.status = $('edStatus').value;
-          ok = TSA.editFollow(fm.dataset.id, v);
-        } else ok = TSA.editTodo(fm.dataset.id, v);
-        if (!ok) { showNotice('Give it a name or a link.'); return; }
-        editId = ''; lastLstHtml = ''; if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-        S = TSA.get(); renderOutreach(Date.now()); renderFollow(); return;
-      }
       if (e.target.id !== 'todoForm') return; e.preventDefault();
       if (TSA.addTodo($('tdName').value, $('tdUrl').value, Date.now(), $('tdNote').value)) { $('tdName').value = ''; $('tdUrl').value = ''; $('tdNote').value = ''; S = TSA.get(); renderFollow(); }
     });
@@ -800,7 +823,11 @@
   })();
   setTimeout(function () { TSA.maybeAutoBackup(); S = TSA.get(); }, 2500);   // once a day, on the first open
   if (!TSA.storageOK()) showNotice('Your browser is blocking storage, so nothing will be saved. Try a normal (non-private) window.');
-  else if (boot.closedAct) showNotice('The page was closed, so ' + META[boot.closedAct.act].label + ' stopped at ' + clock(boot.closedAct.at) + '. The time since then counted as Paused.');
+  else if (boot.closedAct) {
+    var ca = boot.closedAct, tail = !ca.sleepFrom ? 'The time since then counted as Paused.'
+      : ca.sleepFrom <= ca.at + 60000 ? 'The time since then counted as Sleep.' : 'It counted as Paused until ' + clock(ca.sleepFrom) + ', then as Sleep.';
+    showNotice('The page was closed, so ' + META[ca.act].label + ' stopped at ' + clock(ca.at) + '. ' + tail);
+  } else if (boot.sleepGap) showNotice('The page was closed: ' + clock(boot.sleepGap.from) + ' to ' + clock(boot.sleepGap.to) + ' counted as Sleep.');
 })();
 </script>
 </body>

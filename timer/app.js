@@ -54,7 +54,7 @@
     return {
       version: 2,
       settings: {
-        autoRestart: false, theme: 'auto', volume: 0.5, beepMinutes: 10, shortPauseSec: 20, goals: {}, autoBackup: true, idleNudgeMin: 30,
+        autoRestart: false, theme: 'auto', volume: 0.5, beepMinutes: 10, shortPauseSec: 20, goals: {}, autoBackup: true, idleNudgeMin: 30, sleepAfter: 1200,
         beep: { paused: true, workflow: true, workout: true, eating: true }
       },
       timer: { mode: 'idle' },   // the work countdown: idle | running | paused
@@ -83,6 +83,7 @@
     r.settings.goals = g1;
     if (typeof r.settings.autoBackup !== 'boolean') r.settings.autoBackup = true;
     if (!(r.settings.idleNudgeMin >= 0 && r.settings.idleNudgeMin <= 600)) r.settings.idleNudgeMin = 30;
+    if (!(r.settings.sleepAfter === -1 || (r.settings.sleepAfter >= 0 && r.settings.sleepAfter < 1440))) r.settings.sleepAfter = 1200;   // minutes after midnight (20:00); -1 = off
     if (!(r.lastBackup > 0)) r.lastBackup = null;
     ['segments', 'sessions'].forEach(function (k) { if (!Array.isArray(r[k])) r[k] = defaults()[k]; });
     if (!r.outreach || typeof r.outreach !== 'object') r.outreach = { clicks: [], goal: 3, adj: {}, names: {}, notes: {}, todo: [], follow: [], seen: [] };
@@ -227,6 +228,20 @@
     return { rounds: rounds, auto: auto };
   }
 
+  /* Auto-sleep: when the page was closed (or the computer asleep) past the cutoff, the part of that gap after the cutoff
+     counts as Sleep instead of Paused. "Night" runs from the cutoff to 06:00, so a page closed at 02:00 is already asleep.
+     Returns when the Sleep starts, or null when nothing of the gap counts. */
+  var NIGHT_END = 360;
+  function sleepStartFor(from, to) {
+    var m = S.settings.sleepAfter; if (!(m >= 0)) return null;
+    var d = new Date(from), mins = d.getHours() * 60 + d.getMinutes();
+    var night = m > NIGHT_END ? (mins >= m || mins < NIGHT_END) : (mins >= m && mins < NIGHT_END);
+    var start = from;
+    if (!night) { var c = new Date(from); c.setHours(Math.floor(m / 60), m % 60, 0, 0); if (c.getTime() < from) c.setDate(c.getDate() + 1); start = c.getTime(); }
+    return to - start >= 60000 ? start : null;
+  }
+  function setSleepAfter(min) { S.settings.sleepAfter = min === -1 ? -1 : Math.max(0, Math.min(1439, Math.round(+min) || 0)); save(); }
+
   /* Call once when a page opens. */
   function boot(now, opts) {
     now = now || Date.now();
@@ -234,7 +249,7 @@
     opts = opts || {};
     if (!opts.keep || !S) S = normalize(readStore());
     ensureDay(now, false);
-    var closedAct = null;
+    var closedAct = null, sleepGap = null;
     if (S.activeSince == null) { S.activeSince = now; S.beepFrom = now; }
     if (S.beepFrom == null) S.beepFrom = now;
     if (S.lastSeen == null) S.lastSeen = now;
@@ -247,11 +262,21 @@
         if (S.active === 'work') pauseCountdown(stopAt);
         S.active = 'paused'; S.activeSince = stopAt;   // closed time counts as Paused
       }
+      if (S.active === 'paused') {
+        var ss = sleepStartFor(stopAt, now);
+        if (ss != null) {                              // ...except what comes after the cutoff: that was Sleep
+          closeSeg(ss);                                // Paused up to the cutoff (nothing if it already was night)
+          S.active = 'sleep'; S.activeSince = ss; closeSeg(now);
+          S.active = 'paused'; S.activeSince = now;
+          sleepGap = { from: ss, to: now };
+          if (closedAct) closedAct.sleepFrom = ss;
+        }
+      }
       S.beepFrom = now;
     }
     S.lastSeen = now;
     save();
-    return { closedAct: closedAct };
+    return { closedAct: closedAct, sleepGap: sleepGap };
   }
 
   /* ---------- actions ---------- */
@@ -1339,7 +1364,7 @@
     todayTotals: todayTotals, todayPoints: todayPoints, analyze: analyze,
     exportAll: exportAll, importText: importText,
     audio: audio, audioReady: audioReady, testSound: testSound, beep: beep, nudgeBeep: nudgeBeep, alarmStart: alarmStart, alarmStop: alarmStop,
-    setFavicon: setFavicon, setTitle: setTitle, picFor: picFor, linkChat: linkChat, gmailQuery: gmailQuery, gmailFor: gmailFor, gmailUrl: gmailUrl, gmailU: gmailU, setGmailQ: setGmailQ, setGmailU: setGmailU, linkMail: linkMail, addNoteLine: addNoteLine, entryIdByKeys: entryIdByKeys, addNoteByKeys: addNoteByKeys, addLinksByKeys: addLinksByKeys, pinLink: pinLink, editLink: editLink, linkIcon: linkIcon, linkKind: linkKind, KIND_EMOJI: KIND_EMOJI, unlinkChat: unlinkChat, chatsOf: chatsOf, chatsForClick: chatsForClick, editTodo: editTodo, editFollow: editFollow, removeFollow: removeFollow, outreachRemoveClick: outreachRemoveClick, setPics: setPics, startFlash: startFlash, quickBlink: quickBlink, engine: engine, initTheme: initTheme, mountDataTools: mountDataTools, mountCsvTools: mountCsvTools, csvExport: csvExport, maybeAutoBackup: maybeAutoBackup, setAutoBackup: setAutoBackup, setGoalSec: setGoalSec, GOALS: GOALS,
+    setFavicon: setFavicon, setTitle: setTitle, picFor: picFor, linkChat: linkChat, gmailQuery: gmailQuery, gmailFor: gmailFor, gmailUrl: gmailUrl, gmailU: gmailU, setGmailQ: setGmailQ, setGmailU: setGmailU, linkMail: linkMail, setSleepAfter: setSleepAfter, addNoteLine: addNoteLine, entryIdByKeys: entryIdByKeys, addNoteByKeys: addNoteByKeys, addLinksByKeys: addLinksByKeys, pinLink: pinLink, editLink: editLink, linkIcon: linkIcon, linkKind: linkKind, KIND_EMOJI: KIND_EMOJI, unlinkChat: unlinkChat, chatsOf: chatsOf, chatsForClick: chatsForClick, editTodo: editTodo, editFollow: editFollow, removeFollow: removeFollow, outreachRemoveClick: outreachRemoveClick, setPics: setPics, startFlash: startFlash, quickBlink: quickBlink, engine: engine, initTheme: initTheme, mountDataTools: mountDataTools, mountCsvTools: mountCsvTools, csvExport: csvExport, maybeAutoBackup: maybeAutoBackup, setAutoBackup: setAutoBackup, setGoalSec: setGoalSec, GOALS: GOALS,
     dailySummary: dailySummary, sendSummary: sendSummary,
     KEY: KEY, CHRONO_KEY: CHRONO_KEY
   };
