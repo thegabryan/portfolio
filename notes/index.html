@@ -146,6 +146,7 @@ details.menu .pop hr { border: 0; border-top: 1px solid var(--line); margin: 4px
   padding: 12px 14px 8px; margin-bottom: 12px;
 }
 .message.pinned { border-left: 4px solid var(--pin); }
+.message.done .body, .message.done .ytthumb { opacity: .42; filter: grayscale(1); }
 .ytwrap { display: flex; gap: 12px; align-items: flex-start; }
 .ytmain { flex: 1; min-width: 0; }
 .ytthumb { flex: none; display: block; margin-top: 4px; }
@@ -360,6 +361,7 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
     <h3>4. In the app</h3>
     <ul>
       <li><b>Tabs:</b> <i>All</i> mixes your notes and highlights by time (pinned notes stay on top), <i>Notes</i>, <i>Highlights</i> and <i>Trash</i>. The tab you were on is remembered.</li>
+      <li><b>☑ Done:</b> the ☑ button on a note (next to 📌) greys it out, handy for to-do notes. Click it again to bring it back. The note stays where it is and the grey state is kept in your backup.</li>
       <li><b>Popup editor:</b> a note that arrives from the URL opens centered in a popup, ready to edit. Press <kbd>Enter</kbd> to finish; <kbd>Shift</kbd>+<kbd>Enter</kbd> or <kbd>Ctrl</kbd>+<kbd>Enter</kbd> makes a new line.</li>
       <li><b>Tag row:</b> while editing, a row of your tags (pinned first, then most used) sits under the text: click one to add it. Typing <code>#ab</code> narrows the row to matching tags; <kbd>Tab</kbd> takes the first. <b>🏷 Tags</b> pins tags and renames or merges them (fixes a typo in every note, with Undo).</li>
       <li><b>Groups:</b> a group is a folder; a note in a group still shows in its normal tab. Pick it in the editor (or the box next to Add), add <code>&amp;group=Work</code> to the URL, drag a note's ⠿ onto a group, or use <b>☑ Select</b> to move many. 📌 Pinned groups stay in the bar at the top with their note counts. Manage them with <b>📁 Groups</b>.</li>
@@ -2708,6 +2710,7 @@ function normalize(raw) {
     created,
     pinned: !!raw.pinned
   };
+  if (raw.done) n.done = true;   // greyed out (a finished to-do)
   if (typeof raw.group === 'string' && raw.group.trim()) n.group = raw.group.trim().slice(0, 40);
   const upd = Number(raw.updated);
   if (Number.isFinite(upd) && upd > 0) n.updated = upd;
@@ -3316,6 +3319,12 @@ function emptyTrash() {
   render();
 }
 
+function toggleDone(n) {
+  if (n.done) delete n.done; else n.done = true;   // stays in place; only the look changes
+  persist();
+  render();
+}
+
 function togglePin(n) {
   n.pinned = !n.pinned;
   const i = notes.indexOf(n);
@@ -3463,7 +3472,7 @@ function metaText(n) {
 }
 
 function makeCard(n, opts) {
-  const card = el('article', 'message' + (n.pinned && view !== 'trash' ? ' pinned' : ''));
+  const card = el('article', 'message' + (n.pinned && view !== 'trash' ? ' pinned' : '') + (n.done && view !== 'trash' ? ' done' : ''));
   card.dataset.id = n.id;
   if (selected.has(n.id)) card.classList.add('selected');
   const meta = el('div', 'meta');
@@ -3504,6 +3513,7 @@ function makeCard(n, opts) {
     const canMove = sortMode === 'manual';
     actions.append(
       iconBtn(ICON.pin, n.pinned ? 'Unpin' : 'Pin to top', () => togglePin(n), { cls: n.pinned ? 'on' : '' }),
+      iconBtn('☑', n.done ? 'Not done: back to normal' : 'Done: grey it out', () => toggleDone(n), { cls: n.done ? 'on' : '' }),
       iconBtn('↑', canMove ? 'Move up' : 'Moving needs "Manual order" and no active search', () => moveNote(n, -1), { cls: 'arrow', disabled: !opts.canUp }),
       iconBtn('↓', canMove ? 'Move down' : 'Moving needs "Manual order" and no active search', () => moveNote(n, 1), { cls: 'arrow', disabled: !opts.canDown }),
       iconBtn('✎', 'Edit', () => enterEdit(card, n), { cls: 'edit-icon' }),
@@ -3825,7 +3835,7 @@ function writeDaily(patch) {
 }
 function dataSignature(data) {
   const str = JSON.stringify([
-    (data.notes || []).map(n => [n.id, n.text, n.created, !!n.pinned]),
+    (data.notes || []).map(n => [n.id, n.text, n.created, !!n.pinned, !!n.done]),
     (data.trash || []).map(n => [n.id, n.text]),
     data.pages || null
   ]);
