@@ -441,3 +441,9 @@ dialog.edpop .edsp { flex: 1; }
 .askdlg .askok { color: #17a673; font-weight: 600; }
 .askdlg .asklate { color: #d9534f; font-weight: 600; }
 .askstats { margin: 0 0 10px; }
+
+/* Links popup: every row has its "Open" button first, at the same horizontal spot */
+.linksdlg .linkrow > .lbtns { flex: none; width: 250px; flex-wrap: nowrap; align-items: center; }
+.linksdlg .linkrow > .lbtns > a.chatlink:first-child { min-width: 118px; text-align: center; box-sizing: border-box; }
+.linksdlg .linkrow.lkedit > .lbtns { width: auto; }
+@media (max-width: 640px) { .linksdlg .linkrow > .lbtns { width: 100%; } }
