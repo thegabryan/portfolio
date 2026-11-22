@@ -963,6 +963,15 @@
     try { var raw = JSON.parse(root.localStorage.getItem(KEY) || 'null'); if (!raw) return null; S = normalize(raw); return askToday(Date.now()); }
     catch (e) { return null; } finally { S = keep; }
   }
+  /* What I have actually been doing lately, for the AI prompt: last 7 days of Work/Workflow time, projects, and recent notes. */
+  function askContext(now) {
+    now = now || Date.now();
+    var since = addDays(dayKey(now), -6), t0 = startOfDay(now) - 6 * 864e5;
+    var projects = projectTime(since, now).filter(function (o) { return o.sec >= 60; }).slice(0, 6).map(function (o) { return { project: o.project || '(no project)', sec: Math.round(o.sec) }; });
+    var notes = allNotes(now).filter(function (n) { return (n.act === 'work' || n.act === 'workflow') && n.start >= t0; }).slice(0, 12).map(function (n) { return { act: n.act, start: n.start, project: n.project, note: n.note.slice(0, 240) }; });
+    return { projects: projects, notes: notes, points: S.sessions.filter(function (x) { return x.start >= t0; }).length, outreach: outreachToday(now) };
+  }
+  function askLogFor(pid) { return S.ask.log.filter(function (l) { return l.pid === pid; }).sort(function (a, b) { return a.ms - b.ms; }); }
   function askSwap(now) {
     now = now || Date.now();
     var cur = askPick(now), list = S.ask.people.slice().sort(function (a, b) { return askLastSent(a.id) - askLastSent(b.id) || a.added - b.added; });
@@ -1442,7 +1451,7 @@
     switchTo: switchTo, setNote: setNote, setNoteAt: setNoteAt, noteTarget: noteTarget, allNotes: allNotes, heartbeat: heartbeat, tick: tick,
     outreachToday: outreachToday, outreachAdd: outreachAdd, outreachUndo: outreachUndo, setOutreachDay: setOutreachDay, setOutreachName: setOutreachName, setOutreachNote: setOutreachNote, todoList: todoList, addTodo: addTodo, removeTodo: removeTodo, markReached: markReached, startFollow: startFollow, followList: followList, followDue: followDue, followDone: followDone, followStop: followStop, leadFromScript: leadFromScript, FOLLOW_MAX: FOLLOW_MAX, outreachLog: outreachLog, projectList: projectList, renameProject: renameProject, projectTime: projectTime, actByHour: actByHour, setGoal: setGoal,
     todayTotals: todayTotals, todayPoints: todayPoints, analyze: analyze,
-    askToday: askToday, askPeek: askPeek, askSwap: askSwap, askSetToday: askSetToday, askSave: askSave, askRemove: askRemove, askMe: askMe, askSend: askSend, askReply: askReply, askUnreply: askUnreply, askNoFollow: askNoFollow, askDelLog: askDelLog, askLog: askLog, askStats: askStats, askPeople: function () { return S.ask.people.slice(); }, askMeGet: function () { return { who: S.ask.me.who, doing: S.ask.me.doing }; },
+    askToday: askToday, askContext: askContext, askLogFor: askLogFor, askPeek: askPeek, askSwap: askSwap, askSetToday: askSetToday, askSave: askSave, askRemove: askRemove, askMe: askMe, askSend: askSend, askReply: askReply, askUnreply: askUnreply, askNoFollow: askNoFollow, askDelLog: askDelLog, askLog: askLog, askStats: askStats, askPeople: function () { return S.ask.people.slice(); }, askMeGet: function () { return { who: S.ask.me.who, doing: S.ask.me.doing }; },
     exportAll: exportAll, importText: importText,
     audio: audio, audioReady: audioReady, testSound: testSound, beep: beep, nudgeBeep: nudgeBeep, alarmStart: alarmStart, alarmStop: alarmStop,
     setFavicon: setFavicon, setTitle: setTitle, picFor: picFor, linkChat: linkChat, gmailQuery: gmailQuery, gmailFor: gmailFor, gmailUrl: gmailUrl, gmailU: gmailU, setGmailQ: setGmailQ, setGmailU: setGmailU, linkMail: linkMail, setSleepAfter: setSleepAfter, addNoteLine: addNoteLine, entryIdByKeys: entryIdByKeys, addNoteByKeys: addNoteByKeys, addLinksByKeys: addLinksByKeys, pinLink: pinLink, editLink: editLink, linkIcon: linkIcon, linkKind: linkKind, KIND_EMOJI: KIND_EMOJI, unlinkChat: unlinkChat, chatsOf: chatsOf, chatsForClick: chatsForClick, editTodo: editTodo, editFollow: editFollow, removeFollow: removeFollow, outreachRemoveClick: outreachRemoveClick, setPics: setPics, startFlash: startFlash, quickBlink: quickBlink, engine: engine, initTheme: initTheme, mountDataTools: mountDataTools, mountCsvTools: mountCsvTools, csvExport: csvExport, maybeAutoBackup: maybeAutoBackup, setAutoBackup: setAutoBackup, setGoalSec: setGoalSec, GOALS: GOALS,

@@ -814,6 +814,68 @@
     var when = function (ms) { var d = new Date(ms); return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ' ' + clock(ms); };
     var changed = function () { window.dispatchEvent(new Event('tsa-ask-changed')); };
     var linkOf = function (u) { u = String(u || '').trim(); if (!u) return ''; return /^https?:\/\//i.test(u) ? u : (/^[\w-]+(\.[\w-]+)+/.test(u) ? 'https://' + u : ''); };
+
+    function copyText(text, done) {
+      var fb = function () { var ta = document.createElement('textarea'); ta.value = text; ta.style.cssText = 'position:fixed;opacity:0'; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (e) {} ta.remove(); done(); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fb); else fb();
+    }
+    /* The prompt to paste into an AI chat: my data + instructions to interview me, research, recommend, draft. */
+    function aiPrompt(p, draft) {
+      var me = TSA.askMeGet(), ctx = TSA.askContext(), log = TSA.askLogFor(p.id), now = Date.now(), L = [];
+      var day = function (ms) { return new Date(ms).toISOString().slice(0, 10); };
+      var h = function (sec) { return (sec / 3600).toFixed(1) + ' h'; };
+      var val = function (v, empty) { return String(v || '').trim() || empty; };
+      L.push('# ROLE');
+      L.push('You are my outreach coach and research assistant. I want to send one short, well-aimed message to a person I admire, in order to get their insight on something that matters in my life. Your job is to help me get CLEAR on what I actually want from them, then help me write the message they are most likely to answer.');
+      L.push('');
+      L.push('# HOW TO WORK (follow in this order)');
+      L.push('1. INTERVIEW ME FIRST. Do not write any message yet. Ask me questions ONE AT A TIME (maximum 8), wait for my answer before the next one, and make each question sharper than the last. Cover: the real goal behind this contact (what decision, problem or path I need light on); what I have already tried; what a great outcome would look like in 3 months; what I can offer or show them; what could make them say no; and anything above that I left blank or vague. If an answer is vague, ask a follow-up instead of moving on.');
+      L.push('2. GET MATERIAL ABOUT THEM. Search the internet for this person (bio, recent posts, interviews, talks, podcasts, newsletter, what they care about right now, how they like to be contacted). Show me a short summary of what you found with the links, and say how sure you are. If you cannot reach something, ask me to paste it: a transcript of one or two of their videos or talks, a recent post, an interview, their bio or "about" page. If they are a YouTuber, ask for the transcripts of 1-2 relevant videos and the exact video titles.');
+      L.push('3. RECOMMEND THE METHOD. Tell me the best way to reach them (email, DM, comment under a specific video or post, a warm introduction, or something else), the best time and format, the ideal length, subject line options, and what to avoid. Give a reason for each choice.');
+      L.push('4. CHALLENGE MY ASK. Rate my ask from 1 to 10 for clarity, specificity, ease of answering and relevance to them. Tell me plainly if it is too vague, too big, or too self-centered, and rewrite it so they can answer in 2-3 lines. One question beats three.');
+      L.push('5. DRAFT. Write 3 versions (short / warm and personal / most specific), each ready to send with a subject line if it is an email. Then write a follow-up for 5-7 days later, and a short plan for what I do if they reply, if they say no, and if they never answer.');
+      L.push('6. Finish by listing 3 improvements I could make to this whole outreach habit.');
+      L.push('');
+      L.push('# PRINCIPLES TO APPLY');
+      L.push('- Young-person advantage: successful, busy people are often glad to help someone who is clear about who they are, what they are doing, why THEIR specific insight matters, and what exactly they want to know. Use it honestly. Never fake credentials or flatter emptily.');
+      L.push('- Be short, specific and easy to answer. Show I did my homework (reference something real of theirs). Make one clear ask. Do not ask for a job, money or a call on first contact unless I say so.');
+      L.push('- Be honest with me: if something in my plan is weak, say it kindly and clearly.');
+      L.push('- Write in my voice: simple, direct, respectful, no corporate phrases.');
+      L.push('');
+      L.push('# ABOUT ME');
+      L.push('- Who I am: ' + val(me.who, '(not filled in yet: ask me)'));
+      L.push('- What I am doing: ' + val(me.doing, '(not filled in yet: ask me)'));
+      if (ctx.projects.length || ctx.notes.length || ctx.points) {
+        L.push('- What I actually worked on in the last 7 days (from my timer):');
+        L.push('  - Work rounds completed: ' + ctx.points + ' · outreaches counted today: ' + ctx.outreach);
+        ctx.projects.forEach(function (o) { L.push('  - Project "' + o.project + '": ' + h(o.sec)); });
+        ctx.notes.forEach(function (n) { L.push('  - ' + day(n.start) + (n.project ? ' [' + n.project + ']' : '') + ': ' + n.note.replace(/\s*\n\s*/g, ' / ')); });
+      }
+      L.push('');
+      L.push('# THE PERSON');
+      L.push('- Name: ' + p.name);
+      L.push('- Link / contact: ' + val(p.link, '(none saved: search for it)'));
+      L.push('- Why I admire them: ' + val(p.why, '(not filled in yet: ask me)'));
+      L.push('- What they could advise me on: ' + val(p.topic, '(not filled in yet: ask me)'));
+      L.push('');
+      L.push('# HISTORY WITH THIS PERSON');
+      if (log.length) {
+        log.forEach(function (l) {
+          L.push('- ' + day(l.ms) + ' (' + Math.floor((now - l.ms) / 864e5) + ' days ago): ' + (l.replied ? 'they replied on ' + day(l.replied) + (l.learned ? ' · what I learned: ' + l.learned.replace(/\s*\n\s*/g, ' / ') : '') : 'no reply logged'));
+          if (l.msg) L.push('  Message I sent: """' + l.msg.replace(/\n{3,}/g, '\n\n') + '"""');
+        });
+      } else L.push('- I have never messaged them before.');
+      if (draft && (draft.why || draft.ask)) {
+        L.push('');
+        L.push('# MY CURRENT DRAFT IDEAS (rough, challenge them)');
+        if (draft.why) L.push('- Why their insight matters: ' + draft.why);
+        if (draft.ask) L.push('- My specific ask: ' + draft.ask);
+      }
+      L.push('');
+      L.push('# START NOW');
+      L.push('Begin with step 1: briefly say what you will do, then ask me your FIRST question only.');
+      return L.join('\n');
+    }
     function build(p) {
       var me = TSA.askMeGet();
       var who = me.who.trim() || '[who I am]', doing = me.doing.trim() || '[what I am working on]';
@@ -844,7 +906,7 @@
         '<label>Why their insight matters<input type="text" id="askWhy" maxlength="400" value="' + esc(F.why) + '" placeholder="' + esc(p.topic ? 'Your experience with ' + p.topic + ' ...' : 'Your insight is relevant because ...') + '"></label>' +
         '<label>My specific ask<input type="text" id="askAsk" maxlength="400" value="' + esc(F.ask) + '" placeholder="One clear question they can answer in a few lines"></label>' +
         '<label>Message (edit freely)<textarea id="askMsg" rows="8" maxlength="3000">' + esc(F.msg) + '</textarea></label></div>' +
-        '<div class="drow" style="justify-content:flex-start;margin-top:8px"><button type="button" class="ghost" data-act="copy">📋 Copy message</button><button type="button" class="primary" data-act="sent">✅ I sent it</button><span class="muted" id="askMsgNote"></span></div>';
+        '<div class="drow" style="justify-content:flex-start;margin-top:8px"><button type="button" class="ghost" data-act="copy">📋 Copy message</button><button type="button" class="ghost" data-act="aiprompt" title="Copies a prompt to paste into an AI chat: it interviews you, researches them, recommends the method and drafts the message">🧠 Copy AI prompt</button><button type="button" class="primary" data-act="sent">✅ I sent it</button><span class="muted" id="askMsgNote"></span></div>';
     }
     function paintPeople() {
       var people = TSA.askPeople(), ed = people.filter(function (x) { return x.id === editing; })[0] || { name: '', link: '', why: '', topic: '' };
@@ -859,7 +921,7 @@
           var lk = linkOf(x.link);
           return '<div class="lrow"><div class="lmain"><b>' + esc(x.name) + '</b>' + (lk ? ' <a href="' + esc(lk) + '" target="_blank" rel="noopener">link ↗</a>' : '') +
             '<div class="muted">' + (x.topic ? esc(x.topic) + ' · ' : '') + (last[x.id] ? 'last asked ' + when(last[x.id]) : 'never asked') + '</div>' + (x.why ? '<div class="muted">' + esc(x.why) + '</div>' : '') + '</div>' +
-            '<div class="lbtns"><button type="button" class="ghost" data-today="' + x.id + '">Ask today</button><button type="button" class="ghost" data-pedit="' + x.id + '">✏️ Edit</button><button type="button" class="ghost" data-pdel="' + x.id + '">Delete</button></div></div>';
+            '<div class="lbtns"><button type="button" class="ghost" data-prep="' + x.id + '" title="Copy a prompt for an AI that helps you prepare this contact">🧠 Prep</button><button type="button" class="ghost" data-today="' + x.id + '">Ask today</button><button type="button" class="ghost" data-pedit="' + x.id + '">✏️ Edit</button><button type="button" class="ghost" data-pdel="' + x.id + '">Delete</button></div></div>';
         }).join('') : '<p class="muted">Nobody yet. Add people whose opinion you respect and who could shape your path.</p>');
     }
     function paintLog() {
@@ -924,6 +986,8 @@
         var st = TSA.askToday().stats; F = { pid: '', why: '', ask: '', msg: '', manual: false, flash: '🎉 Logged: ' + p2.name + '. Streak ' + st.streak + ' day' + (st.streak === 1 ? '' : 's') + ', ' + st.week + ' this week.' };
         paint(); changed(); return;
       }
+      if (d.act === 'aiprompt') { var pp = pickPerson(); if (!pp) return; live(); copyText(aiPrompt(pp, { why: F.why, ask: F.ask }), function () { $('askMsgNote').textContent = 'AI prompt copied ✓ paste it into your AI chat'; }); return; }
+      if (d.prep) { var pr = TSA.askPeople().filter(function (x) { return x.id === d.prep; })[0]; if (pr) copyText(aiPrompt(pr, null), function () { t.textContent = 'Copied ✓'; setTimeout(function () { t.textContent = '🧠 Prep'; }, 2000); }); return; }
       if (d.act === 'pcancel') { editing = ''; paintPeople(); return; }
       if (d.today) { TSA.askSetToday(d.today); F.pid = ''; tab = 'today'; paint(); changed(); return; }
       if (d.pedit) { editing = d.pedit; paintPeople(); $('apName').focus(); return; }
