@@ -447,3 +447,38 @@ dialog.edpop .edsp { flex: 1; }
 .linksdlg .linkrow > .lbtns > a.chatlink:first-child { min-width: 118px; text-align: center; box-sizing: border-box; }
 .linksdlg .linkrow.lkedit > .lbtns { width: auto; }
 @media (max-width: 640px) { .linksdlg .linkrow > .lbtns { width: 100%; } }
+
+/* ----- Outreach pipeline ----- */
+.stg { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 11px; background: var(--line); color: var(--text); }
+.stg.stgB { background: rgba(37,99,235,.18); } .stg.stgC { background: rgba(245,158,11,.22); } .stg.stgD { background: rgba(23,166,115,.25); }
+.edpop .edgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.edpop .edgrid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.todoform select { font: inherit; font-size: 14px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--text); }
+
+/* ----- Outreach page ----- */
+.tblwrap { overflow-x: auto; margin: 4px -4px 0; padding: 0 4px; }
+.otbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+.otbl th, .otbl td { padding: 7px 9px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+.otbl th { color: var(--muted); font-weight: 600; font-size: 12px; position: sticky; top: 0; background: var(--card); }
+.otbl tr.tot td { font-weight: 700; border-top: 2px solid var(--line); }
+.otbl.track td.nm { font-weight: 600; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+.otbl.track td.nt { max-width: 260px; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
+.otbl.track td.dc { color: var(--muted); font-variant-numeric: tabular-nums; }
+.otbl th.sortable { cursor: pointer; user-select: none; } .otbl th.sortable.on { color: var(--text); }
+.otbl tr.ni td { opacity: .45; } .otbl tr.won td { background: rgba(23,166,115,.14); } .otbl tr.dueRow td { background: rgba(245,158,11,.16); }
+.otools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.otools input[type=search], .otools select { font: inherit; font-size: 13px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--text); }
+.fun { display: grid; gap: 6px; margin-bottom: 14px; }
+.funrow { display: grid; grid-template-columns: 80px 1fr 40px 54px; gap: 10px; align-items: center; font-size: 14px; }
+.funbar { background: var(--cell); border-radius: 6px; height: 18px; overflow: hidden; } .funbar i { display: block; height: 100%; border-radius: 6px; background: var(--accent); }
+.funbar i.fb1 { opacity: .8; } .funbar i.fb2 { opacity: .6; } .funbar i.fb3 { background: #17a673; }
+.chart .ob0 { fill: #2563eb; } .chart .ob1 { fill: #7aa7ff; } .chart .ob2 { fill: #f59e0b; } .chart .ob3 { fill: #17a673; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; margin-top: 6px; align-items: center; }
+.lg { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; }
+.lg.ob0 { background: #2563eb; } .lg.ob1 { background: #7aa7ff; } .lg.ob2 { background: #f59e0b; } .lg.ob3 { background: #17a673; }
+.twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; } .twocol .sub { margin: 0 0 4px; font-size: 13px; color: var(--muted); font-weight: 600; }
+@media (max-width: 760px) { .twocol { grid-template-columns: 1fr; } }
+#dueCard .lrow, #due .lrow { display: flex; gap: 12px; justify-content: space-between; flex-wrap: wrap; padding: 10px 0; border-top: 1px solid var(--line); }
+#due .lrow:first-child { border-top: 0; } #due .lbtns { display: flex; gap: 6px; flex-wrap: wrap; }
+#due .lbtns a.chatlink, #due .lbtns button { padding: 5px 10px; font-size: 13px; }
+.duenow { color: #d97706; }

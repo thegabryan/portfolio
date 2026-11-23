@@ -4,6 +4,7 @@
    The outreach counter is a list of click times. Everything is saved in this browser's localStorage. */
 (function (root) {
   'use strict';
+  var DEFAULT_SOURCES = ['Actively Hiring', 'YouTube', 'X', 'Instagram', 'Discord', 'YT Jobs', 'Other'];   // the lead sources of the outreach tracker
 
   var KEY = 'tsa2_data', OLD_KEY = 'tsa1_data', CHRONO_KEY = 'tsa2_chrono', LEADER_KEY = 'tsa2_leader';
   var RESUME_MS = 30000;    // a page that comes back within 30 s keeps the running timer
@@ -66,7 +67,7 @@
       liveProject: '', lastProject: '',   // project tag of the running Work/Workflow run; the last one used
       segments: [],              // finished stretches: { act, start, end, [id, note] }
       sessions: [],              // finished work rounds (= points)
-      outreach: { clicks: [], goal: 3, adj: {}, names: {}, notes: {}, todo: [], follow: [], seen: [], pics: {} },   // click times of the outreach counter + hand corrections per day
+      outreach: { clicks: [], goal: 3, adj: {}, names: {}, notes: {}, todo: [], follow: [], seen: [], pics: {}, sources: DEFAULT_SOURCES.slice() },   // click times of the outreach counter + hand corrections per day
       days: {},                  // 'YYYY-MM-DD' -> { firstOpen }
       ask: { people: [], log: [], me: { who: '', doing: '' }, today: { day: '', pid: '' } }   // Daily ask: people you admire, messages sent, your intro, today's pick
     };
@@ -99,6 +100,9 @@
     if (!oc.notes || typeof oc.notes !== 'object' || Array.isArray(oc.notes)) oc.notes = {};     // a note for each outreach, by click time
     if (!oc.pics || typeof oc.pics !== 'object' || Array.isArray(oc.pics)) oc.pics = {};          // channel profile picture links, by channel key
     ['todo', 'follow', 'seen'].forEach(function (k) { if (!Array.isArray(oc[k])) oc[k] = []; });   // 'To reach out' list, follow-up reminders, ids already applied from the userscript
+    if (!Array.isArray(oc.sources) || !oc.sources.length) oc.sources = DEFAULT_SOURCES.slice();   // lead sources (Actively Hiring, YouTube, X ...)
+    oc.todo.forEach(function (t) { if (t.source === undefined) t.source = guessSource(t.url); if (t.email === undefined) t.email = ''; });
+    oc.follow.forEach(pipeNorm);
     if (!r.days || typeof r.days !== 'object') r.days = {};
     var ak = r.ask = (r.ask && typeof r.ask === 'object') ? r.ask : {};
     if (!Array.isArray(ak.people)) ak.people = [];
@@ -535,18 +539,117 @@
   }
 
   /* ---------- 'To reach out' list and follow-up reminders ---------- */
+
+  /* ---------- outreach pipeline: stages A (initiated) > B (engaged) > C (pitched) > D (closed) ---------- */
+  var STAGE_MAX = { A: 3, B: 5, C: 5 };                  // follow-ups after each stage starts
+  var STAGE_NAME = { A: 'Initiated', B: 'Engaged', C: 'Pitched', D: 'Closed' };
+  function guessSource(url) {
+    var h = ''; try { h = new URL(/^https?:\/\//i.test(url) ? url : 'https://' + url).hostname.replace(/^www\./, '').toLowerCase(); } catch (e) { return ''; }
+    if (/(^|\.)(youtube\.com|youtu\.be)$/.test(h)) return 'YouTube';
+    if (/(^|\.)(x\.com|twitter\.com)$/.test(h)) return 'X';
+    if (/(^|\.)instagram\.com$/.test(h)) return 'Instagram';
+    if (/(^|\.)(discord\.com|discord\.gg)$/.test(h)) return 'Discord';
+    if (/(^|\.)ytjobs\.co$/.test(h)) return 'YT Jobs';
+    return '';
+  }
+  function stageLog(f, st) { return st === 'A' ? f.log : st === 'B' ? f.logB : f.logC; }
+  function stageStart(f, st) { return st === 'A' ? f.started : (f.at && f.at[st]) || 0; }
+  /* next follow-up date: 1 day after the stage started (or after the last follow-up: 2 days), from midnight */
+  function pipeDue(f) {
+    var st = f.stage, L = stageLog(f, st), base = L.length ? L[L.length - 1] : stageStart(f, st) || f.started;
+    var p = dayKey(base).split('-'), d = new Date(+p[0], +p[1] - 1, +p[2] + (L.length ? 2 : 1));
+    return d.getTime();
+  }
+  /* keeps status / due / counters consistent with the stage and follow-up logs */
+  function pipeFix(f) {
+    f.count = f.log.length;
+    if (f.stage === 'D') { if (f.status === 'active') f.status = 'done'; return; }
+    var max = STAGE_MAX[f.stage], n = stageLog(f, f.stage).length;
+    if (f.status === 'active' && n >= max) f.status = 'done';
+    else if (f.status === 'done' && n < max && !f.closedAuto) f.status = 'active';
+    if (f.status === 'active') f.due = pipeDue(f);
+  }
+  function pipeNorm(f) {
+    if (!f.stage) {                                        // old entry: an answered one counts as Engaged
+      f.stage = f.status === 'replied' ? 'B' : 'A';
+      f.at = f.status === 'replied' ? { B: (f.log && f.log.length ? f.log[f.log.length - 1] : f.started) } : {};
+      if (f.status === 'replied') { f.status = 'done'; f.closedAuto = true; }   // old 'replied' entries: Engaged, reminders already finished
+    }
+    if (!f.at || typeof f.at !== 'object') f.at = {};
+    if (!Array.isArray(f.log)) f.log = [];
+    if (!Array.isArray(f.logB)) f.logB = [];
+    if (!Array.isArray(f.logC)) f.logC = [];
+    if (f.source === undefined) f.source = guessSource(f.url);
+    if (f.email === undefined) f.email = '';
+    f.ni = !!f.ni;
+    pipeFix(f);
+  }
+  function pipeFind(id) { return S.outreach.follow.filter(function (x) { return x.id === id; })[0] || null; }
+  /* "Engaged ✓", "Pitched ✓", "Closed ✓": moves a lead one stage forward, stamped now (or a given time) */
+  function pipeAdvance(id, now) {
+    var f = pipeFind(id); if (!f || f.stage === 'D') return false;
+    var next = { A: 'B', B: 'C', C: 'D' }[f.stage]; now = now || Date.now();
+    f.stage = next; f.at[next] = now;
+    if (next === 'C' && !f.at.B) f.at.B = now;
+    if (next === 'D') { if (!f.at.C) f.at.C = now; if (!f.at.B) f.at.B = now; f.status = 'done'; }
+    else { if (f.status !== 'stopped') f.status = 'active'; }
+    pipeFix(f); save(); return true;
+  }
+  function pipeNotInterested(id, on) {
+    var f = pipeFind(id); if (!f) return false;
+    f.ni = !!on;
+    if (on) { if (f.status === 'active') f.status = 'stopped'; }
+    else if (f.status === 'stopped') { f.status = 'active'; }
+    pipeFix(f); save(); return true;
+  }
+  function pipeSources() { return S.outreach.sources.slice(); }
+  function pipeSetSources(list) {
+    var out = []; (list || []).forEach(function (x) { x = String(x || '').trim().slice(0, 40); if (x && out.indexOf(x) < 0) out.push(x); });
+    if (!out.length) return false;
+    S.outreach.sources = out; save(); return true;
+  }
+  /* Everything the Outreach page and the Dashboard card show, like the spreadsheet's tracker. */
+  function pipeStats(now) {
+    now = now || Date.now();
+    var srcs = S.outreach.sources.slice(), other = srcs.indexOf('Other') >= 0 ? 'Other' : srcs[srcs.length - 1];
+    var srcOf = function (x) { var v = (x.source || '').trim(); return srcs.indexOf(v) >= 0 ? v : (v && srcs.push(v) ? v : other); };
+    var rows = {}, mk = function (n) { return rows[n] || (rows[n] = { source: n, init: 0, engaged: 0, pitched: 0, closed: 0, ni: 0 }); };
+    var leads = [], nowSt = { pre: 0, A: 0, B: 0, C: 0, D: 0 }, perWeek = {}, gaps = { AB: [], BC: [], CD: [] }, hour = [], dow = [];
+    var i; for (i = 0; i < 24; i++) hour.push({ n: 0, e: 0 }); for (i = 0; i < 7; i++) dow.push({ n: 0, e: 0 });
+    var wk = function (ms) { var k = dayKey(ms); return addDays(k, -keyToDate(k).getDay()); };
+    var bump = function (ms, f) { var w = wk(ms); (perWeek[w] || (perWeek[w] = { init: 0, engaged: 0, pitched: 0, closed: 0 }))[f]++; };
+    S.outreach.todo.forEach(function (t) { nowSt.pre++; srcOf(t); leads.push({ id: t.id, kind: 'todo', stage: 'Pre', name: t.name, url: t.url, email: t.email || '', source: srcOf(t), note: t.note || '', added: t.added, ni: false, due: false }); });
+    S.outreach.follow.forEach(function (f) {
+      var src = srcOf(f), r = mk(src), st = f.stage;
+      r.init++; nowSt[st]++; bump(f.started, 'init');
+      var eng = st !== 'A', pit = st === 'C' || st === 'D', clo = st === 'D';
+      if (eng) { r.engaged++; if (f.at.B) bump(f.at.B, 'engaged'); gaps.AB.push((f.at.B - f.started) / 864e5); }
+      if (pit) { r.pitched++; if (f.at.C) bump(f.at.C, 'pitched'); if (f.at.B) gaps.BC.push((f.at.C - f.at.B) / 864e5); }
+      if (clo) { r.closed++; if (f.at.D) bump(f.at.D, 'closed'); if (f.at.C) gaps.CD.push((f.at.D - f.at.C) / 864e5); }
+      if (f.ni) r.ni++;
+      var h = new Date(f.started); hour[h.getHours()].n++; dow[h.getDay()].n++; if (eng) { hour[h.getHours()].e++; dow[h.getDay()].e++; }
+      leads.push({ id: f.id, kind: 'follow', stage: st, name: f.name, url: f.url, email: f.email || '', source: src, note: f.note || '', started: f.started, at: f.at, logA: f.log.slice(), logB: f.logB.slice(), logC: f.logC.slice(), ni: f.ni, status: f.status, due: f.status === 'active' && f.due <= now, nextDue: f.status === 'active' ? f.due : 0 });
+    });
+    var list = srcs.map(function (n) { return mk(n); });
+    var pct = function (a, b) { return b ? a / b : null; };
+    var total = { source: 'Total', init: 0, engaged: 0, pitched: 0, closed: 0, ni: 0 };
+    list.forEach(function (r) { ['init', 'engaged', 'pitched', 'closed', 'ni'].forEach(function (k) { total[k] += r[k]; }); });
+    list.concat([total]).forEach(function (r) { r.ab = pct(r.engaged, r.init); r.bc = pct(r.pitched, r.engaged); r.cd = pct(r.closed, r.pitched); r.close = pct(r.closed, r.init); });
+    var avg = function (a) { return a.length ? a.reduce(function (x, y) { return x + y; }, 0) / a.length : null; };
+    return { sources: list, total: total, now: nowSt, leads: leads, perWeek: perWeek, avgDays: { AB: avg(gaps.AB), BC: avg(gaps.BC), CD: avg(gaps.CD) }, hour: hour, dow: dow, due: leads.filter(function (l) { return l.due; }).length };
+  }
   var FOLLOW_DAYS = 2, FOLLOW_MAX = 3;
   var leadKey = function (name, url) { return String(url || name || '').toLowerCase().replace(/[?#].*$/, '').replace(/\/+$/, '').trim(); };
   var dayStartOf = function (k) { var p = k.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]).getTime(); };
   var due2 = function (from) { return dayStartOf(addDays(dayKey(from), FOLLOW_DAYS)); };      // two calendar days later, from midnight
   var cleanNote = function (t) { return String(t || '').replace(/\r\n?/g, '\n').trim().slice(0, NOTE_MAX); };
   function todoList() { return S.outreach.todo.slice(); }
-  function addTodo(name, url, now, note) {
+  function addTodo(name, url, now, note, extra) {
     name = String(name || '').replace(/\s+/g, ' ').trim().slice(0, 120); url = String(url || '').trim().slice(0, 300);
     if (!name && !url) return false;
     var key = leadKey(name, url);
     if (S.outreach.todo.some(function (t) { return leadKey(t.name, t.url) === key; })) return false;
-    S.outreach.todo.push({ id: uid(), name: name, url: url, note: cleanNote(note), chats: [], added: now || Date.now() });
+    S.outreach.todo.push({ id: uid(), name: name, url: url, note: cleanNote(note), chats: [], added: now || Date.now(), source: String((extra && extra.source) || guessSource(url) || '').trim().slice(0, 40), email: String((extra && extra.email) || '').trim().slice(0, 200) });
     save(); return true;
   }
   function removeTodo(id) {
@@ -563,14 +666,16 @@
     S.outreach.todo = S.outreach.todo.filter(function (t) { return leadKey(t.name, t.url) !== key; });
     var note = cleanNote((opts && opts.note) || (old && old.note));          // a note written in "To reach out" moves along
     var ms = outreachAdd(now, [name, url].filter(Boolean).join(' ').slice(0, 200), note);
-    if (!(opts && opts.noFollow)) startFollow(name, url, now, { note: note, ms: ms, chats: old && old.chats, gmailQ: old && old.gmailQ });
+    if (!(opts && opts.noFollow)) startFollow(name, url, now, { note: note, ms: ms, chats: old && old.chats, gmailQ: old && old.gmailQ, source: old && old.source, email: old && old.email });
     return ms;
   }
   function startFollow(name, url, now, extra) {
     now = now || Date.now();
     var key = leadKey(name, url);
     if (!key || S.outreach.follow.some(function (f) { return f.status === 'active' && leadKey(f.name, f.url) === key; })) return false;
-    S.outreach.follow.push({ id: uid(), name: name || '', url: url || '', note: cleanNote(extra && extra.note), chats: (extra && Array.isArray(extra.chats) ? extra.chats.slice() : []), gmailQ: extra && extra.gmailQ != null ? extra.gmailQ : undefined, ms: (extra && +extra.ms) || 0, started: now, count: 0, due: due2(now), status: 'active', log: [] });
+    var fo = { id: uid(), name: name || '', url: url || '', note: cleanNote(extra && extra.note), chats: (extra && Array.isArray(extra.chats) ? extra.chats.slice() : []), gmailQ: extra && extra.gmailQ != null ? extra.gmailQ : undefined, ms: (extra && +extra.ms) || 0, started: now, count: 0, due: 0, status: 'active', log: [], logB: [], logC: [], stage: 'A', at: {}, ni: false,
+      source: String((extra && extra.source) || guessSource(url) || '').trim().slice(0, 40), email: String((extra && extra.email) || '').trim().slice(0, 200) };
+    pipeFix(fo); S.outreach.follow.push(fo);
     save(); return true;
   }
   function followList() { return S.outreach.follow.slice(); }
@@ -579,10 +684,9 @@
   function followDone(id, now) {
     now = now || Date.now();
     var f = S.outreach.follow.filter(function (x) { return x.id === id && x.status === 'active'; })[0];
-    if (!f) return false;
-    f.count++; f.log.push(now);
-    if (f.count >= FOLLOW_MAX) f.status = 'done'; else f.due = due2(now);
-    save(); return true;
+    if (!f || f.stage === 'D') return false;
+    stageLog(f, f.stage).push(now);
+    pipeFix(f); save(); return true;
   }
   function followStop(id, status) {
     var f = S.outreach.follow.filter(function (x) { return x.id === id && x.status === 'active'; })[0];
@@ -720,22 +824,37 @@
     var t = S.outreach.todo.filter(function (x) { return x.id === id; })[0]; if (!t) return false;
     var name = String(f.name || '').replace(/\s+/g, ' ').trim().slice(0, 120), url = String(f.url || '').trim().slice(0, 300);
     if (!name && !url) return false;
-    t.name = name; t.url = url; t.note = cleanNote(f.note); save(); return true;
+    t.name = name; t.url = url; t.note = cleanNote(f.note);
+    if (f.source !== undefined) t.source = String(f.source || '').trim().slice(0, 40);
+    if (f.email !== undefined) t.email = String(f.email || '').trim().slice(0, 200);
+    save(); return true;
   }
-  /* A follow-up entry: name, link, note, outreach date, follow-ups done (0-3) and status. The linked +1 in the log follows name and note. */
+  /* A pipeline entry, like one row of the spreadsheet: name, link, note, source, email, stage (A-D), the date each stage started,
+     how many follow-ups were done in each stage, "not interested" and stop. The linked +1 in the log follows name and note. */
+  var STAGE_ORDER = ['A', 'B', 'C', 'D'];
   function editFollow(id, f) {
     var x = S.outreach.follow.filter(function (y) { return y.id === id; })[0]; if (!x) return false;
     var name = String(f.name || '').replace(/\s+/g, ' ').trim().slice(0, 120), url = String(f.url || '').trim().slice(0, 300);
     if (!name && !url) return false;
     x.name = name; x.url = url; x.note = cleanNote(f.note);
+    if (f.source !== undefined) { x.source = String(f.source || '').trim().slice(0, 40); if (x.source && S.outreach.sources.indexOf(x.source) < 0) S.outreach.sources.push(x.source); }
+    if (f.email !== undefined) x.email = String(f.email || '').trim().slice(0, 200);
     if (+f.started > 0) x.started = +f.started;
-    var n = Math.max(0, Math.min(FOLLOW_MAX, Math.round(+f.count)));
-    if (n === n) { while (x.log.length > n) x.log.pop(); while (x.log.length < n) x.log.push(x.started); x.count = n; }
-    var st = ['active', 'replied', 'stopped', 'done'].indexOf(f.status) >= 0 ? f.status : x.status;
-    if (st === 'active' && x.count >= FOLLOW_MAX) st = 'done';
-    if (st === 'done' && x.count < FOLLOW_MAX) st = 'active';
-    x.status = st;
-    if (st === 'active') x.due = due2(x.log.length ? x.log[x.log.length - 1] : x.started);
+    var idx = STAGE_ORDER.indexOf(f.stage); if (idx < 0) idx = STAGE_ORDER.indexOf(x.stage);
+    var prev = x.started;
+    ['B', 'C', 'D'].forEach(function (st) {
+      if (idx >= STAGE_ORDER.indexOf(st)) { var v = +f['at' + st]; x.at[st] = v > 0 ? v : (x.at[st] || prev || Date.now()); prev = x.at[st]; }
+      else delete x.at[st];
+    });
+    x.stage = STAGE_ORDER[idx];
+    [['A', 'nA', 'log'], ['B', 'nB', 'logB'], ['C', 'nC', 'logC']].forEach(function (t) {
+      if (f[t[1]] === undefined) return;
+      var n = Math.max(0, Math.min(STAGE_MAX[t[0]], Math.round(+f[t[1]]) || 0)), L = x[t[2]], base = stageStart(x, t[0]) || x.started;
+      while (L.length > n) L.pop(); while (L.length < n) L.push(base);
+    });
+    x.ni = !!f.ni;
+    if (x.ni || f.status === 'stopped') x.status = 'stopped'; else { x.status = 'active'; delete x.closedAuto; }
+    pipeFix(x);
     if (x.ms && S.outreach.clicks.indexOf(x.ms) >= 0) {
       S.outreach.names[x.ms] = [name, url].filter(Boolean).join(' ').slice(0, 200);
       if (x.note) S.outreach.notes[x.ms] = x.note; else delete S.outreach.notes[x.ms];
@@ -1075,6 +1194,16 @@
         }));
     } else if (kind === 'outreachlog') {
       rows = [['day', 'time', 'name', 'note']].concat(outreachLog().reverse().map(function (o) { return [dayKey(o.ms), dt(o.ms), o.name, o.note]; }));
+    } else if (kind === 'leads') {
+      var dd = function (ms) { return ms ? dayKey(ms) : ''; };
+      var head = ['Name / Brand', 'Social Link', 'Email', 'Source', 'Date Initiated', 'A1', 'A2', 'A3', 'Date Engaged', 'B1', 'B2', 'B3', 'B4', 'B5', 'Date Pitched', 'C1', 'C2', 'C3', 'C4', 'C5', 'Date Closed', 'Not Interested?', 'Notes', 'Stage'];
+      rows = [head];
+      S.outreach.todo.forEach(function (t) { var r = [t.name, t.url, t.email || '', t.source || '', '']; while (r.length < 21) r.push(''); r.push('FALSE', t.note || '', 'Pre-initiated'); rows.push(r); });
+      S.outreach.follow.slice().sort(function (a, b) { return a.started - b.started; }).forEach(function (x) {
+        var r = [x.name, x.url, x.email || '', x.source || '', dd(x.started)], pad = function (L, n) { for (var i = 0; i < n; i++) r.push(dd(L[i])); };
+        pad(x.log, 3); r.push(dd(x.at.B)); pad(x.logB, 5); r.push(dd(x.at.C)); pad(x.logC, 5); r.push(dd(x.at.D));
+        r.push(x.ni ? 'TRUE' : 'FALSE', x.note || '', STAGE_NAME[x.stage]); rows.push(r);
+      });
     } else if (kind === 'outreach') {
       var goal = S.outreach.goal;
       rows = [['day', 'outreach', 'goal', 'goal_met', 'edited_by_hand']].concat(A.days.slice().reverse().map(function (d) {
@@ -1337,7 +1466,7 @@
     });
   }
   function mountCsvTools(el) {
-    el.innerHTML = [['sessions', 'Sessions'], ['days', 'Daily totals'], ['outreach', 'Outreach per day'], ['outreachlog', 'Outreach log'], ['notes', 'Notes']].map(function (k) {
+    el.innerHTML = [['sessions', 'Sessions'], ['days', 'Daily totals'], ['outreach', 'Outreach per day'], ['outreachlog', 'Outreach log'], ['leads', 'Leads (sheet layout)'], ['notes', 'Notes']].map(function (k) {
       return '<button type="button" class="ghost" data-csv="' + k[0] + '">CSV · ' + k[1] + '</button>';
     }).join('');
     el.addEventListener('click', function (e) {
@@ -1449,7 +1578,7 @@
     boot: boot, get: function () { return S; }, reload: reload, save: save,
     storageOK: function () { return !memoryOnly; },
     switchTo: switchTo, setNote: setNote, setNoteAt: setNoteAt, noteTarget: noteTarget, allNotes: allNotes, heartbeat: heartbeat, tick: tick,
-    outreachToday: outreachToday, outreachAdd: outreachAdd, outreachUndo: outreachUndo, setOutreachDay: setOutreachDay, setOutreachName: setOutreachName, setOutreachNote: setOutreachNote, todoList: todoList, addTodo: addTodo, removeTodo: removeTodo, markReached: markReached, startFollow: startFollow, followList: followList, followDue: followDue, followDone: followDone, followStop: followStop, leadFromScript: leadFromScript, FOLLOW_MAX: FOLLOW_MAX, outreachLog: outreachLog, projectList: projectList, renameProject: renameProject, projectTime: projectTime, actByHour: actByHour, setGoal: setGoal,
+    outreachToday: outreachToday, outreachAdd: outreachAdd, outreachUndo: outreachUndo, setOutreachDay: setOutreachDay, setOutreachName: setOutreachName, setOutreachNote: setOutreachNote, todoList: todoList, addTodo: addTodo, removeTodo: removeTodo, markReached: markReached, startFollow: startFollow, followList: followList, followDue: followDue, followDone: followDone, followStop: followStop, followDueCount: function (now) { return pipeStats(now).due; }, pipeAdvance: pipeAdvance, pipeNotInterested: pipeNotInterested, pipeStats: pipeStats, pipeSources: pipeSources, pipeSetSources: pipeSetSources, pipeFind: pipeFind, editFollow: editFollow, STAGE_MAX: STAGE_MAX, STAGE_NAME: STAGE_NAME, guessSource: guessSource, leadFromScript: leadFromScript, FOLLOW_MAX: FOLLOW_MAX, outreachLog: outreachLog, projectList: projectList, renameProject: renameProject, projectTime: projectTime, actByHour: actByHour, setGoal: setGoal,
     todayTotals: todayTotals, todayPoints: todayPoints, analyze: analyze,
     askToday: askToday, askContext: askContext, askLogFor: askLogFor, askPeek: askPeek, askSwap: askSwap, askSetToday: askSetToday, askSave: askSave, askRemove: askRemove, askMe: askMe, askSend: askSend, askReply: askReply, askUnreply: askUnreply, askNoFollow: askNoFollow, askDelLog: askDelLog, askLog: askLog, askStats: askStats, askPeople: function () { return S.ask.people.slice(); }, askMeGet: function () { return { who: S.ask.me.who, doing: S.ask.me.doing }; },
     exportAll: exportAll, importText: importText,

@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Outreach · Focus Timer</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A4%9D%3C/text%3E%3C/svg%3E">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="nav">
+    <strong class="brand">Focus Timer</strong>
+    <button id="themeBtn" class="ghost hbtn" type="button">🌓</button>
+    <nav>
+      <a href="index.html">Timer</a>
+      <a href="dashboard.html">Dashboard</a>
+      <a class="active" href="outreach.html">Outreach</a>
+      <a href="review.html">Review</a>
+    </nav>
+  </header>
+
+  <div id="ostats" class="grid"></div>
+
+  <section class="card" id="dueCard">
+    <div class="head"><h2>⏰ Follow-ups due</h2><span class="muted" id="dueSub"></span></div>
+    <div id="due"></div>
+  </section>
+
+  <section class="card">
+    <div class="head"><h2>Funnel and conversion by source</h2></div>
+    <div id="funnel"></div>
+    <div class="tblwrap"><table class="otbl" id="srcTbl"></table></div>
+    <p class="muted" style="margin:10px 0 0">Initiated (A) → Engaged (B) → Pitched (C) → Closed (D). Each number counts every lead that reached that stage or went past it. Conversion = the next stage ÷ the previous one; total close rate = Closed ÷ Initiated.</p>
+  </section>
+
+  <section class="card">
+    <div class="head"><h2>Over time (per week)</h2></div>
+    <div id="weekChart"></div>
+    <div class="legend" id="weekLegend"></div>
+  </section>
+
+  <section class="card">
+    <div class="head"><h2>Speed and timing</h2></div>
+    <div id="speed" class="grid"></div>
+    <div class="twocol"><div><h3 class="sub">When you initiate (hour of day)</h3><div id="hourChart"></div></div><div><h3 class="sub">When you initiate (day of week)</h3><div id="dowChart"></div></div></div>
+    <p class="muted" style="margin:8px 0 0">Dark bar = initiated, light = of those, how many became Engaged.</p>
+  </section>
+
+  <section class="card">
+    <div class="head">
+      <h2>Tracker</h2>
+      <div class="otools">
+        <input id="tq" type="search" placeholder="Search name, link, email, note" aria-label="Search the tracker">
+        <select id="tsrc" aria-label="Source"></select>
+        <select id="tstage" aria-label="Stage"><option value="">All stages</option><option value="Pre">Pre-initiated</option><option value="A">A · Initiated</option><option value="B">B · Engaged</option><option value="C">C · Pitched</option><option value="D">D · Closed</option></select>
+        <label class="chk"><input id="tni" type="checkbox" checked> Show not interested</label>
+        <button type="button" class="ghost" id="tcsv">CSV</button>
+      </div>
+    </div>
+    <div class="tblwrap"><table class="otbl track" id="track"></table></div>
+    <p class="muted" id="tcount" style="margin:8px 0 0"></p>
+  </section>
+
+  <p class="hint">Edit a lead from the timer page (📋 Outreach lists → ✏️ Edit) or with the ✏️ button in the tracker. Same data as the lists, nothing to enter twice.</p>
+</div>
+
+<script src="app.js"></script>
+<script src="help.js"></script>
+<script src="alarms.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  TSA.boot(Date.now(), {});
+  TSA.initTheme($('themeBtn'));
+  TSAHelp.init('outreach');
+  TSAAlarms.init();
+
+  var esc = function (t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+  var pc = function (v) { return v == null ? '–' : Math.round(v * 1000) / 10 + '%'; };
+  var dshort = function (ms) { return ms ? new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''; };
+  var dfull = function (ms) { return ms ? new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''; };
+  var f1 = function (n) { return n == null ? '–' : (Math.round(n * 10) / 10) + ' d'; };
+  var STAGE = TSA.STAGE_NAME, sortKey = 'started', sortDir = -1;
+  var linkUrl = function (u) { u = String(u || '').trim(); return /^https?:\/\//i.test(u) ? u : (/^[\w-]+(\.[\w-]+)+/.test(u) ? 'https://' + u : ''); };
+  var stg = function (k) { return k === 'Pre' ? '<b class="stg">Pre-initiated</b>' : '<b class="stg stg' + k + '">' + k + ' · ' + STAGE[k] + '</b>'; };
+
+  /* ---- grouped bar chart (svg) ---- */
+  function bars(series, labels, opts) {
+    var W = 720, H = 200, pl = 26, pr = 6, pt = 14, pb = 26, n = labels.length, m = series.length;
+    var max = 1; series.forEach(function (s) { s.vals.forEach(function (v) { if (v > max) max = v; }); });
+    var iw = W - pl - pr, ih = H - pt - pb, step = iw / n, bw = Math.max(2, step * 0.8 / m), every = Math.ceil(n / (opts.maxLabels || 12)), o = '';
+    o += '<line class="axis" x1="' + pl + '" y1="' + (H - pb) + '" x2="' + (W - pr) + '" y2="' + (H - pb) + '"/>';
+    o += '<text class="lbl" x="' + (pl - 5) + '" y="' + (pt + 4) + '" text-anchor="end">' + max + '</text><text class="lbl" x="' + (pl - 5) + '" y="' + (H - pb + 4) + '" text-anchor="end">0</text>';
+    labels.forEach(function (lb, i) {
+      series.forEach(function (s, j) {
+        var v = s.vals[i], h = v / max * ih, x = pl + i * step + (step - bw * m) / 2 + j * bw;
+        o += '<rect class="' + s.cls + '" x="' + x + '" y="' + (H - pb - h) + '" width="' + (bw - 1) + '" height="' + Math.max(v ? 2 : 0, h) + '" rx="2"><title>' + esc(lb) + ' · ' + esc(s.name) + ': ' + v + '</title></rect>';
+      });
+      if (i % every === 0) o += '<text class="lbl" x="' + (pl + i * step + step / 2) + '" y="' + (H - 8) + '" text-anchor="middle">' + esc(lb) + '</text>';
+    });
+    return '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(opts.label || 'chart') + '">' + o + '</svg>';
+  }
+
+  function render() {
+    var now = Date.now(), P = TSA.pipeStats(now), N = P.now, T = P.total;
+    /* top cards */
+    var card = function (k, v, s) { return '<div class="stat"><div class="k">' + k + '</div><div class="v">' + v + '</div><div class="s">' + esc(s) + '</div></div>'; };
+    $('ostats').innerHTML =
+      card('Pre-initiated', N.pre, 'in “To reach out”') + card('Initiated (A)', N.A, 'waiting for an answer') + card('Engaged (B)', N.B, 'in conversation') +
+      card('Pitched (C)', N.C, 'offer on the table') + card('Closed (D)', N.D, 'clients') + card('Total close rate', pc(T.close), T.closed + ' of ' + T.init + ' initiated') +
+      card('Follow-ups due', P.due, P.due ? 'see below' : 'all caught up');
+
+    /* due list */
+    var due = P.leads.filter(function (l) { return l.due; }).sort(function (a, b) { return a.nextDue - b.nextDue; });
+    $('dueSub').textContent = due.length ? due.length + ' lead' + (due.length === 1 ? '' : 's') + ' to follow up' : '';
+    $('due').innerHTML = due.length ? due.map(function (l) {
+      var L = l.stage === 'A' ? l.logA : l.stage === 'B' ? l.logB : l.logC, late = Math.floor((now - l.nextDue) / 864e5), lk = linkUrl(l.url);
+      return '<div class="lrow"><div class="lmain"><b>' + esc(l.name || l.url) + '</b> ' + stg(l.stage) + ' <span class="muted">· ' + esc(l.source || 'no source') + ' · follow-up ' + (L.length + 1) + ' of ' + TSA.STAGE_MAX[l.stage] + ' · ' +
+        (late > 0 ? '<b class="duenow">' + late + ' day' + (late === 1 ? '' : 's') + ' late</b>' : '<b class="duenow">due today</b>') + '</span>' + (l.note ? '<div class="lnote">' + esc(l.note) + '</div>' : '') + '</div>' +
+        '<div class="lbtns"><button type="button" class="primary" data-done="' + l.id + '">Followed up</button><button type="button" class="ghost" data-adv="' + l.id + '">' + { A: 'Engaged ✓', B: 'Pitched ✓', C: 'Closed ✓' }[l.stage] + '</button>' +
+        '<button type="button" class="ghost" data-ni="' + l.id + '">Not interested</button>' + (lk ? '<a class="ghost chatlink" href="' + esc(lk) + '" target="_blank" rel="noopener">Open ↗</a>' : '') +
+        '<a class="ghost chatlink" href="index.html?links=' + encodeURIComponent(l.url || l.name) + '">📁 Links</a></div></div>';
+    }).join('') : '<p class="muted">Nothing is due. Follow-ups are due 1 day after a stage starts, then every 2 days (A: up to 3, B: up to 5, C: up to 5).</p>';
+
+    /* funnel visual + per source table */
+    var steps = [['Initiated', T.init], ['Engaged', T.engaged], ['Pitched', T.pitched], ['Closed', T.closed]], top = Math.max(1, T.init);
+    $('funnel').innerHTML = '<div class="fun">' + steps.map(function (s, i) {
+      var prev = i ? steps[i - 1][1] : null;
+      return '<div class="funrow"><span class="funl">' + s[0] + '</span><span class="funbar"><i style="width:' + Math.max(s[1] ? 2 : 0, s[1] / top * 100) + '%" class="fb' + i + '"></i></span><b>' + s[1] + '</b><span class="muted">' + (prev == null ? '' : pc(prev ? s[1] / prev : null)) + '</span></div>';
+    }).join('') + '</div>';
+    var rows = P.sources.concat([T]);
+    $('srcTbl').innerHTML = '<thead><tr><th>Source</th><th>Initiated</th><th>Engaged</th><th>A &gt; B</th><th>Pitched</th><th>B &gt; C</th><th>Clients</th><th>C &gt; D</th><th>Total close rate</th><th>Not interested</th></tr></thead><tbody>' +
+      rows.map(function (r) {
+        return '<tr' + (r === T ? ' class="tot"' : '') + '><td>' + esc(r.source) + '</td><td>' + r.init + '</td><td>' + r.engaged + '</td><td>' + pc(r.ab) + '</td><td>' + r.pitched + '</td><td>' + pc(r.bc) + '</td><td>' + r.closed + '</td><td>' + pc(r.cd) + '</td><td>' + pc(r.close) + '</td><td>' + r.ni + '</td></tr>';
+      }).join('') + '</tbody>';
+
+    /* weekly chart: last 12 weeks */
+    var wk = []; var cur = TSA.addDays(TSA.dayKey(now), -TSA.keyToDate(TSA.dayKey(now)).getDay());
+    for (var i = 11; i >= 0; i--) wk.push(TSA.addDays(cur, -7 * i));
+    var get = function (f) { return wk.map(function (k) { return (P.perWeek[k] || {})[f] || 0; }); };
+    $('weekChart').innerHTML = bars([
+      { name: 'Initiated', cls: 'ob0', vals: get('init') }, { name: 'Engaged', cls: 'ob1', vals: get('engaged') }, { name: 'Pitched', cls: 'ob2', vals: get('pitched') }, { name: 'Closed', cls: 'ob3', vals: get('closed') }
+    ], wk.map(function (k) { return TSA.keyToDate(k).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); }), { label: 'Outreach per week', maxLabels: 12 });
+    $('weekLegend').innerHTML = [['ob0', 'Initiated'], ['ob1', 'Engaged'], ['ob2', 'Pitched'], ['ob3', 'Closed']].map(function (x) { return '<span><i class="lg ' + x[0] + '"></i>' + x[1] + '</span>'; }).join('') + '<span class="muted">· weeks start on Sunday, by the date each stage began</span>';
+
+    /* speed + timing */
+    $('speed').innerHTML = card('Initiated → Engaged', f1(P.avgDays.AB), 'average time') + card('Engaged → Pitched', f1(P.avgDays.BC), 'average time') + card('Pitched → Closed', f1(P.avgDays.CD), 'average time');
+    var hr = []; for (var h = 0; h < 24; h++) hr.push(h);
+    $('hourChart').innerHTML = bars([{ name: 'Initiated', cls: 'ob0', vals: P.hour.map(function (x) { return x.n; }) }, { name: 'Engaged', cls: 'ob1', vals: P.hour.map(function (x) { return x.e; }) }], hr.map(function (h) { return ('0' + h); }), { label: 'By hour', maxLabels: 12 });
+    $('dowChart').innerHTML = bars([{ name: 'Initiated', cls: 'ob0', vals: P.dow.map(function (x) { return x.n; }) }, { name: 'Engaged', cls: 'ob1', vals: P.dow.map(function (x) { return x.e; }) }], ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], { label: 'By day of week', maxLabels: 7 });
+
+    renderTracker(P);
+  }
+
+  /* ---- tracker table ---- */
+  var COLS = [['name', 'Name / Brand'], ['url', 'Social link'], ['email', 'Email'], ['source', 'Source'], ['stage', 'Stage'], ['started', 'Initiated'], ['a1', 'A1'], ['a2', 'A2'], ['a3', 'A3'], ['b0', 'Engaged'], ['b1', 'B1'], ['b2', 'B2'], ['b3', 'B3'], ['b4', 'B4'], ['b5', 'B5'], ['c0', 'Pitched'], ['c1', 'C1'], ['c2', 'C2'], ['c3', 'C3'], ['c4', 'C4'], ['c5', 'C5'], ['d0', 'Closed'], ['ni', 'Not interested'], ['note', 'Notes']];
+  var val = function (l, k) {
+    if (k === 'stage') return { Pre: 0, A: 1, B: 2, C: 3, D: 4 }[l.stage];
+    if (k === 'started') return l.started || l.added || 0;
+    if (k === 'b0') return (l.at && l.at.B) || 0; if (k === 'c0') return (l.at && l.at.C) || 0; if (k === 'd0') return (l.at && l.at.D) || 0;
+    var m = /^([abc])(\d)$/.exec(k); if (m) { var L = l['log' + m[1].toUpperCase()] || []; return L[+m[2] - 1] || 0; }
+    if (k === 'ni') return l.ni ? 1 : 0;
+    return String(l[k] || '').toLowerCase();
+  };
+  function renderTracker(P) {
+    var cur = $('tsrc').value; var opts = '<option value="">All sources</option>' + P.sources.map(function (r) { return '<option value="' + esc(r.source) + '">' + esc(r.source) + '</option>'; }).join('');
+    if ($('tsrc').dataset.o !== opts) { $('tsrc').innerHTML = opts; $('tsrc').dataset.o = opts; $('tsrc').value = cur; }
+    var q = $('tq').value.trim().toLowerCase(), src = $('tsrc').value, stage = $('tstage').value, showNi = $('tni').checked, now = Date.now();
+    var list = P.leads.filter(function (l) {
+      if (!showNi && l.ni) return false; if (src && l.source !== src) return false; if (stage && l.stage !== stage) return false;
+      return !q || [l.name, l.url, l.email, l.note].join(' ').toLowerCase().indexOf(q) >= 0;
+    });
+    list.sort(function (a, b) { var x = val(a, sortKey), y = val(b, sortKey); return (x < y ? -1 : x > y ? 1 : 0) * sortDir; });
+    var cell = function (ms) { return '<td class="dc">' + (ms ? '<span title="' + dfull(ms) + '">' + dshort(ms) + '</span>' : '') + '</td>'; };
+    $('track').innerHTML = '<thead><tr><th></th>' + COLS.map(function (c) { return '<th class="sortable' + (c[0] === sortKey ? ' on' : '') + '" data-k="' + c[0] + '">' + c[1] + (c[0] === sortKey ? (sortDir > 0 ? ' ▲' : ' ▼') : '') + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      list.map(function (l) {
+        var at = l.at || {}, cls = l.ni ? 'ni' : l.stage === 'D' ? 'won' : l.due ? 'dueRow' : '', lk = linkUrl(l.url), A = l.logA || [], B = l.logB || [], C = l.logC || [], t = '';
+        t += '<tr class="' + cls + '"><td>' + (l.kind === 'follow' ? '<a class="ghost chatlink" href="index.html#edit=' + l.id + '" title="Edit on the timer page">✏️</a>' : '<a class="ghost chatlink" href="index.html#edit=' + l.id + '" title="Edit on the timer page">✏️</a>') + '</td>' +
+          '<td class="nm">' + esc(l.name) + '</td><td class="lk">' + (lk ? '<a href="' + esc(lk) + '" target="_blank" rel="noopener">' + esc(String(l.url).replace(/^https?:\/\/(www\.)?/i, '').slice(0, 34)) + '</a>' : esc(l.url)) + '</td><td>' + esc(l.email) + '</td><td>' + esc(l.source) + '</td><td>' + stg(l.stage) + (l.due ? ' <b class="duenow">due</b>' : '') + '</td>' + cell(l.started || l.added);
+        for (var i = 0; i < 3; i++) t += cell(A[i]); t += cell(at.B); for (i = 0; i < 5; i++) t += cell(B[i]); t += cell(at.C); for (i = 0; i < 5; i++) t += cell(C[i]); t += cell(at.D);
+        t += '<td>' + (l.ni ? '✔' : '') + '</td><td class="nt">' + esc(l.note) + '</td></tr>';
+        return t;
+      }).join('') + '</tbody>';
+    $('tcount').textContent = list.length + ' of ' + P.leads.length + ' leads shown. Grey = not interested, green = closed, amber = follow-up due.';
+  }
+
+  /* ---- events ---- */
+  $('due').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return; var d = b.dataset;
+    if (d.done) TSA.followDone(d.done); else if (d.adv) TSA.pipeAdvance(d.adv); else if (d.ni) TSA.pipeNotInterested(d.ni, true); else return;
+    render();
+  });
+  $('track').addEventListener('click', function (e) { var th = e.target.closest('th[data-k]'); if (!th) return; if (sortKey === th.dataset.k) sortDir = -sortDir; else { sortKey = th.dataset.k; sortDir = 1; } render(); });
+  ['tq', 'tsrc', 'tstage', 'tni'].forEach(function (id) { $(id).addEventListener(id === 'tq' ? 'input' : 'change', function () { renderTracker(TSA.pipeStats(Date.now())); }); });
+  $('tcsv').addEventListener('click', function () { TSA.heartbeat(Date.now(), true); var r = TSA.csvExport('leads'); var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([r.text], { type: 'text/csv;charset=utf-8' })); a.download = r.name; document.body.appendChild(a); a.click(); a.remove(); });
+  window.addEventListener('storage', function (e) { if (e.key === TSA.KEY) { TSA.reload(); render(); } });
+  setInterval(function () { if (!document.hidden) { TSA.heartbeat(Date.now()); } }, 5000);
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,9 +1,19 @@
 /* "How to use" guide: adds a button to the top bar of every page and opens a popup with a tab per page. */
 (function () {
   var TABS = [
-    ['timer', 'Timer page'], ['dash', 'Dashboard'], ['review', 'Review'], ['script', 'Userscript & Url Notes'], ['keys', 'Shortcuts & tips']
+    ['timer', 'Timer page'], ['dash', 'Dashboard'], ['outreach', 'Outreach'], ['review', 'Review'], ['script', 'Userscript & Url Notes'], ['keys', 'Shortcuts & tips']
   ];
   var H = {};
+  H.outreach =
+    '<h3>Outreach page</h3>' +
+    '<p>Your outreach tracker, the same data as <b>📋 Outreach lists</b> on the timer page. Every lead has a <b>stage</b>: <b>Pre-initiated</b> (in To reach out), <b>A · Initiated</b> (first message sent), <b>B · Engaged</b> (they answered), <b>C · Pitched</b> (you made the offer) and <b>D · Closed</b> (client). A lead can also be marked <b>Not interested</b>.</p>' +
+    '<ul>' +
+    '<li><b>Follow-ups</b>: due 1 day after a stage starts, then every 2 days. Stage A allows 3, stage B 5, stage C 5. <b>Followed up</b> logs one; <b>Engaged ✓ / Pitched ✓ / Closed ✓</b> moves the lead to the next stage and starts that stage\'s follow-ups. The header chips count the due ones.</li>' +
+    '<li><b>Funnel and conversion by source</b>: leads per stage, A &gt; B, B &gt; C, C &gt; D and the total close rate, per source (Actively Hiring, YouTube, X, Instagram, Discord, YT Jobs, Other) and in total.</li>' +
+    '<li><b>Over time</b>: initiated, engaged, pitched and closed per week, average days between stages, and the best hours and weekdays.</li>' +
+    '<li><b>Tracker</b>: one row per lead like the spreadsheet (dates of each stage and follow-up, email, notes). Click a header to sort; search and filter by source or stage. Grey = not interested, green = closed, amber = follow-up due. ✏️ opens the edit popup on the timer page.</li>' +
+    '<li>Source is picked automatically from the link (YouTube, X, Instagram, Discord, YT Jobs) and can be changed in the edit popup. <b>CSV</b> exports the tracker in the spreadsheet\'s column layout.</li>' +
+    '</ul>';
   H.timer =
     '<h3>The seven timers</h3>' +
     '<p>Work 💼, Paused ⏸️, Workflow 🛠️, Workout 🏋️, Eating 🍽️, Shower 🚿 and Sleep 🌙. Each one shows today\'s total, counted from zero every day (the day changes at midnight). Press a card\'s button to start it; only one runs at a time, so starting one simply stops the other. Pressing the running timer again stops it and switches to <b>Paused</b>.</p>' +
