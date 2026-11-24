@@ -1051,3 +1051,15 @@ footer p{
 /* .card:nth-child(where they are) { */
 /* 	order: the more negative the number, the first it will be. */
 /* } */
+
+/* ==========================================================
+   CLIENT PAGES (e.g. /Enuves/): two videos side by side
+   ========================================================== */
+.works { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(1.5rem, 3vw, 2.5rem); }
+.works .frame { margin: 0; position: relative; }
+.works .frame .tape { top: -12px; left: calc(50% - 55px); transform: rotate(-3deg); z-index: 2; }
+@media (max-width: 760px) { .works { grid-template-columns: 1fr; } }
+.cards--four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 760px) { .cards--four { grid-template-columns: 1fr; } }
+/* Client pages: the intro text is real content, so never trim it to two lines on phones */
+@media (max-width: 767px) { .hero__bio.hero__bio--full { display: block; -webkit-line-clamp: unset; line-clamp: unset; overflow: visible; } }
