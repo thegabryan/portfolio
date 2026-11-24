@@ -17,6 +17,23 @@
 <!-- Same theme script and stylesheet as the portfolio home page -->
 <script src="../script.js" defer></script>
 <link rel="stylesheet" href="../style.css">
+<style>
+/* Enuves: large, full-width videos in separate rows */
+.works {
+  grid-template-columns: 1fr;
+  gap: clamp(2rem, 4vw, 3.5rem);
+  max-width: 64rem;
+  margin-inline: auto;
+}
+.works .frame {
+  width: 100%;
+  max-width: none;
+  transform: rotate(.6deg);
+}
+.works .frame:nth-child(even) {
+  transform: rotate(-.6deg);
+}
+</style>
 </head>
 <body>
 
