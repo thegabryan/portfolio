@@ -487,6 +487,12 @@
   /* A day's count = real clicks + the hand correction for that day (never below 0). */
   function outreachOn(k) { return Math.max(0, clicksOn(k) + (S.outreach.adj[k] || 0)); }
   function outreachToday(now) { return outreachOn(dayKey(now || Date.now())); }
+  /* Follow-ups done today: every 'Followed up' entry (stages A, B and C) stamped today. */
+  function followsToday(now) {
+    var k = dayKey(now || Date.now()), n = 0;
+    S.outreach.follow.forEach(function (f) { [f.log, f.logB, f.logC].forEach(function (L) { (L || []).forEach(function (ms) { if (dayKey(ms) === k) n++; }); }); });
+    return n;
+  }
   /* Adds one outreach at `now` (or any past time, kept in order). name / note are optional. Returns the click time. */
   function outreachAdd(now, name, note) {
     var c = S.outreach.clicks;
@@ -1082,6 +1088,12 @@
     try { var raw = JSON.parse(root.localStorage.getItem(KEY) || 'null'); if (!raw) return null; S = normalize(raw); return askToday(Date.now()); }
     catch (e) { return null; } finally { S = keep; }
   }
+  /* Counts for the header chips on every page (read fresh from storage, like askPeek). */
+  function trackPeek() {
+    var keep = S;
+    try { var raw = JSON.parse(root.localStorage.getItem(KEY) || 'null'); if (!raw) return { out: 0, goal: 3, fu: 0 }; S = normalize(raw); var n = Date.now(); return { out: outreachToday(n), goal: S.outreach.goal, fu: followsToday(n) }; }
+    catch (e) { return { out: 0, goal: 3, fu: 0 }; } finally { S = keep; }
+  }
   /* What I have actually been doing lately, for the AI prompt: last 7 days of Work/Workflow time, projects, and recent notes. */
   function askContext(now) {
     now = now || Date.now();
@@ -1578,7 +1590,7 @@
     boot: boot, get: function () { return S; }, reload: reload, save: save,
     storageOK: function () { return !memoryOnly; },
     switchTo: switchTo, setNote: setNote, setNoteAt: setNoteAt, noteTarget: noteTarget, allNotes: allNotes, heartbeat: heartbeat, tick: tick,
-    outreachToday: outreachToday, outreachAdd: outreachAdd, outreachUndo: outreachUndo, setOutreachDay: setOutreachDay, setOutreachName: setOutreachName, setOutreachNote: setOutreachNote, todoList: todoList, addTodo: addTodo, removeTodo: removeTodo, markReached: markReached, startFollow: startFollow, followList: followList, followDue: followDue, followDone: followDone, followStop: followStop, followDueCount: function (now) { return pipeStats(now).due; }, pipeAdvance: pipeAdvance, pipeNotInterested: pipeNotInterested, pipeStats: pipeStats, pipeSources: pipeSources, pipeSetSources: pipeSetSources, pipeFind: pipeFind, editFollow: editFollow, STAGE_MAX: STAGE_MAX, STAGE_NAME: STAGE_NAME, guessSource: guessSource, leadFromScript: leadFromScript, FOLLOW_MAX: FOLLOW_MAX, outreachLog: outreachLog, projectList: projectList, renameProject: renameProject, projectTime: projectTime, actByHour: actByHour, setGoal: setGoal,
+    outreachToday: outreachToday, followsToday: followsToday, trackPeek: trackPeek, outreachAdd: outreachAdd, outreachUndo: outreachUndo, setOutreachDay: setOutreachDay, setOutreachName: setOutreachName, setOutreachNote: setOutreachNote, todoList: todoList, addTodo: addTodo, removeTodo: removeTodo, markReached: markReached, startFollow: startFollow, followList: followList, followDue: followDue, followDone: followDone, followStop: followStop, followDueCount: function (now) { return pipeStats(now).due; }, pipeAdvance: pipeAdvance, pipeNotInterested: pipeNotInterested, pipeStats: pipeStats, pipeSources: pipeSources, pipeSetSources: pipeSetSources, pipeFind: pipeFind, editFollow: editFollow, STAGE_MAX: STAGE_MAX, STAGE_NAME: STAGE_NAME, guessSource: guessSource, leadFromScript: leadFromScript, FOLLOW_MAX: FOLLOW_MAX, outreachLog: outreachLog, projectList: projectList, renameProject: renameProject, projectTime: projectTime, actByHour: actByHour, setGoal: setGoal,
     todayTotals: todayTotals, todayPoints: todayPoints, analyze: analyze,
     askToday: askToday, askContext: askContext, askLogFor: askLogFor, askPeek: askPeek, askSwap: askSwap, askSetToday: askSetToday, askSave: askSave, askRemove: askRemove, askMe: askMe, askSend: askSend, askReply: askReply, askUnreply: askUnreply, askNoFollow: askNoFollow, askDelLog: askDelLog, askLog: askLog, askStats: askStats, askPeople: function () { return S.ask.people.slice(); }, askMeGet: function () { return { who: S.ask.me.who, doing: S.ask.me.doing }; },
     exportAll: exportAll, importText: importText,

@@ -95,12 +95,16 @@
     var data = function () { try { var d = JSON.parse(localStorage.getItem('tsa2_data') || 'null'); return d && d.outreach ? d.outreach : {}; } catch (e) { return {}; } };
     var nm = function (x) { return x.name || x.url || 'a creator'; };
     function make(id, cls, anchor, tab, list, label, head) {
-      var chip = document.createElement('button'); chip.type = 'button'; chip.className = 'ghost hbtn reachchip ' + cls; chip.id = id; chip.hidden = true;
+      var chip = document.createElement('button'); chip.type = 'button'; chip.className = 'ghost hbtn reachchip ' + cls; chip.id = id;
       anchor.after(chip);
       chip.paint = function () {
         var t = list(data());
-        chip.hidden = !t.length;
-        if (!t.length) return;
+        chip.classList.toggle('idle', !t.length);
+        if (!t.length) {
+          chip.textContent = label.replace(/: $/, '') + (tab === 'todo' ? ': nobody' : ': all done');
+          chip.title = head + ': nothing for today\n\nClick to open the list';
+          return;
+        }
         chip.textContent = label + nm(t[0]) + (t.length > 1 ? ' +' + (t.length - 1) : '');
         chip.title = head + ' (' + t.length + '):\n' + t.map(nm).join('\n') + '\n\nClick to open the list';
       };
@@ -114,26 +118,42 @@
     var reach = make('reachChip', 'reachto', after, 'todo', function (o) { return arr(o.todo).slice().sort(function (a, b) { return a.added - b.added; }); }, '📌 Reach out: ', 'To reach out');
     var fu = make('followChip', 'followup', reach, 'follow', function (o) { var n = Date.now(); return arr(o.follow).filter(function (f) { return f.status === 'active' && f.due <= n; }).sort(function (a, b) { return a.due - b.due; }); }, '🔁 Follow up: ', 'Follow-ups due');
     /* amber-green "Daily ask": today's person until you press Sent; afterwards, a reminder only when an answer is overdue */
-    var ask = document.createElement('button'); ask.type = 'button'; ask.className = 'ghost hbtn reachchip dailyask'; ask.id = 'askChip'; ask.hidden = true; fu.after(ask);
+    var ask = document.createElement('button'); ask.type = 'button'; ask.className = 'ghost hbtn reachchip dailyask'; ask.id = 'askChip'; fu.after(ask);
     ask.paint = function () {
       var a = window.TSA && TSA.askPeek ? TSA.askPeek() : null;
-      if (!a) { ask.hidden = true; return; }
+      ask.classList.remove('idle');
+      if (!a) { ask.classList.add('idle'); ask.textContent = '🎯 Daily ask: add someone'; ask.title = 'Open the Daily ask'; return; }
       var fire = a.stats.streak ? ' · 🔥' + a.stats.streak : '';
       if (!a.sent) {
-        ask.hidden = false;
         ask.textContent = '🎯 Daily ask: ' + (a.person ? a.person.name : 'add someone') + fire;
         ask.title = 'Send one message today to someone you admire' + (a.person && a.person.topic ? ' (about: ' + a.person.topic + ')' : '') + '\nStreak ' + a.stats.streak + ' · this week ' + a.stats.week + '\n\nClick to open';
       } else if (a.overdue.length) {
-        ask.hidden = false;
         ask.textContent = '💬 No reply yet: ' + a.overdue[0].name + (a.overdue.length > 1 ? ' +' + (a.overdue.length - 1) : '');
         ask.title = 'Asked 7+ days ago, no answer logged:\n' + a.overdue.map(function (l) { return l.name; }).join('\n') + '\n\nClick to open';
-      } else ask.hidden = true;
+      } else { ask.classList.add('idle'); ask.textContent = '🎯 Daily ask: done ✓'; ask.title = 'Today\'s ask is sent' + (a.stats.streak ? ' · streak ' + a.stats.streak : '') + '\n\nClick to open'; }
     };
     ask.addEventListener('click', function () {
       if (document.getElementById('askDlg')) window.dispatchEvent(new CustomEvent('tsa-open-ask'));
       else location.href = 'index.html#ask';
     });
-    var paint = function () { reach.paint(); fu.paint(); ask.paint(); };
+    /* read-only counters on the pages that have no counter boxes of their own (the Timer page has them) */
+    var trk = [];
+    if (!document.getElementById('ocCount')) {
+      var mk = function (id, cls, anchor, tab) {
+        var c = document.createElement('button'); c.type = 'button'; c.id = id; c.className = 'ghost hbtn reachchip trackchip ' + cls;
+        anchor.after(c);
+        c.addEventListener('click', function () {
+          if (document.getElementById('lstDlg')) window.dispatchEvent(new CustomEvent('tsa-open-lists', { detail: { tab: tab } }));
+          else location.href = 'index.html#' + tab;
+        });
+        return c;
+      };
+      var oc = mk('outChip', 'outchip', ask, 'todo'), fc = mk('fuTodayChip', 'fuchip', oc, 'follow');
+      oc.paint = function () { var t = window.TSA && TSA.trackPeek ? TSA.trackPeek() : { out: 0, goal: 3, fu: 0 }; oc.textContent = '📤 Outreach ' + t.out + ' / ' + t.goal; oc.classList.toggle('met', t.out >= t.goal); oc.title = 'Outreaches done today (goal ' + t.goal + ')\nLog them in the Outreach lists popup'; };
+      fc.paint = function () { var t = window.TSA && TSA.trackPeek ? TSA.trackPeek() : { fu: 0 }; fc.textContent = '✅ Follow-ups ' + t.fu; fc.title = 'Follow-ups done today'; };
+      trk = [oc, fc];
+    }
+    var paint = function () { reach.paint(); fu.paint(); ask.paint(); trk.forEach(function (c) { c.paint(); }); };
     window.addEventListener('storage', function (e) { if (e.key === 'tsa2_data') paint(); });
     window.addEventListener('tsa-lists-changed', paint); window.addEventListener('tsa-ask-changed', paint);
     setInterval(paint, 3000); paint();

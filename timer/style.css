@@ -108,7 +108,24 @@ input:focus-visible, button:focus-visible, select:focus-visible { outline: 2px s
 
 /* bottom row: data tools on the left, extra chronometer in the corner */
 .bottom { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.tools { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-start; }
+.tools { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-start; align-items: center; }
+.bottom { align-items: stretch; }
+.bottom .box { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 8px 12px; margin: 0; }
+.bottom .tools.box { flex: 1 1 320px; align-content: center; }
+.bottom .tools button { padding: 5px 10px; font-size: 13px; }
+.bottom .oc.box, .bottom .chrono.box { display: flex; align-items: center; gap: 10px; }
+.bottom .oc .cd { min-width: 54px; }
+.setdlg { width: min(560px, 94vw); }
+.setgrid { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+.setgrid .bells { display: flex; gap: 12px; flex-wrap: wrap; }
+.knum { position: absolute; top: 8px; left: 10px; min-width: 22px; height: 22px; line-height: 22px; text-align: center; border-radius: 7px; background: var(--c, var(--accent)); color: #fff; font-size: 13px; font-weight: 700; padding: 0 4px; box-sizing: border-box; }
+.acard { position: relative; }
+.lstsearch { width: 100%; box-sizing: border-box; margin: 0 0 8px; }
+.lsttabs { flex-wrap: wrap; }
+.lsttabs .tcount { font-style: normal; font-size: 11px; opacity: .75; margin-left: 3px; }
+.lsttabs .hot .tcount { color: var(--on); font-weight: 700; opacity: 1; }
+.lstinfo { margin: 0 0 6px; }
+.stg.stgT { background: rgba(224,161,0,.2); } .stg.stgN { background: rgba(120,120,120,.2); }
 .chrono { display: flex; align-items: center; gap: 10px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 8px 12px; margin-left: auto; }
 .chrono .cl { font-size: 11px; color: var(--muted); font-weight: 650; text-transform: uppercase; letter-spacing: .04em; }
 .chrono .cd { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 128px; line-height: 1.1; }
@@ -367,6 +384,9 @@ dialog.lstdlg[open] { display: flex; }
 /* header chip: someone waits in "To reach out" */
 .nav .reachchip { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-color: #e0a100; background: rgba(224,161,0,.14); font-weight: 600; }
 .nav .reachchip[hidden] { display: none; }
+.nav .reachchip.idle { opacity: .55; background: transparent; border-color: var(--line); font-weight: 500; }
+.nav .reachchip.trackchip { border-color: var(--line); background: var(--card); }
+.nav .reachchip.trackchip.met { border-color: var(--on); color: var(--on); }
 
 .nav .reachchip.followup { border-color: #2f6df6; background: rgba(47,109,246,.12); }
 
@@ -482,3 +502,4 @@ dialog.edpop .edsp { flex: 1; }
 #due .lrow:first-child { border-top: 0; } #due .lbtns { display: flex; gap: 6px; flex-wrap: wrap; }
 #due .lbtns a.chatlink, #due .lbtns button { padding: 5px 10px; font-size: 13px; }
 .duenow { color: #d97706; }
+@media (max-width: 560px) { .acard h2 { margin-top: 14px; } }

@@ -26,9 +26,21 @@
 
   <section id="cards" class="cards" aria-label="Timers"></section>
 
-  <section class="card bar" aria-label="Settings">
-    <div class="brow">
-      <span class="blabel">Settings</span>
+  <div class="bottom">
+    <div class="tools box" id="tools" aria-label="Actions"></div>
+    <div class="oc box" id="oc" aria-label="Outreaches done today"><div><div class="cl">Outreach today</div><div class="cd" id="ocCount">0 / 3</div></div></div>
+    <div class="oc box" id="fuBox" aria-label="Follow-ups done today"><div><div class="cl">Follow-ups today</div><div class="cd" id="fuCount">0</div></div></div>
+    <div class="chrono box" id="chrono" aria-label="Extra chronometer">
+      <div><div class="cl">Chronometer</div><div class="cd" id="cd">0:00:00.0</div></div>
+      <button id="cGo" class="tbtn" type="button">Start</button>
+      <button id="cReset" class="ghost" type="button">Reset</button>
+    </div>
+  </div>
+</div>
+
+<dialog id="setDlg" class="lstdlg setdlg">
+  <h2>⚙️ Settings</h2>
+  <div class="setgrid">
       <label class="switch"><input id="auto" type="checkbox"><span>Auto-restart each hour (short beep, +1 point)</span></label>
       <label class="vol">🔊 <input id="vol" type="range" min="0" max="100" step="5" aria-label="Volume"><output id="volVal">50%</output></label>
       <label class="sel">Beep every
@@ -46,26 +58,11 @@
         <label><input type="checkbox" data-bell="workout"> Workout</label>
         <label><input type="checkbox" data-bell="eating"> Eating</label>
       </span>
-    </div>
-  </section>
-
-  <div class="bottom">
-    <div class="tools" id="tools"></div>
-    <div class="corner">
-      <div class="oc" id="oc" aria-label="Outreach counter">
-        <div><div class="cl">Outreach today</div><div class="cd" id="ocCount">0 / 3</div></div>
-        <button id="ocMinus" class="ghost" type="button" aria-label="Remove one outreach">−</button>
-        <button id="ocPlus" class="primary plus" type="button" aria-label="Add one outreach">+1</button>
-        <button id="ocGoal" class="ghost" type="button" aria-label="Change the daily goal">Goal</button>
-      </div>
-      <div class="chrono" id="chrono" aria-label="Extra chronometer">
-        <div><div class="cl">Chronometer</div><div class="cd" id="cd">0:00:00.0</div></div>
-        <button id="cGo" class="tbtn" type="button">Start</button>
-        <button id="cReset" class="ghost" type="button">Reset</button>
-      </div>
-    </div>
+    
+      <label class="sel" title="How many outreaches you want to do each day. Shown in the Outreach today box.">Daily outreach goal <input id="goalInput" type="number" min="1" max="9999" inputmode="numeric" style="width:70px"></label>
   </div>
-</div>
+  <div class="drow"><button type="button" class="primary" id="setClose">Close</button></div>
+</dialog>
 
 <dialog id="noteDlg">
   <form method="dialog">
@@ -84,15 +81,10 @@
   <button type="button" class="ghost" id="nudgeNo">Still paused</button>
 </div>
 
-<form id="whoBox" class="who" hidden autocomplete="off">
-  <input id="whoInput" type="text" maxlength="200" placeholder="Who? name or link (Enter saves)" aria-label="Who was this outreach to">
-  <input id="whoNote" type="text" maxlength="1000" placeholder="Note (optional, Enter saves)" aria-label="Note for this outreach">
-  <label class="whofu"><input id="whoFollow" type="checkbox"> Remind me to follow up (every 2 days, 3 times)</label>
-</form>
-
 <dialog id="lstDlg" class="lstdlg">
   <h2>📋 Outreach lists</h2>
-  <div class="htabs" id="lstTabs"><button type="button" class="ghost on" data-t="follow">Follow-ups</button><button type="button" class="ghost" data-t="todo">To reach out</button><button type="button" class="ghost" data-t="done">Finished</button></div>
+  <input type="search" id="lstSearch" class="lstsearch" placeholder="🔍 Search everyone: name, link, email, notes, source, stage, saved links…" maxlength="120" autocomplete="off" aria-label="Search the outreach lists">
+  <div class="htabs lsttabs" id="lstTabs"></div>
   <div id="lstBody" class="lstbody"></div>
   <div class="drow"><a id="clipBm" class="ghost chatlink" href="#" title="Drag this to your bookmarks bar. On any page, select text and click it to add the text to a channel's note.">📎 Outreach clip</a><button type="button" class="primary" id="lstClose">Close</button></div>
 </dialog>
@@ -153,14 +145,6 @@
   </form>
 </dialog>
 
-<dialog id="goalDlg">
-  <form method="dialog">
-    <h2>Daily outreach goal</h2>
-    <input id="goalInput" type="number" min="1" max="9999" inputmode="numeric" autofocus>
-    <div class="drow"><button class="primary" value="save">Save</button></div>
-  </form>
-</dialog>
-
 <script src="app.js"></script>
 <script src="help.js"></script>
 <script src="alarms.js"></script>
@@ -195,9 +179,10 @@
 
   /* ---------- cards ---------- */
   var cardsEl = $('cards'), refs = {};
-  cardsEl.innerHTML = ACTS.map(function (a) {
+  cardsEl.innerHTML = ACTS.map(function (a, i) {
     var m = META[a];
     return '<article class="acard" data-act="' + a + '" style="--c:var(' + m.color + ')">' +
+      '<span class="knum" title="Press ' + (i + 1) + ' on the keyboard">' + (i + 1) + '</span>' +
       '<h2><i class="dotc"></i>' + m.icon + ' ' + m.label + '</h2>' +
       '<div class="big" data-big>00:00:00</div>' +
       '<div class="state" data-state></div>' +
@@ -381,34 +366,12 @@
     var n = TSA.outreachToday(now), g = S.outreach.goal;
     $('ocCount').textContent = n + ' / ' + g;
     $('ocCount').classList.toggle('met', n >= g);
-    $('ocMinus').disabled = n === 0;
+    $('fuCount').textContent = TSA.followsToday(now);
+    if (document.activeElement !== $('goalInput')) $('goalInput').value = g;
   }
-  var whoMs = 0, whoTimer = null;
-  function hideWho() { $('whoBox').hidden = true; clearTimeout(whoTimer); var a = document.activeElement; if (a === $('whoInput') || a === $('whoNote')) a.blur(); }
-  function armWho() { clearTimeout(whoTimer); whoTimer = setTimeout(hideWho, 10000); }
-  $('whoInput').addEventListener('input', armWho); $('whoNote').addEventListener('input', armWho);
-  $('whoBox').addEventListener('focusin', function () { clearTimeout(whoTimer); });
-  $('whoBox').addEventListener('focusout', function () { setTimeout(function () { if (!$('whoBox').hidden && !$('whoBox').contains(document.activeElement)) armWho(); }, 0); });
-  $('whoBox').addEventListener('submit', function (e) {
-    e.preventDefault();
-    var nm = $('whoInput').value.trim();
-    if (nm && whoMs) TSA.setOutreachName(whoMs, nm);
-    if ($('whoNote').value.trim() && whoMs) TSA.setOutreachNote(whoMs, $('whoNote').value);
-    if (nm && $('whoFollow').checked) TSA.startFollow(nm, '', whoMs || Date.now(), { note: $('whoNote').value, ms: whoMs });
-    S = TSA.get(); renderFollow();
-    hideWho();
-  });
-  $('whoBox').addEventListener('keydown', function (e) { if (e.key === 'Escape') hideWho(); });
-  $('ocPlus').addEventListener('click', function () {
-    var now = Date.now(); whoMs = TSA.outreachAdd(now); renderOutreach(now);
-    $('whoInput').value = ''; $('whoNote').value = ''; $('whoFollow').checked = false; $('whoBox').hidden = false;
-    var r = $('oc').getBoundingClientRect(); $('whoBox').style.left = Math.max(8, Math.min(r.left, innerWidth - 328)) + 'px'; $('whoBox').style.bottom = (innerHeight - r.top + 8) + 'px';
-    $('whoInput').focus(); armWho();
-  });
-  $('ocMinus').addEventListener('click', function () { hideWho(); TSA.outreachUndo(); renderOutreach(Date.now()); });
-  $('ocGoal').addEventListener('click', function () { $('goalInput').value = S.outreach.goal; $('goalDlg').returnValue = ''; $('goalDlg').showModal(); });
-  $('goalDlg').addEventListener('close', function () {
-    if (this.returnValue === 'save') { TSA.setGoal($('goalInput').value); S = TSA.get(); renderOutreach(Date.now()); }
+  $('goalInput').addEventListener('change', function () {
+    var v = Math.round(+$('goalInput').value);
+    TSA.setGoal(v >= 1 && v <= 9999 ? v : S.outreach.goal); S = TSA.get(); $('goalInput').value = S.outreach.goal; renderOutreach(Date.now());
   });
 
   /* ---------- extra chronometer (separate: its own storage, not in the export or dashboard) ---------- */
@@ -462,7 +425,7 @@
   /* ---------- follow-ups and the 'To reach out' list ---------- */
   var esc = function (t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
   var linkify = function (t) { return esc(t).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>'); };
-  var lstTab = 'follow';
+  var lstTab = 'due';
   var dayLbl = function (ms) { return new Date(ms).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }); };
   var leadHtml = function (f) {
     var pic = TSA.picFor(f), letter = (f.name || f.url || '?').replace(/^\W+/, '').charAt(0).toUpperCase() || '?';
@@ -477,9 +440,8 @@
   var dkey = function (ms) { var d = new Date(ms); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); };
   var noteHtml = function (x) { return x.note ? '<div class="lnote">' + esc(x.note).replace(/\n/g, '<br>') + '</div>' : ''; };
   var chatBtns = function (x) {
-    var cs = TSA.chatsOf(x), pin = cs.filter(function (c) { return c.pin; })[0];
-    return (pin ? '<a class="ghost chatlink" href="' + esc(pin.url) + '" target="_blank" rel="noopener" title="Pinned: ' + esc(pin.title || pin.url) + '">📌 ' + esc((pin.title || 'Pinned').slice(0, 18)) + '</a>' : '') +
-      '<button type="button" class="ghost chatlink" data-links="' + x.id + '" title="Everything linked to this creator">📁 Links' + (cs.length ? ' ' + cs.length : '') + '</button>';
+    var cs = TSA.chatsOf(x);   // pinned links are shown only in the 📁 Links popup
+    return '<button type="button" class="ghost chatlink" data-links="' + x.id + '" title="Everything linked to this creator">📁 Links' + (cs.length ? ' ' + cs.length : '') + '</button>';
   };
   var pencil = function (id) { return '<button type="button" class="ghost" data-edit="' + id + '" title="Edit or delete">✏️ Edit</button>'; };
   /* edit popup for one entry (kind: 'todo' or 'follow'): two columns, Save / Cancel / Delete always visible */
@@ -521,50 +483,79 @@
   function row(x, kind, muted, btns) {
     return '<div class="lrow"><div class="lmain">' + leadHtml(x) + '<div class="muted">' + muted + '</div>' + noteHtml(x) + '</div><div class="lbtns">' + chatBtns(x) + btns + pencil(x.id) + '</div></div>';
   }
-  function paintLists() {
-    var now = Date.now(), html = '';
-    [].forEach.call($('lstTabs').children, function (b) { b.classList.toggle('on', b.dataset.t === lstTab); });
-    if (lstTab === 'follow') {
-      var act = TSA.followList().filter(function (f) { return f.status === 'active'; }).sort(function (a, b) { return a.due - b.due; });
-      var advLbl = { A: 'Engaged ✓', B: 'Pitched ✓', C: 'Closed ✓' };
-      html = act.length ? act.map(function (f) {
-        var isDue = f.due <= now, L = f.stage === 'A' ? f.log : f.stage === 'B' ? f.logB : f.logC;
-        return row(f, 'follow', stageBadge(f) + ' · ' + L.length + ' / ' + TSA.STAGE_MAX[f.stage] + ' follow-ups · ' + (isDue ? '<b class="duenow">due now</b>' : 'next ' + dayLbl(f.due)) + ' · outreach ' + dayLbl(f.started) + srcMail(f),
-          '<button type="button" class="primary" data-fu-done="' + f.id + '">Followed up</button><button type="button" class="ghost" data-fu-adv="' + f.id + '" title="Move to the next stage (starts its own follow-ups)">' + advLbl[f.stage] + '</button><button type="button" class="ghost" data-fu-ni="' + f.id + '" title="Mark as not interested">Not interested</button><button type="button" class="ghost" data-fu-stop="' + f.id + '">Stop</button>');
-      }).join('') : '<p class="muted">No active follow-ups. Mark an outreach as reached (or tick “Remind me to follow up” on the +1 box) and it shows up here.</p>';
-    } else if (lstTab === 'todo') {
-      var td = TSA.todoList();
-      html = '<form id="todoForm" class="todoform"><input id="tdName" type="text" maxlength="120" placeholder="Name"><input id="tdUrl" type="text" maxlength="300" placeholder="Channel link"><input id="tdNote" type="text" maxlength="1000" placeholder="Note (optional)"><select id="tdSrc" aria-label="Source"><option value="">Source (auto)</option>' + TSA.pipeSources().map(function (n) { return '<option value="' + esc(n) + '">' + esc(n) + '</option>'; }).join('') + '</select><button class="primary">Add</button></form>' +
-        (td.length ? td.map(function (t) {
-          return row(t, 'todo', 'added ' + dayLbl(t.added) + srcMail(t), '<button type="button" class="primary" data-td-reach="' + t.id + '">Outreached ✓</button><button type="button" class="ghost" data-td-del="' + t.id + '">Remove</button>');
-        }).join('') : '<p class="muted">Nobody on the list. The YouTube userscript adds channels here, or add one above.</p>');
-    } else {
-      var fin = TSA.followList().filter(function (f) { return f.status !== 'active'; }).sort(function (a, b) { return (b.log[b.log.length - 1] || b.started) - (a.log[a.log.length - 1] || a.started); });
-      html = fin.length ? fin.map(function (f) {
-        var lab = f.ni ? 'not interested' : f.stage === 'D' ? 'closed ✓' : f.status === 'stopped' ? 'stopped' : 'finished (all follow-ups done)';
-        return row(f, 'follow', stageBadge(f) + ' · ' + lab + ' · ' + (f.log.length + f.logB.length + f.logC.length) + ' follow-up' + (f.log.length + f.logB.length + f.logC.length === 1 ? '' : 's') + ' · outreach ' + dayLbl(f.started) + srcMail(f),
-          (f.ni || f.status === 'stopped' ? '<button type="button" class="ghost" data-fu-react="' + f.id + '" title="Put it back into Follow-ups">Reopen</button>' : ''));
-      }).join('') : '<p class="muted">Nothing finished yet.</p>';
+  var STAGE_TABS = [['due', 'Due now'], ['todo', 'To reach out'], ['A', 'A · Initiated'], ['B', 'B · Engaged'], ['C', 'C · Pitched'], ['D', 'D · Closed'], ['ni', 'Not interested']];
+  var lstQ = '';
+  var inTab = function (f, t) {
+    if (t === 'ni') return !!f.ni;
+    if (f.ni) return false;
+    return f.stage === t;
+  };
+  var stageOf = function (x, kind) { return kind === 'todo' ? '<b class="stg stgT">To reach out</b>' : (x.ni ? '<b class="stg stgN">Not interested</b> ' : '') + stageBadge(x); };
+  var searchText = function (x, kind) {
+    var cs = TSA.chatsOf(x).map(function (c) { return [c.title, c.note, c.url, c.q].join(' '); }).join(' ');
+    var st = kind === 'todo' ? 'to reach out todo' : (x.stage + ' ' + TSA.STAGE_NAME[x.stage] + ' ' + (x.ni ? 'not interested' : x.status === 'active' ? 'active' : x.status));
+    return [x.name, x.url, x.email, x.note, x.source, st, cs].join(' ').toLowerCase();
+  };
+  function followRow(f, now) {
+    var L = f.stage === 'A' ? f.log : f.stage === 'B' ? f.logB : f.logC, advLbl = { A: 'Engaged ✓', B: 'Pitched ✓', C: 'Closed ✓' };
+    var total = f.log.length + f.logB.length + f.logC.length, btns;
+    if (f.status === 'active') {
+      var isDue = f.due <= now;
+      btns = '<button type="button" class="primary" data-fu-done="' + f.id + '">Followed up</button><button type="button" class="ghost" data-fu-adv="' + f.id + '" title="Move to the next stage (starts its own follow-ups)">' + advLbl[f.stage] + '</button><button type="button" class="ghost" data-fu-ni="' + f.id + '" title="Mark as not interested">Not interested</button><button type="button" class="ghost" data-fu-stop="' + f.id + '">Stop</button>';
+      return row(f, 'follow', stageOf(f) + ' · ' + L.length + ' / ' + TSA.STAGE_MAX[f.stage] + ' follow-ups · ' + (isDue ? '<b class="duenow">due now</b>' : 'next ' + dayLbl(f.due)) + ' · outreach ' + dayLbl(f.started) + srcMail(f), btns);
     }
-    if (html === lastLstHtml && lstTab === lastLstTab) return;   // nothing changed: do not rebuild (it would drop the typing focus)
+    var lab = f.ni ? 'not interested' : f.stage === 'D' ? 'closed ✓' : f.status === 'stopped' ? 'stopped' : 'all follow-ups done';
+    btns = (f.ni || f.status === 'stopped' ? '<button type="button" class="ghost" data-fu-react="' + f.id + '" title="Put it back into Follow-ups">Reopen</button>' : '') +
+      (f.stage !== 'D' && !f.ni ? '<button type="button" class="ghost" data-fu-adv="' + f.id + '" title="Move to the next stage">' + advLbl[f.stage] + '</button>' : '');
+    return row(f, 'follow', stageOf(f) + ' · ' + lab + ' · ' + total + ' follow-up' + (total === 1 ? '' : 's') + ' · outreach ' + dayLbl(f.started) + srcMail(f), btns);
+  }
+  function todoRow(t) {
+    return row(t, 'todo', 'added ' + dayLbl(t.added) + srcMail(t), '<button type="button" class="primary" data-td-reach="' + t.id + '">Outreached ✓</button><button type="button" class="ghost" data-td-del="' + t.id + '">Remove</button>');
+  }
+  var lastTabsHtml = '';
+  function paintLists() {
+    var now = Date.now(), html = '', fl = TSA.followList(), td = TSA.todoList(), q = lstQ.trim().toLowerCase();
+    var cnt = { due: fl.filter(function (f) { return f.status === 'active' && f.due <= now; }).length, todo: td.length };
+    ['A', 'B', 'C', 'D', 'ni'].forEach(function (t) { cnt[t] = fl.filter(function (f) { return inTab(f, t); }).length; });
+    var th = STAGE_TABS.map(function (t) {
+      return '<button type="button" class="ghost' + (!q && t[0] === lstTab ? ' on' : '') + (t[0] === 'due' && cnt.due ? ' hot' : '') + '" data-t="' + t[0] + '">' + t[1] + ' <i class="tcount">' + cnt[t[0]] + '</i></button>';
+    }).join('');
+    if (th !== lastTabsHtml) { $('lstTabs').innerHTML = th; lastTabsHtml = th; }
+    if (q) {
+      var terms = q.split(/\s+/), hit = function (x, k) { var h = searchText(x, k); return terms.every(function (w) { return h.indexOf(w) >= 0; }); };
+      var res = td.filter(function (x) { return hit(x, 'todo'); }).map(function (x) { return todoRow(x); })
+        .concat(fl.filter(function (x) { return hit(x, 'follow'); }).sort(function (a, b) { return (a.status === 'active' ? 0 : 1) - (b.status === 'active' ? 0 : 1) || a.due - b.due; }).map(function (f) { return followRow(f, now); }));
+      html = '<p class="muted lstinfo">' + res.length + ' result' + (res.length === 1 ? '' : 's') + ' for “' + esc(lstQ.trim()) + '” in every list</p>' + (res.length ? res.join('') : '<p class="muted">Nobody matches. Clear the box to go back to the tabs.</p>');
+    } else if (lstTab === 'due') {
+      var act = TSA.followDue(now);
+      html = act.length ? act.map(function (f) { return followRow(f, now); }).join('') : '<p class="muted">Nothing due now. 🎉 Follow-ups from every stage show up here when their day comes.</p>';
+    } else if (lstTab === 'todo') {
+      html = '<form id="todoForm" class="todoform"><input id="tdName" type="text" maxlength="120" placeholder="Name"><input id="tdUrl" type="text" maxlength="300" placeholder="Channel link"><input id="tdNote" type="text" maxlength="1000" placeholder="Note (optional)"><select id="tdSrc" aria-label="Source"><option value="">Source (auto)</option>' + TSA.pipeSources().map(function (n) { return '<option value="' + esc(n) + '">' + esc(n) + '</option>'; }).join('') + '</select><button class="primary" type="submit">Add</button></form>' +
+        (td.length ? td.map(todoRow).join('') : '<p class="muted">Nobody on the list. The YouTube userscript adds channels here, or add one above.</p>');
+    } else {
+      var list = fl.filter(function (f) { return inTab(f, lstTab); }).sort(function (a, b) { return (a.status === 'active' ? 0 : 1) - (b.status === 'active' ? 0 : 1) || (a.status === 'active' ? a.due - b.due : (b.log[b.log.length - 1] || b.started) - (a.log[a.log.length - 1] || a.started)); });
+      html = list.length ? list.map(function (f) { return followRow(f, now); }).join('') : '<p class="muted">Nobody in ' + esc((STAGE_TABS.filter(function (t) { return t[0] === lstTab; })[0] || ['', ''])[1]) + ' yet.</p>';
+    }
+    var key = q ? 'q:' + q : lstTab;
+    if (html === lastLstHtml && key === lastLstTab) return;   // nothing changed: do not rebuild (it would drop the typing focus)
     var ae = document.activeElement, keep = null;
     if (ae && $('lstBody').contains(ae) && ae.id) keep = { id: ae.id, v: ae.value, a: ae.selectionStart, b: ae.selectionEnd };
     var vals = { tdName: $('tdName') ? $('tdName').value : '', tdSrc: $('tdSrc') ? $('tdSrc').value : '', tdUrl: $('tdUrl') ? $('tdUrl').value : '', tdNote: $('tdNote') ? $('tdNote').value : '' };
-    lastLstHtml = html; lastLstTab = lstTab;
+    lastLstHtml = html; lastLstTab = key;
     $('lstBody').innerHTML = html;
-    if ($('tdName')) {
-      if (lstTab === 'todo') { $('tdSrc').value = vals.tdSrc; $('tdName').value = vals.tdName; $('tdUrl').value = vals.tdUrl; $('tdNote').value = vals.tdNote; }
-    }
+    if ($('tdName')) { $('tdSrc').value = vals.tdSrc; $('tdName').value = vals.tdName; $('tdUrl').value = vals.tdUrl; $('tdNote').value = vals.tdNote; }
     if (keep && $(keep.id)) { var el = $(keep.id); el.focus(); try { el.setSelectionRange(keep.a, keep.b); } catch (e) {} }
   }
   var lastLstHtml = '', lastLstTab = '';
   (function () {
     var b = document.createElement('button'); b.type = 'button'; b.className = 'ghost'; b.id = 'lstBtn'; b.textContent = '📋 Outreach lists';
     $('tools').appendChild(b);
-    var open = function (tab) { lstTab = tab || lstTab; lastLstHtml = ''; paintLists(); if (!$('lstDlg').open) $('lstDlg').showModal(); };
+    var open = function (tab) { tab = tab === 'follow' ? 'due' : tab === 'done' ? 'D' : tab; if (tab) { lstTab = tab; lstQ = ''; $('lstSearch').value = ''; } lastLstHtml = ''; paintLists(); if (!$('lstDlg').open) $('lstDlg').showModal(); };
+    $('lstSearch').addEventListener('input', function () { lstQ = this.value; paintLists(); });
+    $('lstSearch').addEventListener('keydown', function (e) { if (e.key === 'Escape' && this.value) { e.stopPropagation(); e.preventDefault(); this.value = ''; lstQ = ''; paintLists(); } });
     b.addEventListener('click', function () { open(); });
     $('lstClose').addEventListener('click', function () { $('lstDlg').close(); });
-    $('lstTabs').addEventListener('click', function (e) { var t = e.target.closest('button'); if (t) { lstTab = t.dataset.t; paintLists(); } });
+    $('lstTabs').addEventListener('click', function (e) { var t = e.target.closest('button'); if (t) { lstTab = t.dataset.t; lstQ = ''; $('lstSearch').value = ''; paintLists(); } });
     $('lstDlg').addEventListener('click', function (e) {
       var t = e.target.closest('button'); if (!t) { if (e.target === $('lstDlg')) $('lstDlg').close(); return; }
       var d = t.dataset;
@@ -820,7 +811,8 @@
       paintList(); dlg.showModal(); $('clipText').focus();
     })();
     window.addEventListener('tsa-open-lists', function (e) { open((e.detail && e.detail.tab) || 'todo'); });
-    if (/#(todo|follow|done)\b/.test(location.hash)) { open(location.hash === '#follow' ? 'follow' : location.hash === '#done' ? 'done' : 'todo'); }
+    window.addEventListener('tsa-open-lists-default', function () { open(); });
+    if (/#(todo|follow|done)\b/.test(location.hash)) { open(location.hash === '#follow' ? 'due' : location.hash === '#done' ? 'D' : 'todo'); }
     renderFollow(); setInterval(renderFollow, 60000);
   })();
 
@@ -1046,6 +1038,19 @@
       if (e.origin !== location.origin || !d || d.channel !== 'timer-bridge' || d.from !== 'userscript' || d.type !== 'switch') return;
       if (switchTo(String(d.act))) window.postMessage({ channel: 'timer-bridge', from: 'page', type: 'switch-ok', id: d.id }, location.origin);
     });
+  })();
+  /* Actions box: lists and Daily ask first, then settings and the data tools */
+  (function () {
+    var t = $('tools'), sb = document.createElement('button'); sb.type = 'button'; sb.className = 'ghost'; sb.id = 'setBtn'; sb.textContent = '⚙️ Settings'; sb.title = 'Beeps, sleep time, idle nudge, outreach goal…';
+    sb.addEventListener('click', function () { renderOutreach(Date.now()); $('setDlg').showModal(); });
+    $('setClose').addEventListener('click', function () { $('setDlg').close(); });
+    $('setDlg').addEventListener('click', function (e) { if (e.target === $('setDlg')) $('setDlg').close(); });
+    t.appendChild(sb);
+    ['lstBtn', 'askBtn', 'setBtn'].reverse().forEach(function (id) { if ($(id)) t.insertBefore($(id), t.firstChild); });
+    var order = ['lstBtn', 'askBtn', 'setBtn']; order.forEach(function (id) { if ($(id)) t.appendChild($(id)); });
+    [].slice.call(t.querySelectorAll('button:not([id])')).forEach(function (b) { t.appendChild(b); });
+    if ($('sumBtn')) t.appendChild($('sumBtn'));
+    var fi = t.querySelector('input[type=file]'); if (fi) t.appendChild(fi);
   })();
   setTimeout(function () { TSA.maybeAutoBackup(); S = TSA.get(); }, 2500);   // once a day, on the first open
   if (!TSA.storageOK()) showNotice('Your browser is blocking storage, so nothing will be saved. Try a normal (non-private) window.');
