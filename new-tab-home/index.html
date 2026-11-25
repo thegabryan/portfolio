@@ -1037,16 +1037,25 @@
       )[0];
     }
 
-    function normalizeMeta(meta) {
-      if (!meta || typeof meta !== 'object') return null;
-      const clean = {
-        title: String(meta.title || '').slice(0, 300),
-        artist: String(meta.artist || '').slice(0, 300),
-        date: String(meta.date || '').slice(0, 100)
-      };
-      return clean.title || clean.artist || clean.date ? clean : null;
-    }
+function normalizeMeta(meta) {
+  if (!meta || typeof meta !== 'object') return null;
 
+  const cleanText = value => String(value || '')
+    .replace(/(?:\d{4})?date\s+QS:P571,\S+/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const dateText = String(meta.date || '');
+  const yearMatch = dateText.match(/\b(\d{4})(?=date\b|\b)/i);
+
+  const clean = {
+    title: cleanText(meta.title).slice(0, 300),
+    artist: cleanText(meta.artist).slice(0, 300),
+    date: (yearMatch ? yearMatch[1] : cleanText(dateText)).slice(0, 100)
+  };
+
+  return clean.title || clean.artist || clean.date ? clean : null;
+}
     function normalizeRecord(item) {
       if (typeof item === 'string') {
         const url = item.trim();
