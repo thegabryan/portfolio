@@ -571,3 +571,6 @@ button.ghost.on { border-color: var(--accent); }
 .vtoast .vtbtns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
 .vtoast .vtbtn { padding: 4px 10px; font-size: 12px; text-decoration: none; color: var(--text); }
 @media (prefers-reduced-motion: reduce) { .vtoast { animation: none; } }
+
+/* counters and chronometer stay on the right of the bottom row */
+.bottom #oc { margin-left: auto; }
