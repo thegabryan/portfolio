@@ -68,7 +68,7 @@
       liveProject: '', lastProject: '',   // project tag of the running Work/Workflow run; the last one used
       segments: [],              // finished stretches: { act, start, end, [id, note] }
       sessions: [],              // finished work rounds (= points)
-      outreach: { clicks: [], goal: 3, adj: {}, names: {}, notes: {}, todo: [], follow: [], seen: [], pics: {}, sources: DEFAULT_SOURCES.slice() },   // click times of the outreach counter + hand corrections per day
+      outreach: { clicks: [], goal: 3, adj: {}, names: {}, notes: {}, todo: [], follow: [], seen: [], pics: {}, feed: {}, feedSeen: {}, feedAt: 0, sources: DEFAULT_SOURCES.slice() },   // click times of the outreach counter + hand corrections per day
       days: {},                  // 'YYYY-MM-DD' -> { firstOpen }
       ask: { people: [], log: [], me: { who: '', doing: '' }, today: { day: '', pid: '' } }   // Daily ask: people you admire, messages sent, your intro, today's pick
     };
@@ -100,6 +100,9 @@
     if (!r.outreach.names || typeof r.outreach.names !== 'object' || Array.isArray(r.outreach.names)) r.outreach.names = {};   // who each outreach was to, by click time
     var oc = r.outreach;
     if (!oc.notes || typeof oc.notes !== 'object' || Array.isArray(oc.notes)) oc.notes = {};     // a note for each outreach, by click time
+    if (!oc.feed || typeof oc.feed !== 'object' || Array.isArray(oc.feed)) oc.feed = {};            // latest videos per channel key (from the New Videos script)
+    if (!oc.feedSeen || typeof oc.feedSeen !== 'object' || Array.isArray(oc.feedSeen)) oc.feedSeen = {};   // when you last marked a creator's videos as seen, by entry id
+    if (!(oc.feedAt > 0)) oc.feedAt = 0;
     if (!oc.pics || typeof oc.pics !== 'object' || Array.isArray(oc.pics)) oc.pics = {};          // channel profile picture links, by channel key
     ['todo', 'follow', 'seen'].forEach(function (k) { if (!Array.isArray(oc[k])) oc[k] = []; });   // 'To reach out' list, follow-up reminders, ids already applied from the userscript
     if (!Array.isArray(oc.sources) || !oc.sources.length) oc.sources = DEFAULT_SOURCES.slice();   // lead sources (Actively Hiring, YouTube, X ...)
@@ -896,6 +899,36 @@
     if (n) keys.push('n:' + n);
     return keys;
   }
+  /* ---- new videos: the 'Timer New Videos' userscript reads each channel's YouTube feed and sends the latest videos ---- */
+  function feedKeys(item) { return picKeys(item && item.name, item && item.url).filter(function (k) { return k.charAt(0) !== 'n' || k.charAt(1) !== ':'; }); }
+  /* payload = { feed: { key: { videos: [{ id, title, published }] } }, checkedAt }. Only channels that are in your lists are kept. */
+  function setFeed(payload) {
+    if (!payload || typeof payload.feed !== 'object' || !payload.feed) return false;
+    var want = {}, out = {};
+    S.outreach.todo.concat(S.outreach.follow).forEach(function (it) { feedKeys(it).forEach(function (k) { want[k] = 1; }); });
+    Object.keys(payload.feed).forEach(function (k) {
+      if (!want[k]) return;
+      var vs = (payload.feed[k] && Array.isArray(payload.feed[k].videos) ? payload.feed[k].videos : []).filter(function (v) { return v && /^[\w-]{11}$/.test(String(v.id)) && +v.published > 0; })
+        .slice(0, 6).map(function (v) { return { id: String(v.id), title: String(v.title || '').replace(/\s+/g, ' ').trim().slice(0, 120), published: +v.published }; });
+      if (vs.length) out[k] = { videos: vs };
+    });
+    var at = +payload.checkedAt > 0 ? +payload.checkedAt : S.outreach.feedAt;
+    if (JSON.stringify(out) === JSON.stringify(S.outreach.feed) && at === S.outreach.feedAt) return false;
+    S.outreach.feed = out; S.outreach.feedAt = at; save(); return true;
+  }
+  function videosFor(item) {
+    var ks = feedKeys(item), f = S.outreach.feed;
+    for (var i = 0; i < ks.length; i++) if (f[ks[i]]) return f[ks[i]].videos;
+    return [];
+  }
+  /* a video is new when it came out after you last marked the creator as seen (at first: after you added them) */
+  function feedBase(item) { return S.outreach.feedSeen[item.id] || item.started || item.added || 0; }
+  function newVideos(item) { var b = feedBase(item); return videosFor(item).filter(function (v) { return v.published > b; }); }
+  function feedSeenNow(id, now) { S.outreach.feedSeen[id] = now || Date.now(); save(); return true; }
+  function newVideoEntries() {
+    return S.outreach.todo.concat(S.outreach.follow).filter(function (it) { return !it.ni && it.status !== 'stopped' && newVideos(it).length; });
+  }
+  function feedChecked() { return S.outreach.feedAt; }
   function picFor(item) {
     var p = S.outreach.pics || {}, ks = picKeys(item && item.name, item && item.url);
     for (var i = 0; i < ks.length; i++) if (p[ks[i]]) return p[ks[i]];
@@ -1602,7 +1635,7 @@
     boot: boot, get: function () { return S; }, reload: reload, save: save,
     storageOK: function () { return !memoryOnly; },
     switchTo: switchTo, setNote: setNote, setNoteAt: setNoteAt, noteTarget: noteTarget, allNotes: allNotes, heartbeat: heartbeat, tick: tick,
-    outreachToday: outreachToday, followsToday: followsToday, trackPeek: trackPeek, outreachAdd: outreachAdd, outreachUndo: outreachUndo, setOutreachDay: setOutreachDay, setOutreachName: setOutreachName, setOutreachNote: setOutreachNote, todoList: todoList, addTodo: addTodo, removeTodo: removeTodo, markReached: markReached, startFollow: startFollow, followList: followList, followDue: followDue, followDone: followDone, followStop: followStop, followDueCount: function (now) { return pipeStats(now).due; }, pipeAdvance: pipeAdvance, pipeNotInterested: pipeNotInterested, pipeStats: pipeStats, pipeSources: pipeSources, pipeSetSources: pipeSetSources, pipeFind: pipeFind, editFollow: editFollow, STAGE_MAX: STAGE_MAX, STAGE_NAME: STAGE_NAME, guessSource: guessSource, leadFromScript: leadFromScript, FOLLOW_MAX: FOLLOW_MAX, outreachLog: outreachLog, isFav: isFav, setFav: setFav, favNotes: favNotes, projectList: projectList, renameProject: renameProject, projectTime: projectTime, actByHour: actByHour, setGoal: setGoal,
+    outreachToday: outreachToday, followsToday: followsToday, trackPeek: trackPeek, outreachAdd: outreachAdd, outreachUndo: outreachUndo, setOutreachDay: setOutreachDay, setOutreachName: setOutreachName, setOutreachNote: setOutreachNote, todoList: todoList, addTodo: addTodo, removeTodo: removeTodo, markReached: markReached, startFollow: startFollow, followList: followList, followDue: followDue, followDone: followDone, followStop: followStop, followDueCount: function (now) { return pipeStats(now).due; }, pipeAdvance: pipeAdvance, pipeNotInterested: pipeNotInterested, pipeStats: pipeStats, pipeSources: pipeSources, pipeSetSources: pipeSetSources, pipeFind: pipeFind, editFollow: editFollow, STAGE_MAX: STAGE_MAX, STAGE_NAME: STAGE_NAME, guessSource: guessSource, leadFromScript: leadFromScript, FOLLOW_MAX: FOLLOW_MAX, outreachLog: outreachLog, setFeed: setFeed, videosFor: videosFor, newVideos: newVideos, feedSeenNow: feedSeenNow, newVideoEntries: newVideoEntries, feedChecked: feedChecked, isFav: isFav, setFav: setFav, favNotes: favNotes, projectList: projectList, renameProject: renameProject, projectTime: projectTime, actByHour: actByHour, setGoal: setGoal,
     todayTotals: todayTotals, todayPoints: todayPoints, analyze: analyze,
     askToday: askToday, askContext: askContext, askLogFor: askLogFor, askPeek: askPeek, askSwap: askSwap, askSetToday: askSetToday, askSave: askSave, askRemove: askRemove, askMe: askMe, askSend: askSend, askReply: askReply, askUnreply: askUnreply, askNoFollow: askNoFollow, askDelLog: askDelLog, askLog: askLog, askStats: askStats, askPeople: function () { return S.ask.people.slice(); }, askMeGet: function () { return { who: S.ask.me.who, doing: S.ask.me.doing }; },
     exportAll: exportAll, importText: importText,

@@ -514,3 +514,9 @@ button.ghost.on { border-color: var(--accent); }
 .linksdlg .lkactions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 0 0 10px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
 .linksdlg .lkactions button { padding: 6px 12px; font-size: 13px; }
 .linksdlg .lkactions .lkstate { margin-left: auto; font-size: 12px; }
+
+/* new videos in the outreach lists */
+.lstdlg .vidnew { margin: 6px 0 0 38px; padding: 6px 9px; border-left: 3px solid var(--accent); font-size: 13px; }
+.lstdlg .vidnew .vidline { margin: 2px 0; } .lstdlg .vidnew a, .lstdlg .vidlatest a { color: var(--text); }
+.lstdlg .vidnew button { margin-top: 4px; padding: 3px 10px; font-size: 12px; }
+.lstdlg .vidlatest { margin: 4px 0 0 38px; font-size: 12px; }

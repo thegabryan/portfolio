@@ -86,7 +86,7 @@
   <input type="search" id="lstSearch" class="lstsearch" placeholder="🔍 Search everyone: name, link, email, notes, source, stage, saved links…" maxlength="120" autocomplete="off" aria-label="Search the outreach lists">
   <div class="htabs lsttabs" id="lstTabs"></div>
   <div id="lstBody" class="lstbody"></div>
-  <div class="drow"><a id="clipBm" class="ghost chatlink" href="#" title="Drag this to your bookmarks bar. On any page, select text and click it to add the text to a channel's note.">📎 Outreach clip</a><button type="button" class="primary" id="lstClose">Close</button></div>
+  <div class="drow"><span class="muted" id="feedMsg" style="margin-right:auto;align-self:center;font-size:12px"></span><button type="button" class="ghost" id="feedBtn" title="Look for new videos now (needs the Timer New Videos script)">🎬 Check videos</button><a id="clipBm" class="ghost chatlink" href="#" title="Drag this to your bookmarks bar. On any page, select text and click it to add the text to a channel's note.">📎 Outreach clip</a><button type="button" class="primary" id="lstClose">Close</button></div>
 </dialog>
 
 <dialog id="askDlg" class="lstdlg askdlg">
@@ -434,7 +434,7 @@
   };
   function renderFollow() {
     var now = Date.now(), due = TSA.followDue(now), todo = TSA.todoList().length;
-    var b = $('lstBtn'); if (b) b.textContent = '📋 Outreach lists' + (due.length ? ' (' + due.length + ' due)' : todo ? ' (' + todo + ')' : '');
+    var b = $('lstBtn'); if (b) var nvc = TSA.newVideoEntries().length; b.textContent = '📋 Outreach lists' + (due.length ? ' (' + due.length + ' due)' : todo ? ' (' + todo + ')' : '') + (nvc ? ' · 🎬 ' + nvc : '');
     window.dispatchEvent(new Event('tsa-lists-changed'));
     if ($('lstDlg').open) paintLists();
   }
@@ -481,10 +481,19 @@
   }
   var stageBadge = function (f) { return '<b class="stg stg' + f.stage + '">' + f.stage + ' · ' + TSA.STAGE_NAME[f.stage] + '</b>'; };
   var srcMail = function (x) { return (x.source ? ' · ' + esc(x.source) : '') + (x.email ? ' · ✉️ ' + esc(x.email) : ''); };
-  function row(x, kind, muted, btns) {
-    return '<div class="lrow"><div class="lmain">' + leadHtml(x) + '<div class="muted">' + muted + '</div>' + noteHtml(x) + '</div><div class="lbtns">' + chatBtns(x) + btns + pencil(x.id) + '</div></div>';
+  var vDate = function (ms) { return new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); };
+  var vLink = function (v) { return '<a href="https://www.youtube.com/watch?v=' + v.id + '" target="_blank" rel="noopener">' + esc(v.title || v.id) + '</a> <span class="muted">· ' + vDate(v.published) + '</span>'; };
+  /* new videos (since you marked them seen) or, when there are none, the latest one */
+  function videoHtml(x) {
+    var all = TSA.videosFor(x); if (!all.length) return '';
+    var nv = TSA.newVideos(x);
+    if (nv.length) return '<div class="vidnew">🎬 <b>' + nv.length + ' new video' + (nv.length === 1 ? '' : 's') + '</b>' + nv.slice(0, 3).map(function (v) { return '<div class="vidline">' + vLink(v) + '</div>'; }).join('') + (nv.length > 3 ? '<div class="muted">+ ' + (nv.length - 3) + ' more</div>' : '') + '<button type="button" class="ghost" data-vid-seen="' + x.id + '" title="Hide these until they post again">Seen</button></div>';
+    return '<div class="vidlatest muted">🎬 Latest: ' + vLink(all[0]) + '</div>';
   }
-  var STAGE_TABS = [['due', 'Due now'], ['todo', 'To reach out'], ['A', 'A · Initiated'], ['B', 'B · Engaged'], ['C', 'C · Pitched'], ['D', 'D · Closed'], ['ni', 'Not interested']];
+  function row(x, kind, muted, btns) {
+    return '<div class="lrow"><div class="lmain">' + leadHtml(x) + '<div class="muted">' + muted + '</div>' + noteHtml(x) + videoHtml(x) + '</div><div class="lbtns">' + chatBtns(x) + btns + pencil(x.id) + '</div></div>';
+  }
+  var STAGE_TABS = [['due', 'Due now'], ['new', '🎬 New videos'], ['todo', 'To reach out'], ['A', 'A · Initiated'], ['B', 'B · Engaged'], ['C', 'C · Pitched'], ['D', 'D · Closed'], ['ni', 'Not interested']];
   var lstQ = '';
   var inTab = function (f, t) {
     if (t === 'ni') return !!f.ni;
@@ -495,7 +504,7 @@
   var searchText = function (x, kind) {
     var cs = TSA.chatsOf(x).map(function (c) { return [c.title, c.note, c.url, c.q].join(' '); }).join(' ');
     var st = kind === 'todo' ? 'to reach out todo' : (x.stage + ' ' + TSA.STAGE_NAME[x.stage] + ' ' + (x.ni ? 'not interested' : x.status === 'active' ? 'active' : x.status));
-    return [x.name, x.url, x.email, x.note, x.source, st, cs].join(' ').toLowerCase();
+    return [x.name, x.url, x.email, x.note, x.source, st, cs, TSA.videosFor(x).map(function (v) { return v.title; }).join(' ')].join(' ').toLowerCase();
   };
   function followRow(f, now) {
     var L = f.stage === 'A' ? f.log : f.stage === 'B' ? f.logB : f.logC, advLbl = { A: 'Engaged ✓', B: 'Pitched ✓', C: 'Closed ✓' };
@@ -516,7 +525,7 @@
   var lastTabsHtml = '';
   function paintLists() {
     var now = Date.now(), html = '', fl = TSA.followList(), td = TSA.todoList(), q = lstQ.trim().toLowerCase();
-    var cnt = { due: fl.filter(function (f) { return f.status === 'active' && f.due <= now; }).length, todo: td.length };
+    var cnt = { due: fl.filter(function (f) { return f.status === 'active' && f.due <= now; }).length, todo: td.length, 'new': TSA.newVideoEntries().length };
     ['A', 'B', 'C', 'D', 'ni'].forEach(function (t) { cnt[t] = fl.filter(function (f) { return inTab(f, t); }).length; });
     var th = STAGE_TABS.map(function (t) {
       return '<button type="button" class="ghost' + (!q && t[0] === lstTab ? ' on' : '') + (t[0] === 'due' && cnt.due ? ' hot' : '') + '" data-t="' + t[0] + '">' + t[1] + ' <i class="tcount">' + cnt[t[0]] + '</i></button>';
@@ -530,6 +539,9 @@
     } else if (lstTab === 'due') {
       var act = TSA.followDue(now);
       html = act.length ? act.map(function (f) { return followRow(f, now); }).join('') : '<p class="muted">Nothing due now. 🎉 Follow-ups from every stage show up here when their day comes.</p>';
+    } else if (lstTab === 'new') {
+      var ne = TSA.newVideoEntries().map(function (x) { return { x: x, t: TSA.newVideos(x)[0].published }; }).sort(function (a, b) { return b.t - a.t; });
+      html = ne.length ? ne.map(function (o) { var isT = !o.x.stage; return isT ? todoRow(o.x) : followRow(o.x, now); }).join('') : '<p class="muted">No new videos from the creators in your lists. ' + (TSA.feedChecked() ? '' : 'Install the <b>Timer New Videos</b> script and press 🎬 Check videos.') + '</p>';
     } else if (lstTab === 'todo') {
       html = '<form id="todoForm" class="todoform"><input id="tdName" type="text" maxlength="120" placeholder="Name"><input id="tdUrl" type="text" maxlength="300" placeholder="Channel link"><input id="tdNote" type="text" maxlength="1000" placeholder="Note (optional)"><select id="tdSrc" aria-label="Source"><option value="">Source (auto)</option>' + TSA.pipeSources().map(function (n) { return '<option value="' + esc(n) + '">' + esc(n) + '</option>'; }).join('') + '</select><button class="primary" type="submit">Add</button></form>' +
         (td.length ? td.map(todoRow).join('') : '<p class="muted">Nobody on the list. The YouTube userscript adds channels here, or add one above.</p>');
@@ -561,6 +573,7 @@
       var t = e.target.closest('button'); if (!t) { if (e.target === $('lstDlg')) $('lstDlg').close(); return; }
       var d = t.dataset;
       if (d.links) { openLinks(d.links); return; }
+      if (d.vidSeen) { TSA.feedSeenNow(d.vidSeen); S = TSA.get(); lastLstHtml = ''; renderFollow(); return; }
       if (d.edit) { openEdit(d.edit); return; }
       if (d.fuDone) TSA.followDone(d.fuDone); else if (d.fuAdv) TSA.pipeAdvance(d.fuAdv); else if (d.fuNi) TSA.pipeNotInterested(d.fuNi, true); else if (d.fuStop) TSA.followStop(d.fuStop, 'stopped'); else if (d.fuReact) TSA.pipeNotInterested(d.fuReact, false);
       else if (d.tdDel) TSA.removeTodo(d.tdDel);
@@ -636,6 +649,25 @@
         window.postMessage({ channel: 'timer-bridge', from: 'page', type: 'lead-ok', id: m.id }, location.origin);
       }
     });
+    /* 🎬 new videos: the Timer New Videos userscript sends each channel's latest videos */
+    var feedState = '';
+    var paintFeedMsg = function () {
+      var at = TSA.feedChecked(), m = $('feedMsg'); if (!m) return;
+      m.textContent = feedState || (at ? 'Videos checked ' + new Date(at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) + (dkey(at) !== dkey(Date.now()) ? ', ' + vDate(at) : '') : 'Videos not checked yet');
+    };
+    window.addEventListener('message', function (e) {
+      var m = e.data;
+      if (e.origin !== location.origin || !m || m.channel !== 'timer-bridge' || m.from !== 'userscript' || m.type !== 'feed') return;
+      feedState = m.running ? 'Checking videos ' + (m.progress || '…') : (m.errors ? m.errors + ' channel' + (m.errors === 1 ? '' : 's') + ' could not be checked' : '');
+      if (TSA.setFeed(m)) { S = TSA.get(); lastLstHtml = ''; renderFollow(); }
+      paintFeedMsg();
+    });
+    $('feedBtn').addEventListener('click', function () {
+      feedState = 'Asking the script…'; paintFeedMsg();
+      window.postMessage({ channel: 'timer-bridge', from: 'page', type: 'feed-check' }, location.origin);
+      setTimeout(function () { if (feedState === 'Asking the script…') { feedState = 'No answer: install or enable the Timer New Videos script.'; paintFeedMsg(); } }, 2500);
+    });
+    paintFeedMsg();
     window.addEventListener('message', function (e) {   // profile pictures sent by the YouTube userscript
       var m = e.data;
       if (e.origin !== location.origin || !m || m.channel !== 'timer-bridge' || m.from !== 'userscript' || m.type !== 'pics') return;
