@@ -119,6 +119,7 @@
     <div class="head">
       <h2>Outreach log</h2>
       <input id="olQ" type="search" placeholder="Search names" aria-label="Search outreach names">
+      <button type="button" class="ghost" id="olBlank" hidden></button>
     </div>
     <div id="ol"></div>
   </section>
@@ -157,7 +158,12 @@
         <input id="noteQ" type="search" placeholder="Search notes" aria-label="Search notes">
       </div>
     </div>
-    <div id="notes"></div>
+    <div id="notes" class="scroll"></div>
+  </section>
+
+  <section class="card">
+    <div class="head"><h2>⭐ Favorite notes</h2></div>
+    <div id="favs" class="scroll"></div>
   </section>
 
   <section class="card">
@@ -184,7 +190,7 @@
     <input id="olInput" type="text" maxlength="200" placeholder="Name or link" autocomplete="off" style="width:100%">
     <textarea id="olNote" rows="3" maxlength="1000" placeholder="Note (optional)" style="width:100%;margin-top:8px;box-sizing:border-box;font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:inherit;resize:vertical"></textarea>
     <p class="hint">Save with empty text to remove the name or the note.</p>
-    <div class="drow"><button class="primary" value="save">Save</button></div>
+    <div class="drow"><button class="ghost" id="olDel" type="button" title="Remove this outreach (and its +1)">Delete</button><button class="primary" value="save">Save</button></div>
   </form>
 </dialog>
 
@@ -212,7 +218,7 @@
     <textarea id="noteInput" rows="1" maxlength="1000" placeholder="Write a note" autofocus></textarea>
     <p class="hint">Enter saves · Shift+Enter for a new line · each line gets its time.</p>
     <div id="projRow" style="margin-top:10px"><input id="projInput" list="projList" maxlength="60" placeholder="Project (optional)" autocomplete="off" style="width:100%"><datalist id="projList"></datalist></div>
-    <div class="drow"><button class="ghost" id="noteDel" type="button">Delete note</button><button class="primary" id="noteSave" value="save">Save</button></div>
+    <div class="drow"><button class="ghost" id="noteFav" type="button" aria-pressed="false">☆ Favorite</button><button class="ghost" id="noteDel" type="button">Delete note</button><button class="primary" id="noteSave" value="save">Save</button></div>
   </form>
 </dialog>
 
@@ -342,12 +348,18 @@
     $('projList').innerHTML = TSA.projectList().map(function (p) { return '<option value="' + esc(p) + '"></option>'; }).join('');
     $('projInput').value = isProj ? (project || '') : '';
     $('noteDel').hidden = !note;
+    paintFav(TSA.isFav(act, start));
     $('noteDlg').returnValue = '';
     $('noteDlg').dataset.act = act; $('noteDlg').dataset.start = start;
     $('noteDlg').showModal();
     $('noteInput').focus(); $('noteInput').setSelectionRange($('noteInput').value.length, $('noteInput').value.length);   // caret at the end, so typing adds to the note
   }
   $('noteDel').addEventListener('click', function () { $('noteDlg').close('delete'); });
+  function paintFav(on) { var b = $('noteFav'); b.textContent = (on ? '⭐ Favorite' : '☆ Favorite'); b.classList.toggle('on', !!on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); }
+  $('noteFav').addEventListener('click', function () {
+    var d = $('noteDlg'), on = !TSA.isFav(d.dataset.act, +d.dataset.start);
+    TSA.setFav(d.dataset.act, +d.dataset.start, on); paintFav(on); render();
+  });
   /* click outside the note box = save what is written and close (empty text: just close) */
   $('noteDlg').addEventListener('mousedown', function (e) {
     if (e.target !== this) return;
@@ -362,7 +374,12 @@
     else return;
     render();
   });
+  $('olDel').addEventListener('click', function () {
+    if (!confirm('Delete this outreach? Its +1 is also removed from the outreach counts.')) return;
+    $('olDlg').close('deleted');
+  });
   $('olDlg').addEventListener('close', function () {
+    if (this.returnValue === 'deleted') { TSA.outreachRemoveClick(this.dataset.ms); render(); return; }
     if (this.returnValue !== 'save') return;
     TSA.setOutreachName(this.dataset.ms, $('olInput').value); TSA.setOutreachNote(this.dataset.ms, $('olNote').value); render();
   });
@@ -375,6 +392,10 @@
     TSA.setOutreachDay(this.dataset.day, $('ocInput').value); render();
   });
   document.addEventListener('click', function (e) {
+    var sb = e.target.closest && e.target.closest('[data-fav]');
+    if (sb) { TSA.setFav(sb.dataset.act, +sb.dataset.start, !TSA.isFav(sb.dataset.act, +sb.dataset.start)); render(); return; }
+    var db = e.target.closest && e.target.closest('[data-ol-del]');
+    if (db) { if (confirm('Delete this empty outreach? Its +1 is also removed from the outreach counts.')) { TSA.outreachRemoveClick(+db.dataset.olDel); render(); } return; }
     var lb = e.target.closest && e.target.closest('[data-ol]');
     if (lb) {
       var ms = +lb.dataset.ol, cur = TSA.outreachLog().filter(function (o) { return o.ms === ms; })[0];
@@ -568,7 +589,7 @@
             (isAll ? '<td>' + dot(g.act) + META[g.act].icon + ' ' + META[g.act].label + '</td>' : '') +
             '<td>' + dur(g.sec) + (g.live ? ' · running' : '') + '</td>' +
             '<td>' + (ptag(g.project) || '–') + '</td>' +
-            '<td class="wrapt">' + (g.note ? noteHtml(g.note, 's:' + g.act + ':' + g.start) : '–') + ' ' + (canEdit(g.act, g.start, g.live) ? '<button type="button" class="linkbtn" data-edit data-act="' + g.act + '" data-start="' + g.start + '">' + (g.note ? 'Edit' : 'Add') + '</button>' : '') + '</td></tr>';
+            '<td class="wrapt">' + (g.note ? noteHtml(g.note, 's:' + g.act + ':' + g.start) : '–') + ' ' + (g.note ? '<button type="button" class="linkbtn star' + (TSA.isFav(g.act, g.start) ? ' on' : '') + '" data-fav data-act="' + g.act + '" data-start="' + g.start + '" title="Favorite">' + (TSA.isFav(g.act, g.start) ? '⭐' : '☆') + '</button>' : '') + (canEdit(g.act, g.start, g.live) ? '<button type="button" class="linkbtn" data-edit data-act="' + g.act + '" data-start="' + g.start + '">' + (g.note ? 'Edit' : 'Add') + '</button>' : '') + '</td></tr>';
         }).join('') + '</tbody></table>' + (more ? '<p class="muted">Showing the latest 300 of ' + list.length + '.</p>' : '')
       : '<div class="empty-msg">No ' + (isAll ? '' : META[act].label.toLowerCase() + ' ') + 'sessions yet.</div>';
 
@@ -594,10 +615,13 @@
 
     /* outreach log */
     var olq = $('olQ').value.trim().toLowerCase();
+    var linked = {}; TSA.get().outreach.follow.concat(TSA.get().outreach.todo || []).forEach(function (x) { if (x.ms) linked[x.ms] = 1; });
+    var blanks = TSA.outreachLog().filter(function (o) { return !o.name && !o.note && !linked[o.ms]; });
+    var ob = $('olBlank'); ob.hidden = !blanks.length; ob.textContent = 'Delete ' + blanks.length + ' empty'; ob.dataset.n = blanks.length;
     var olist = TSA.outreachLog().filter(function (o) { return !olq || o.name.toLowerCase().indexOf(olq) >= 0 || o.note.toLowerCase().indexOf(olq) >= 0; });
     $('ol').innerHTML = olist.length ? olist.slice(0, 300).map(function (o) {
       return '<div class="nrow"><span class="nt">' + fmtDay(TSA.dayKey(o.ms), true) + ' · ' + clock(o.ms) + '</span><span>🤝 Outreach</span><span class="nx">' + (o.name ? linkify(esc(o.name)) : '<span class="muted">–</span>') + chatLinks(o.ms) + (o.note ? '<div class="onote">' + linkify(esc(o.note)) + '</div>' : '') +
-        '</span><button type="button" class="linkbtn" data-ol="' + o.ms + '">' + (o.name || o.note ? 'Edit' : 'Add name') + '</button></div>';
+        '</span><button type="button" class="linkbtn" data-ol="' + o.ms + '">' + (o.name || o.note ? 'Edit' : 'Add name') + '</button>' + (!o.name && !o.note ? '<button type="button" class="linkbtn" data-ol-del="' + o.ms + '">Delete</button>' : '') + '</div>';
     }).join('') + (olist.length > 300 ? '<p class="muted">Showing the newest 300 of ' + olist.length + '.</p>' : '')
       : '<div class="empty-msg">' + (olq ? 'No names match.' : 'No outreaches counted yet.') + '</div>';
 
@@ -617,11 +641,18 @@
     $('notes').innerHTML = all.length ? all.slice(0, 300).map(function (n) {
       var sec = Math.round((n.end - n.start) / 1000);
       return '<div class="nrow"><span class="nt">' + fmtDay(TSA.dayKey(n.start), true) + ' · ' + clock(n.start) + '</span><span>' + dot(n.act) + META[n.act].icon + ' ' + META[n.act].label + ' · ' + dur(sec) + (n.live ? ' · running' : '') +
-        (n.project ? ' ' + ptag(n.project) : '') + '</span><span class="nx">' + noteHtml(n.note, 'n:' + n.act + ':' + n.start) + '</span><button type="button" class="linkbtn" data-edit data-act="' + n.act + '" data-start="' + n.start + '">Edit</button></div>';
+        (n.project ? ' ' + ptag(n.project) : '') + '</span><span class="nx">' + noteHtml(n.note, 'n:' + n.act + ':' + n.start) + '</span><span class="nbtns"><button type="button" class="linkbtn star' + (TSA.isFav(n.act, n.start) ? ' on' : '') + '" data-fav data-act="' + n.act + '" data-start="' + n.start + '" title="Favorite">' + (TSA.isFav(n.act, n.start) ? '⭐' : '☆') + '</button><button type="button" class="linkbtn" data-edit data-act="' + n.act + '" data-start="' + n.start + '">Edit</button></span></div>';
     }).join('') + (all.length > 300 ? '<p class="muted">Showing the newest 300 of ' + all.length + '.</p>' : '')
       : '<div class="empty-msg">' + (nq || nact.value ? 'No notes match.' : 'No notes yet. Use the 📝 Note button on a timer card.') + '</div>';
 
-    fitNotes($('segs')); fitNotes($('notes'));
+    var fl = TSA.favNotes();
+    $('favs').innerHTML = fl.length ? fl.map(function (n) {
+      var sec = Math.round((n.end - n.start) / 1000);
+      return '<div class="nrow"><span class="nt">' + fmtDay(TSA.dayKey(n.start), true) + ' · ' + clock(n.start) + '</span><span>' + dot(n.act) + META[n.act].icon + ' ' + META[n.act].label + ' · ' + dur(sec) + (n.project ? ' ' + ptag(n.project) : '') + '</span><span class="nx">' + noteHtml(n.note, 'f:' + n.act + ':' + n.start) + '</span>' +
+        '<span class="nbtns"><button type="button" class="linkbtn star on" data-fav data-act="' + n.act + '" data-start="' + n.start + '" title="Remove from favorites">⭐</button><button type="button" class="linkbtn" data-edit data-act="' + n.act + '" data-start="' + n.start + '">Edit</button></span></div>';
+    }).join('') : '<div class="empty-msg">No favorites yet. Click ☆ on a note, here or in the note popup.</div>';
+
+    fitNotes($('segs')); fitNotes($('notes')); fitNotes($('favs'));
 
     /* every day */
     $('table').innerHTML = A.days.length
@@ -637,6 +668,13 @@
   ['range', 'stackRange', 'shareRange', 'ocRange', 'segAct', 'noteAct', 'projRange'].forEach(function (id) { $(id).addEventListener('change', render); });
   $('noteQ').addEventListener('input', render);
   $('olQ').addEventListener('input', render);
+  $('olBlank').addEventListener('click', function () {
+    var n = +this.dataset.n; if (!n) return;
+    var S = TSA.get(), linked = {}; S.outreach.follow.concat(S.outreach.todo || []).forEach(function (x) { if (x.ms) linked[x.ms] = 1; });
+    if (!confirm('Delete ' + n + ' outreach' + (n === 1 ? '' : 'es') + ' with no name and no note? Their +1s are also removed from the outreach counts.')) return;
+    TSA.outreachLog().forEach(function (o) { if (!o.name && !o.note && !linked[o.ms]) TSA.outreachRemoveClick(o.ms); });
+    render();
+  });
   $('tlPrev').addEventListener('click', function () { tlDay = TSA.addDays(tlDay || TSA.dayKey(Date.now()), -1); tlSel = null; renderTimeline(); });
   $('tlNext').addEventListener('click', function () { tlDay = TSA.addDays(tlDay, 1); tlSel = null; renderTimeline(); });
   $('prevM').addEventListener('click', function () { monthOffset--; render(); });

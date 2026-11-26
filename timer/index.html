@@ -100,6 +100,7 @@
 <dialog id="edDlg" class="edpop"><div id="edBody"></div></dialog>
 
 <dialog id="linksDlg" class="lstdlg linksdlg">
+  <div id="lkActions" class="lkactions"></div>
   <div id="linksHead"></div>
   <div class="linkbar"><button type="button" class="ghost" id="lkOpenAll">Open all</button><button type="button" class="ghost" id="lkCopyAll">Copy all</button><span class="muted" id="lkMsg"></span></div>
   <div id="linksBody" class="lstbody"></div>
@@ -613,8 +614,13 @@
   $('whenDlg').addEventListener('close', function () {
     if (this.returnValue !== 'save' || !whenItem) { whenItem = null; return; }
     var ts = new Date($('whenInput').value).getTime(); if (!(ts > 0) || ts > Date.now()) ts = Date.now();
+    var wasLinks = linksFor && linksFor === whenItem.id, wi = whenItem;
     TSA.markReached(whenItem.name, whenItem.url, ts, {}); whenItem = null;
     S = TSA.get(); renderOutreach(Date.now()); renderFollow();
+    if (wasLinks) {
+      var nf = TSA.followList().filter(function (y) { return y.name === wi.name && y.url === wi.url; }).sort(function (a, b) { return b.started - a.started; })[0];
+      if (nf) { linksFor = nf.id; paintLinks(); $('lkMsg').textContent = 'Outreach counted ✓'; } else $('linksDlg').close();
+    }
   });
   $('lstDlg').addEventListener('submit', function (e) {
       if (e.target.id !== 'todoForm') return; e.preventDefault();
@@ -661,11 +667,30 @@
     var linksFor = '', linkEdit = '', hostOf = function (u) { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return u; } };
     var KIND_LABEL = { chat: 'AI chat', job: 'Job page', site: 'Website', social: 'Social', video: 'YouTube', mail: 'Gmail', other: 'Other' };
     var shortDay = function (ms) { var d = new Date(ms); return d.getDate() + ' ' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()] + ' ' + d.getFullYear(); };
+    /* status buttons at the top of the popup, so an outreach can be marked without closing it */
+    function paintLinkActions(x) {
+      var isTodo = !x.stage && !TSA.followList().some(function (y) { return y.id === x.id; });
+      var b = function (cls, key, label, title) { return '<button type="button" class="' + cls + '" data-lk-act="' + key + '" title="' + esc(title) + '">' + label + '</button>'; };
+      var html = '', now = Date.now();
+      if (isTodo) html = b('primary', 'reach', 'Outreached ✓', 'Count it as outreached (asks when)') + b('ghost', 'todo-del', 'Remove', 'Remove from To reach out');
+      else {
+        var advLbl = { A: 'Answered ✓', B: 'Pitched ✓', C: 'Closed ✓' }, advTitle = { A: 'They answered: move to B · Engaged', B: 'Move to C · Pitched', C: 'Move to D · Closed' };
+        var L = x.stage === 'A' ? x.log : x.stage === 'B' ? x.logB : x.logC;
+        if (x.status === 'active') {
+          html = b('primary', 'done', 'Followed up', 'Log a follow-up now') + b('ghost', 'adv', advLbl[x.stage], advTitle[x.stage]) + b('ghost', 'ni', 'Not interested', 'Mark as not interested');
+        } else {
+          html = (x.ni || x.status === 'stopped' ? b('ghost', 'react', 'Reopen', 'Put it back into Follow-ups') : '') + (x.stage !== 'D' && !x.ni ? b('ghost', 'adv', advLbl[x.stage], advTitle[x.stage]) : '');
+        }
+        html += '<span class="muted lkstate">' + TSA.STAGE_NAME[x.stage] + (x.ni ? ' · not interested' : x.status === 'active' ? ' · ' + L.length + ' / ' + TSA.STAGE_MAX[x.stage] + ' follow-ups · ' + (x.due <= now ? '<b class="duenow">due now</b>' : 'next ' + dayLbl(x.due)) : x.stage === 'D' ? ' · closed' : ' · reminders finished') + '</span>';
+      }
+      $('lkActions').innerHTML = html;
+    }
     function paintLinks() {
       var x = TSA.todoList().concat(TSA.followList()).filter(function (y) { return y.id === linksFor; })[0];
       if (!x) { $('linksDlg').close(); return; }
       $('linksHead').innerHTML = '<h2>📁 ' + esc(x.name || 'Creator') + '</h2><div class="lrow" style="border-top:0">' + '<div class="lmain">' + leadHtml(x) + noteHtml(x) + '</div>' +
         '<div class="lbtns">' + (/^https?:\/\//i.test(x.url || '') ? '<a class="ghost chatlink" href="' + esc(x.url) + '" target="_blank" rel="noopener">Open channel ↗</a>' : '') + '</div></div>';
+      paintLinkActions(x);
       var cs = TSA.chatsOf(x), gm = TSA.gmailFor(x);
       var gmRow = function (q, url, extra) {
         return '<div class="linkrow gmrow" ' + (url ? 'data-url="' + esc(url) + '"' : 'data-virtual="1"') + '><span class="fav" data-l="✉️"></span><div class="lkmain"><div class="muted">' + extra + '</div>' +
@@ -720,6 +745,17 @@
     $('linksDlg').addEventListener('click', function (e) {
       var t = e.target.closest('button'); if (!t) { if (e.target === $('linksDlg')) $('linksDlg').close(); return; }
       var d = t.dataset, upd = function () { S = TSA.get(); lastLstHtml = ''; renderFollow(); paintLinks(); };
+      if (d.lkAct) {
+        var ent = TSA.todoList().concat(TSA.followList()).filter(function (y) { return y.id === linksFor; })[0]; if (!ent) return;
+        var msg = '';
+        if (d.lkAct === 'reach') { askWhen(ent); return; }
+        if (d.lkAct === 'todo-del') { TSA.removeTodo(ent.id); S = TSA.get(); lastLstHtml = ''; renderFollow(); $('linksDlg').close(); return; }
+        if (d.lkAct === 'done') { TSA.followDone(ent.id); msg = 'Follow-up logged ✓'; }
+        else if (d.lkAct === 'adv') { TSA.pipeAdvance(ent.id); msg = 'Moved to the next stage ✓'; }
+        else if (d.lkAct === 'ni') { TSA.pipeNotInterested(ent.id, true); msg = 'Marked not interested'; }
+        else if (d.lkAct === 'react') { TSA.pipeNotInterested(ent.id, false); msg = 'Reopened ✓'; }
+        upd(); $('lkMsg').textContent = msg; return;
+      }
       if (d.ytCopy) { var xx = TSA.todoList().concat(TSA.followList()).filter(function (y) { return y.id === linksFor; })[0]; if (xx && navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(xx.url).then(function () { $('lkMsg').textContent = 'Channel link copied ✓'; }, function () { $('lkMsg').textContent = 'Could not copy'; }); return; }
       if (d.lkPin) { var c = linksOf().filter(function (z) { return z.url === d.lkPin; })[0]; TSA.pinLink(linksFor, d.lkPin, !(c && c.pin)); upd(); }
       else if (d.lkDel) { if (confirm('Remove this link from the creator?')) { TSA.unlinkChat(linksFor, d.lkDel); upd(); } }

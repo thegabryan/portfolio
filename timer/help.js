@@ -38,6 +38,7 @@
     '<li><b>Auto-sleep</b> (settings bar, default 20:00): if the page was closed, or the computer asleep, past that time, the part of the gap after it counts as <b>Sleep</b> instead of Paused (a gap that started before it stays Paused until it). Night runs until 06:00, so closing at 02:00 is already Sleep. Sleep lasts until you open the page again. Clear the time box to turn it off.</li>' +
     '<li>The bar at the top of the page (like <i>The page was closed…</i>) has an <b>×</b> to dismiss it. The old &ldquo;follow-ups due&rdquo; bar is gone: the 📋 Outreach lists button already shows the number due.</li>' +
     '<li><b>YouTube pill</b> (YouTube Outreach Popup 2.1): on every channel page a small pill stays in the top-right corner. A new creator gets the question (with an optional <b>note</b> box that is saved with your answer); <b>Not now</b> or × shrinks it to a <b>📌 Add to outreach</b> pill. For a creator already in your lists the pill shows where they stand (To reach out, or Outreached with the follow-up date), <b>🔗 Suggestions</b> (links from the About page, with a count of new ones), <b>📝 Note</b> (adds a dated line to their note; Enter saves, Shift+Enter new line) and <b>📁 Links</b> (opens their Links popup here). Notes and links arrive when a timer page is open.</li>' +
+    '<li><b>Status buttons in 📁 Links</b>: the top of the popup has <b>Followed up</b>, <b>Answered ✓</b> (moves to the next stage), <b>Not interested</b> / <b>Reopen</b> (and <b>Outreached ✓</b> for someone in To reach out), so you can mark it without closing the popup.</li>' +
     '<li><b>YouTube link in 📁 Links</b>: the first row of each creator&rsquo;s Links popup is their YouTube channel, with <b>Open YouTube ↗</b> and <b>Copy</b> buttons, in the same style as the Gmail row.</li>' +
     '<li><b>Find their email</b>: each creator&rsquo;s <b>📁 Links</b> popup starts with a Gmail search box, pre-filled with their name (filler words like &ldquo;The&rdquo; are skipped; edit the text and it is saved). <b>Search Gmail ↗</b> opens it in Gmail; the <i>account /u/</i> number is for your Google account.</li>' +
     '<li><b>📎 Outreach clip (bookmarklet)</b>: drag the <b>📎 Outreach clip</b> button at the bottom of <i>Outreach lists</i> to your bookmarks bar. On any page, select text and click the bookmark: a small window opens, you pick the channel and the text is added to its note with the date. If the text has an email you can also add a Gmail search link for it, and you can link the page it came from.</li>' +
@@ -90,7 +91,8 @@
     '<ul>' +
     '<li><b>Outreach</b> – number cards, a chart per day and goal progress.</li>' +
     '<li><b>Outreaches by hour of day</b> – only real clicks, not hand corrections.</li>' +
-    '<li><b>Outreach log</b> – every outreach with its name/note; search it, open links, export CSV.</li>' +
+    '<li><b>Outreach log</b> – every outreach with its name/note; search it, open links, export CSV. An outreach with no name and no note has a <b>Delete</b> button, and <b>Delete N empty</b> removes all of them at once (their +1s are removed too).</li>' +
+    '<li><b>Notes and ⭐ Favorites</b> – the Notes list is a scrollable block. Click <b>☆</b> on a note (Notes, Sessions, or the note popup) to favorite it; favorites are collected in the <b>⭐ Favorite notes</b> card.</li>' +
     '</ul>' +
     '<h3>Sessions, notes, projects</h3>' +
     '<ul>' +

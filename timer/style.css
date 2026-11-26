@@ -503,3 +503,14 @@ dialog.edpop .edsp { flex: 1; }
 #due .lbtns a.chatlink, #due .lbtns button { padding: 5px 10px; font-size: 13px; }
 .duenow { color: #d97706; }
 @media (max-width: 560px) { .acard h2 { margin-top: 14px; } }
+
+/* favorite notes */
+.nbtns { display: inline-flex; gap: 2px; align-items: baseline; white-space: nowrap; }
+.linkbtn.star { color: var(--muted); font-size: 16px; line-height: 1; }
+.linkbtn.star.on { color: inherit; }
+button.ghost.on { border-color: var(--accent); }
+
+/* status buttons at the top of the channel Links popup */
+.linksdlg .lkactions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 0 0 10px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.linksdlg .lkactions button { padding: 6px 12px; font-size: 13px; }
+.linksdlg .lkactions .lkstate { margin-left: auto; font-size: 12px; }

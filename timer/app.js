@@ -54,6 +54,7 @@
   function defaults() {
     return {
       version: 2,
+      favNotes: {},              // favorite notes, key 'act:start'
       settings: {
         autoRestart: false, theme: 'auto', volume: 0.5, beepMinutes: 10, shortPauseSec: 20, goals: {}, autoBackup: true, idleNudgeMin: 30, sleepAfter: 1200,
         beep: { paused: true, workflow: true, workout: true, eating: true }
@@ -93,6 +94,7 @@
     if (!(r.outreach.goal >= 1)) r.outreach.goal = 3;
     if (!r.outreach.adj || typeof r.outreach.adj !== 'object' || Array.isArray(r.outreach.adj)) r.outreach.adj = {};   // hand-typed corrections per day
     if (typeof r.liveNote !== 'string') r.liveNote = '';
+    if (!r.favNotes || typeof r.favNotes !== 'object' || Array.isArray(r.favNotes)) r.favNotes = {};   // favorite notes, key 'act:start'
     if (typeof r.liveProject !== 'string') r.liveProject = '';
     if (typeof r.lastProject !== 'string') r.lastProject = '';
     if (!r.outreach.names || typeof r.outreach.names !== 'object' || Array.isArray(r.outreach.names)) r.outreach.names = {};   // who each outreach was to, by click time
@@ -449,6 +451,16 @@
     return out;
   }
   /* Every note, newest first. */
+  /* Favorite notes: a star on a note, kept as 'act:start' keys. They live in the main data, so backups include them. */
+  function favKey(act, start) { return act + ':' + start; }
+  function isFav(act, start) { return !!S.favNotes[favKey(act, start)]; }
+  function setFav(act, start, on) {
+    var k = favKey(act, +start);
+    if (on) S.favNotes[k] = 1; else delete S.favNotes[k];
+    save(); return !!on;
+  }
+  /* Notes that are starred and still have text, newest first. */
+  function favNotes(now) { return allNotes(now).filter(function (n) { return S.favNotes[favKey(n.act, n.start)]; }); }
   function allNotes(now) {
     var out = S.segments.filter(function (g) { return g && g.note; })
       .map(function (g) { return { act: g.act, start: g.start, end: g.end, note: g.note, project: g.project || '', live: false }; });
@@ -1590,7 +1602,7 @@
     boot: boot, get: function () { return S; }, reload: reload, save: save,
     storageOK: function () { return !memoryOnly; },
     switchTo: switchTo, setNote: setNote, setNoteAt: setNoteAt, noteTarget: noteTarget, allNotes: allNotes, heartbeat: heartbeat, tick: tick,
-    outreachToday: outreachToday, followsToday: followsToday, trackPeek: trackPeek, outreachAdd: outreachAdd, outreachUndo: outreachUndo, setOutreachDay: setOutreachDay, setOutreachName: setOutreachName, setOutreachNote: setOutreachNote, todoList: todoList, addTodo: addTodo, removeTodo: removeTodo, markReached: markReached, startFollow: startFollow, followList: followList, followDue: followDue, followDone: followDone, followStop: followStop, followDueCount: function (now) { return pipeStats(now).due; }, pipeAdvance: pipeAdvance, pipeNotInterested: pipeNotInterested, pipeStats: pipeStats, pipeSources: pipeSources, pipeSetSources: pipeSetSources, pipeFind: pipeFind, editFollow: editFollow, STAGE_MAX: STAGE_MAX, STAGE_NAME: STAGE_NAME, guessSource: guessSource, leadFromScript: leadFromScript, FOLLOW_MAX: FOLLOW_MAX, outreachLog: outreachLog, projectList: projectList, renameProject: renameProject, projectTime: projectTime, actByHour: actByHour, setGoal: setGoal,
+    outreachToday: outreachToday, followsToday: followsToday, trackPeek: trackPeek, outreachAdd: outreachAdd, outreachUndo: outreachUndo, setOutreachDay: setOutreachDay, setOutreachName: setOutreachName, setOutreachNote: setOutreachNote, todoList: todoList, addTodo: addTodo, removeTodo: removeTodo, markReached: markReached, startFollow: startFollow, followList: followList, followDue: followDue, followDone: followDone, followStop: followStop, followDueCount: function (now) { return pipeStats(now).due; }, pipeAdvance: pipeAdvance, pipeNotInterested: pipeNotInterested, pipeStats: pipeStats, pipeSources: pipeSources, pipeSetSources: pipeSetSources, pipeFind: pipeFind, editFollow: editFollow, STAGE_MAX: STAGE_MAX, STAGE_NAME: STAGE_NAME, guessSource: guessSource, leadFromScript: leadFromScript, FOLLOW_MAX: FOLLOW_MAX, outreachLog: outreachLog, isFav: isFav, setFav: setFav, favNotes: favNotes, projectList: projectList, renameProject: renameProject, projectTime: projectTime, actByHour: actByHour, setGoal: setGoal,
     todayTotals: todayTotals, todayPoints: todayPoints, analyze: analyze,
     askToday: askToday, askContext: askContext, askLogFor: askLogFor, askPeek: askPeek, askSwap: askSwap, askSetToday: askSetToday, askSave: askSave, askRemove: askRemove, askMe: askMe, askSend: askSend, askReply: askReply, askUnreply: askUnreply, askNoFollow: askNoFollow, askDelLog: askDelLog, askLog: askLog, askStats: askStats, askPeople: function () { return S.ask.people.slice(); }, askMeGet: function () { return { who: S.ask.me.who, doing: S.ask.me.doing }; },
     exportAll: exportAll, importText: importText,
