@@ -136,6 +136,20 @@
       if (document.getElementById('askDlg')) window.dispatchEvent(new CustomEvent('tsa-open-ask'));
       else location.href = 'index.html#ask';
     });
+    /* green "New videos": creators in your lists who posted since you last looked (read from the Timer New Videos script's data) */
+    var vid = document.createElement('button'); vid.type = 'button'; vid.className = 'ghost hbtn reachchip newvid'; vid.id = 'vidChip'; ask.after(vid);
+    vid.paint = function () {
+      var t = window.TSA && TSA.newVideoEntries ? TSA.newVideoEntries() : [];
+      vid.classList.toggle('idle', !t.length);
+      if (!t.length) { vid.textContent = '🎬 New videos: none'; vid.title = 'No new videos from the creators in your lists\n\nClick to open the list'; return; }
+      var n = t.reduce(function (a, x) { return a + TSA.newVideos(x).length; }, 0);
+      vid.textContent = '🎬 New videos: ' + nm(t[0]) + (t.length > 1 ? ' +' + (t.length - 1) : '');
+      vid.title = n + ' new video' + (n === 1 ? '' : 's') + ' from ' + t.length + ' creator' + (t.length === 1 ? '' : 's') + ':\n' + t.map(function (x) { return nm(x) + ' (' + TSA.newVideos(x).length + ')'; }).join('\n') + '\n\nClick to open the list';
+    };
+    vid.addEventListener('click', function () {
+      if (document.getElementById('lstDlg')) window.dispatchEvent(new CustomEvent('tsa-open-lists', { detail: { tab: 'new' } }));
+      else location.href = 'index.html#new';
+    });
     /* read-only counters on the pages that have no counter boxes of their own (the Timer page has them) */
     var trk = [];
     if (!document.getElementById('ocCount')) {
@@ -148,12 +162,12 @@
         });
         return c;
       };
-      var oc = mk('outChip', 'outchip', ask, 'todo'), fc = mk('fuTodayChip', 'fuchip', oc, 'follow');
+      var oc = mk('outChip', 'outchip', vid, 'todo'), fc = mk('fuTodayChip', 'fuchip', oc, 'follow');
       oc.paint = function () { var t = window.TSA && TSA.trackPeek ? TSA.trackPeek() : { out: 0, goal: 3, fu: 0 }; oc.textContent = '📤 Outreach ' + t.out + ' / ' + t.goal; oc.classList.toggle('met', t.out >= t.goal); oc.title = 'Outreaches done today (goal ' + t.goal + ')\nLog them in the Outreach lists popup'; };
       fc.paint = function () { var t = window.TSA && TSA.trackPeek ? TSA.trackPeek() : { fu: 0 }; fc.textContent = '✅ Follow-ups ' + t.fu; fc.title = 'Follow-ups done today'; };
       trk = [oc, fc];
     }
-    var paint = function () { reach.paint(); fu.paint(); ask.paint(); trk.forEach(function (c) { c.paint(); }); };
+    var paint = function () { reach.paint(); fu.paint(); ask.paint(); vid.paint(); trk.forEach(function (c) { c.paint(); }); };
     window.addEventListener('storage', function (e) { if (e.key === 'tsa2_data') paint(); });
     window.addEventListener('tsa-lists-changed', paint); window.addEventListener('tsa-ask-changed', paint);
     setInterval(paint, 3000); paint();

@@ -102,6 +102,7 @@
 <dialog id="linksDlg" class="lstdlg linksdlg">
   <div id="lkActions" class="lkactions"></div>
   <div id="linksHead"></div>
+  <div id="linksVids"></div>
   <div class="linkbar"><button type="button" class="ghost" id="lkOpenAll">Open all</button><button type="button" class="ghost" id="lkCopyAll">Copy all</button><span class="muted" id="lkMsg"></span></div>
   <div id="linksBody" class="lstbody"></div>
   <div class="drow"><button type="button" class="primary" id="linksClose">Close</button></div>
@@ -441,8 +442,8 @@
   var dkey = function (ms) { var d = new Date(ms); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); };
   var noteHtml = function (x) { return x.note ? '<div class="lnote">' + esc(x.note).replace(/\n/g, '<br>') + '</div>' : ''; };
   var chatBtns = function (x) {
-    var cs = TSA.chatsOf(x);   // pinned links are shown only in the 📁 Links popup
-    return '<button type="button" class="ghost chatlink" data-links="' + x.id + '" title="Everything linked to this creator">📁 Links' + (cs.length ? ' ' + cs.length : '') + '</button>';
+    var cs = TSA.chatsOf(x), nv = TSA.newVideos(x).length;   // pinned links are shown only in the 📁 Links popup
+    return (nv ? '<button type="button" class="ghost newvidbtn" data-vids="' + x.id + '" title="Open their Links with the new videos">🎬 ' + nv + ' new</button>' : '') + '<button type="button" class="ghost chatlink" data-links="' + x.id + '" title="Everything linked to this creator">📁 Links' + (cs.length ? ' ' + cs.length : '') + '</button>';
   };
   var pencil = function (id) { return '<button type="button" class="ghost" data-edit="' + id + '" title="Edit or delete">✏️ Edit</button>'; };
   /* edit popup for one entry (kind: 'todo' or 'follow'): two columns, Save / Cancel / Delete always visible */
@@ -482,16 +483,13 @@
   var stageBadge = function (f) { return '<b class="stg stg' + f.stage + '">' + f.stage + ' · ' + TSA.STAGE_NAME[f.stage] + '</b>'; };
   var srcMail = function (x) { return (x.source ? ' · ' + esc(x.source) : '') + (x.email ? ' · ✉️ ' + esc(x.email) : ''); };
   var vDate = function (ms) { return new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); };
-  var vLink = function (v) { return '<a href="https://www.youtube.com/watch?v=' + v.id + '" target="_blank" rel="noopener">' + esc(v.title || v.id) + '</a> <span class="muted">· ' + vDate(v.published) + '</span>'; };
-  /* new videos (since you marked them seen) or, when there are none, the latest one */
-  function videoHtml(x) {
-    var all = TSA.videosFor(x); if (!all.length) return '';
-    var nv = TSA.newVideos(x);
-    if (nv.length) return '<div class="vidnew">🎬 <b>' + nv.length + ' new video' + (nv.length === 1 ? '' : 's') + '</b>' + nv.slice(0, 3).map(function (v) { return '<div class="vidline">' + vLink(v) + '</div>'; }).join('') + (nv.length > 3 ? '<div class="muted">+ ' + (nv.length - 3) + ' more</div>' : '') + '<button type="button" class="ghost" data-vid-seen="' + x.id + '" title="Hide these until they post again">Seen</button></div>';
-    return '<div class="vidlatest muted">🎬 Latest: ' + vLink(all[0]) + '</div>';
-  }
+  var vAgo = function (ms) {   // "5 hours ago · Nov 25"
+    var h = (Date.now() - ms) / 36e5, d = Math.floor(h / 24), t;
+    t = h < 1 ? 'just now' : h < 24 ? Math.floor(h) + ' hour' + (Math.floor(h) === 1 ? '' : 's') + ' ago' : d === 1 ? 'yesterday' : d < 14 ? d + ' days ago' : d < 60 ? Math.floor(d / 7) + ' weeks ago' : Math.floor(d / 30) + ' months ago';
+    return t + ' · ' + vDate(ms);
+  };
   function row(x, kind, muted, btns) {
-    return '<div class="lrow"><div class="lmain">' + leadHtml(x) + '<div class="muted">' + muted + '</div>' + noteHtml(x) + videoHtml(x) + '</div><div class="lbtns">' + chatBtns(x) + btns + pencil(x.id) + '</div></div>';
+    return '<div class="lrow' + (TSA.newVideos(x).length ? ' hasnew' : '') + '"><div class="lmain">' + leadHtml(x) + '<div class="muted">' + muted + '</div>' + noteHtml(x) + '</div><div class="lbtns">' + chatBtns(x) + btns + pencil(x.id) + '</div></div>';
   }
   var STAGE_TABS = [['due', 'Due now'], ['new', '🎬 New videos'], ['todo', 'To reach out'], ['A', 'A · Initiated'], ['B', 'B · Engaged'], ['C', 'C · Pitched'], ['D', 'D · Closed'], ['ni', 'Not interested']];
   var lstQ = '';
@@ -572,8 +570,8 @@
     $('lstDlg').addEventListener('click', function (e) {
       var t = e.target.closest('button'); if (!t) { if (e.target === $('lstDlg')) $('lstDlg').close(); return; }
       var d = t.dataset;
+      if (d.vids) { openLinks(d.vids, true); return; }
       if (d.links) { openLinks(d.links); return; }
-      if (d.vidSeen) { TSA.feedSeenNow(d.vidSeen); S = TSA.get(); lastLstHtml = ''; renderFollow(); return; }
       if (d.edit) { openEdit(d.edit); return; }
       if (d.fuDone) TSA.followDone(d.fuDone); else if (d.fuAdv) TSA.pipeAdvance(d.fuAdv); else if (d.fuNi) TSA.pipeNotInterested(d.fuNi, true); else if (d.fuStop) TSA.followStop(d.fuStop, 'stopped'); else if (d.fuReact) TSA.pipeNotInterested(d.fuReact, false);
       else if (d.tdDel) TSA.removeTodo(d.tdDel);
@@ -717,12 +715,25 @@
       }
       $('lkActions').innerHTML = html;
     }
+    /* 🎬 videos of this creator: collapsed by default; new ones first (green dot), then the latest 3 older (greyed) */
+    var vidsOpen = false;
+    function paintVids(x) {
+      var box = $('linksVids'), all = TSA.videosFor(x);
+      if (!all.length) { box.innerHTML = ''; return; }
+      var nv = TSA.newVideos(x), old = TSA.olderVideos(x, 3), vrow = function (v, isNew) {
+        return '<div class="vrow' + (isNew ? ' new' : '') + '"><a class="vthumb" data-vid="' + v.id + '" href="https://www.youtube.com/watch?v=' + v.id + '" target="_blank" rel="noopener"><img src="https://i.ytimg.com/vi/' + v.id + '/mqdefault.jpg" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()"></a>' +
+          '<div class="vmain"><a data-vid="' + v.id + '" href="https://www.youtube.com/watch?v=' + v.id + '" target="_blank" rel="noopener"><b>' + (isNew ? '<span class="vdot" title="New"></span>' : '') + esc(v.title || v.id) + '</b></a><div class="muted">' + vAgo(v.published) + '</div></div></div>';
+      };
+      box.innerHTML = '<div class="vidsec' + (nv.length ? ' hasnew' : '') + '"><button type="button" class="vidhead" data-vids-toggle="1" aria-expanded="' + vidsOpen + '"><span>' + (vidsOpen ? '▾' : '▸') + '</span> 🎬 ' + (nv.length ? '<b>New videos (' + nv.length + ')</b>' : 'Latest videos') + '</button>' +
+        (vidsOpen ? '<div class="vidlist">' + nv.map(function (v) { return vrow(v, true); }).join('') + old.map(function (v) { return vrow(v, false); }).join('') +
+          (nv.length ? '<div class="drow"><button type="button" class="ghost" data-vids-seen="1">Mark all seen</button></div>' : '') + '</div>' : '') + '</div>';
+    }
     function paintLinks() {
       var x = TSA.todoList().concat(TSA.followList()).filter(function (y) { return y.id === linksFor; })[0];
       if (!x) { $('linksDlg').close(); return; }
       $('linksHead').innerHTML = '<h2>📁 ' + esc(x.name || 'Creator') + '</h2><div class="lrow" style="border-top:0">' + '<div class="lmain">' + leadHtml(x) + noteHtml(x) + '</div>' +
         '<div class="lbtns">' + (/^https?:\/\//i.test(x.url || '') ? '<a class="ghost chatlink" href="' + esc(x.url) + '" target="_blank" rel="noopener">Open channel ↗</a>' : '') + '</div></div>';
-      paintLinkActions(x);
+      paintLinkActions(x); paintVids(x);
       var cs = TSA.chatsOf(x), gm = TSA.gmailFor(x);
       var gmRow = function (q, url, extra) {
         return '<div class="linkrow gmrow" ' + (url ? 'data-url="' + esc(url) + '"' : 'data-virtual="1"') + '><span class="fav" data-l="✉️"></span><div class="lkmain"><div class="muted">' + extra + '</div>' +
@@ -754,7 +765,7 @@
           '<button type="button" class="ghost" data-lk-edit="' + esc(c.url) + '">✏️</button><button type="button" class="ghost" data-lk-del="' + esc(c.url) + '" title="Remove this link">✕</button></div></div>';
       }).join('') : '<p class="muted">Nothing else linked yet. On any page, use the 📁 button on the timer capsule and pick this creator.</p>');
     }
-    function openLinks(id) { linksFor = id; linkEdit = ''; $('lkMsg').textContent = ''; paintLinks(); if (!$('linksDlg').open) $('linksDlg').showModal(); }
+    function openLinks(id, expand) { linksFor = id; linkEdit = ''; vidsOpen = !!expand; $('lkMsg').textContent = ''; paintLinks(); if (!$('linksDlg').open) $('linksDlg').showModal(); }
     var em = /#edit=([\w-]+)/.exec(location.hash);   // the ✏️ button of the Outreach page
     if (em) { openEdit(em[1]); try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {} }
     var lm = /[?&]links=([^&]+)/.exec(location.search);   // the 📁 Links button of the YouTube pill
@@ -764,6 +775,17 @@
       if (lid) openLinks(lid); else showNotice('That creator is not in your lists yet.');
       try { history.replaceState(null, '', location.pathname + location.hash); } catch (e) {}
     }
+    $('linksVids').addEventListener('click', function (e) {
+      var x = TSA.todoList().concat(TSA.followList()).filter(function (y) { return y.id === linksFor; })[0]; if (!x) return;
+      var t = e.target.closest('button');
+      if (t && t.dataset.vidsToggle) { vidsOpen = !vidsOpen; paintVids(x); return; }
+      if (t && t.dataset.vidsSeen) { TSA.feedSeenNow(x.id); S = TSA.get(); lastLstHtml = ''; renderFollow(); paintVids(x); paintLinks(); return; }
+    });
+    var vidClick = function (e) {   // opening a video marks just that video as seen (the link still opens normally)
+      var a = e.target.closest('a[data-vid]'); if (!a) return;
+      if (TSA.markVideoSeen(a.dataset.vid)) setTimeout(function () { S = TSA.get(); lastLstHtml = ''; renderFollow(); var x = TSA.todoList().concat(TSA.followList()).filter(function (y) { return y.id === linksFor; })[0]; if (x) paintVids(x); }, 0);
+    };
+    $('linksVids').addEventListener('click', vidClick); $('linksVids').addEventListener('auxclick', vidClick);
     var linksOf = function () { var x = TSA.todoList().concat(TSA.followList()).filter(function (y) { return y.id === linksFor; })[0]; return x ? TSA.chatsOf(x) : []; };
     $('linksClose').addEventListener('click', function () { $('linksDlg').close(); });
     $('linksDlg').addEventListener('close', function () { linksFor = ''; linkEdit = ''; });
@@ -880,7 +902,7 @@
     })();
     window.addEventListener('tsa-open-lists', function (e) { open((e.detail && e.detail.tab) || 'todo'); });
     window.addEventListener('tsa-open-lists-default', function () { open(); });
-    if (/#(todo|follow|done)\b/.test(location.hash)) { open(location.hash === '#follow' ? 'due' : location.hash === '#done' ? 'D' : 'todo'); }
+    if (/#(todo|follow|done|new)\b/.test(location.hash)) { open(location.hash === '#follow' ? 'due' : location.hash === '#done' ? 'D' : location.hash === '#new' ? 'new' : 'todo'); }
     renderFollow(); setInterval(renderFollow, 60000);
   })();
 

@@ -520,3 +520,21 @@ button.ghost.on { border-color: var(--accent); }
 .lstdlg .vidnew .vidline { margin: 2px 0; } .lstdlg .vidnew a, .lstdlg .vidlatest a { color: var(--text); }
 .lstdlg .vidnew button { margin-top: 4px; padding: 3px 10px; font-size: 12px; }
 .lstdlg .vidlatest { margin: 4px 0 0 38px; font-size: 12px; }
+
+/* new videos: green chip, row marker, Links-popup section */
+.nav .reachchip.newvid { border-color: #1fa14a; background: rgba(31,161,74,.16); }
+.nav .reachchip.newvid.idle { border-color: var(--line); background: transparent; }
+.lstdlg .lrow.hasnew { box-shadow: inset 3px 0 0 #1fa14a; padding-left: 10px; }
+.lstdlg button.newvidbtn { border-color: #1fa14a; background: rgba(31,161,74,.16); font-weight: 600; }
+.linksdlg .vidsec { margin: 0 0 8px; border: 1px solid var(--line); border-radius: 10px; }
+.linksdlg .vidsec.hasnew { border-color: #1fa14a; }
+.linksdlg .vidhead { all: unset; box-sizing: border-box; display: block; width: 100%; padding: 8px 12px; cursor: pointer; font-size: 14px; }
+.linksdlg .vidsec.hasnew .vidhead { background: rgba(31,161,74,.12); border-radius: 9px; }
+.linksdlg .vidlist { padding: 4px 12px 8px; }
+.linksdlg .vrow { display: flex; gap: 10px; align-items: center; padding: 6px 0; border-top: 1px solid var(--line); }
+.linksdlg .vrow:first-child { border-top: 0; }
+.linksdlg .vrow:not(.new) { opacity: .6; }
+.linksdlg .vthumb img { width: 96px; height: 54px; object-fit: cover; border-radius: 6px; display: block; background: var(--line); }
+.linksdlg .vthumb { flex: none; min-width: 96px; min-height: 54px; }
+.linksdlg .vmain a { color: var(--text); text-decoration: none; }
+.linksdlg .vdot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #1fa14a; margin-right: 6px; vertical-align: middle; }
