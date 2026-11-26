@@ -167,17 +167,64 @@
       fc.paint = function () { var t = window.TSA && TSA.trackPeek ? TSA.trackPeek() : { fu: 0 }; fc.textContent = '✅ Follow-ups ' + t.fu; fc.title = 'Follow-ups done today'; };
       trk = [oc, fc];
     }
+    /* 🎬 toast: a card under the header for every creator who just posted (stays until closed) */
+    var tbox = null;
+    var esc2 = function (t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+    function showToast(g) {
+      if (!tbox) { tbox = document.createElement('div'); tbox.id = 'vidToasts'; tbox.setAttribute('aria-live', 'polite'); document.body.appendChild(tbox); }
+      var v0 = g.videos[0], el = document.createElement('div'); el.className = 'vtoast';
+      el.innerHTML = '<button type="button" class="vx" aria-label="Close" title="Close (keeps it marked as new)">×</button>' +
+        '<a class="vtimg" href="https://www.youtube.com/watch?v=' + v0.id + '" target="_blank" rel="noopener" data-open="1"><img src="https://i.ytimg.com/vi/' + v0.id + '/mqdefault.jpg" alt="" referrerpolicy="no-referrer" onerror="this.remove()"></a>' +
+        '<div class="vtmain"><div class="vtwho">🎬 <b>' + esc2(g.name) + '</b> posted' + (g.videos.length > 1 ? ' ' + g.videos.length + ' videos' : ' a video') + '</div>' +
+        g.videos.slice(0, 2).map(function (v) { return '<a class="vttitle" href="https://www.youtube.com/watch?v=' + v.id + '" target="_blank" rel="noopener" data-one="' + v.id + '">' + esc2(v.title || v.id) + '</a>'; }).join('') +
+        (g.videos.length > 2 ? '<div class="muted">+ ' + (g.videos.length - 2) + ' more</div>' : '') +
+        '<div class="vtbtns"><a class="ghost vtbtn" href="https://www.youtube.com/watch?v=' + v0.id + '" target="_blank" rel="noopener" data-open="1">▶ Open video</a>' +
+        '<button type="button" class="ghost vtbtn" data-links="1">📁 Open Links</button><button type="button" class="ghost vtbtn" data-seen="1">✓ Mark seen</button></div></div>';
+      el.addEventListener('click', function (e) {
+        var t = e.target.closest('a,button'); if (!t) return;
+        if (t.classList.contains('vx')) { el.remove(); return; }
+        if (t.dataset.one) { TSA.markVideoSeen(t.dataset.one); window.dispatchEvent(new CustomEvent('tsa-videos-changed')); return; }
+        if (t.dataset.open) { TSA.markVideoSeen(v0.id); window.dispatchEvent(new CustomEvent('tsa-videos-changed')); el.remove(); return; }   // the link opens the newest video
+        if (t.dataset.seen) { TSA.feedSeenNow(g.id); window.dispatchEvent(new CustomEvent('tsa-videos-changed')); el.remove(); return; }    // all this creator's new videos
+        if (t.dataset.links) {
+          el.remove();
+          if (document.getElementById('linksDlg')) window.dispatchEvent(new CustomEvent('tsa-open-links', { detail: { id: g.id } }));
+          else location.href = 'index.html?links=' + encodeURIComponent(g.key) + '&vids=1';
+        }
+      });
+      tbox.appendChild(el);
+    }
+    function checkToasts() {
+      if (!window.TSA || !TSA.videoToasts) return;
+      var gs = TSA.videoToasts(); if (!gs.length) return;
+      TSA.markVideosNotified([].concat.apply([], gs.map(function (g) { return g.videos.map(function (v) { return v.id; }); })));
+      gs.slice(0, 5).forEach(showToast);
+      if (gs.length > 5) {
+        var more = gs.slice(5); showToast({ id: more[0].id, name: more.length + ' more creators', key: more[0].key, videos: [].concat.apply([], more.map(function (g) { return g.videos; })).slice(0, 1) });
+      }
+      if (TSA.videoChime) TSA.videoChime();
+    }
     var paint = function () { reach.paint(); fu.paint(); ask.paint(); vid.paint(); trk.forEach(function (c) { c.paint(); }); };
     window.addEventListener('storage', function (e) { if (e.key === 'tsa2_data') paint(); });
     window.addEventListener('tsa-lists-changed', paint); window.addEventListener('tsa-ask-changed', paint);
-    setInterval(paint, 3000); paint();
+    window.addEventListener('tsa-videos-changed', function () { paint(); checkToasts(); });
+    window.addEventListener('storage', function (e) { if (e.key === 'tsa2_data') setTimeout(checkToasts, 300); });
+    setInterval(function () { paint(); checkToasts(); }, 3000); paint(); setTimeout(checkToasts, 1500);
   }
 
+  /* the header's left group (title, date, buttons, chips) wraps inside its own box; the page buttons stay on the right */
+  function navLeft(nav) {
+    var hdr = nav.parentNode, l = hdr.querySelector('.navleft'); if (l) return l;
+    l = document.createElement('div'); l.className = 'navleft';
+    [].slice.call(hdr.children).forEach(function (c) { if (c !== nav) l.appendChild(c); });
+    hdr.insertBefore(l, nav); return l;
+  }
   function init() {
     var nav = document.querySelector('.nav nav'); if (!nav) return;
+    navLeft(nav);
     btn = document.createElement('button'); btn.type = 'button'; btn.className = 'ghost hbtn alarmtime'; btn.id = 'alarmBtn';
     var hb = document.getElementById('helpBtn');                       // order in the header: theme, how to use, alarms
-    if (hb) hb.after(btn); else nav.parentNode.insertBefore(btn, nav);
+    if (hb) hb.after(btn); else navLeft(nav).appendChild(btn);
     initReach(btn);
     dlg = document.createElement('dialog'); dlg.id = 'alarmDlg'; dlg.className = 'alarmdlg';
     var opts = function (n) { var s = ''; for (var i = 0; i < n; i++) s += '<option value="' + i + '">' + pad(i) + '</option>'; return s; };

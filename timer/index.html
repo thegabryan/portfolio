@@ -105,7 +105,7 @@
   <div id="linksVids"></div>
   <div class="linkbar"><button type="button" class="ghost" id="lkOpenAll">Open all</button><button type="button" class="ghost" id="lkCopyAll">Copy all</button><span class="muted" id="lkMsg"></span></div>
   <div id="linksBody" class="lstbody"></div>
-  <div class="drow"><button type="button" class="primary" id="linksClose">Close</button></div>
+  <div class="drow"><button type="button" class="ghost" id="lkSeenAll" hidden>✓ Mark all seen</button><button type="button" class="primary" id="linksClose">Close</button></div>
 </dialog>
 
 <dialog id="clipDlg" class="lstdlg clipdlg">
@@ -443,7 +443,7 @@
   var noteHtml = function (x) { return x.note ? '<div class="lnote">' + esc(x.note).replace(/\n/g, '<br>') + '</div>' : ''; };
   var chatBtns = function (x) {
     var cs = TSA.chatsOf(x), nv = TSA.newVideos(x).length;   // pinned links are shown only in the 📁 Links popup
-    return (nv ? '<button type="button" class="ghost newvidbtn" data-vids="' + x.id + '" title="Open their Links with the new videos">🎬 ' + nv + ' new</button>' : '') + '<button type="button" class="ghost chatlink" data-links="' + x.id + '" title="Everything linked to this creator">📁 Links' + (cs.length ? ' ' + cs.length : '') + '</button>';
+    return (nv ? '<button type="button" class="ghost newvidbtn" data-vids="' + x.id + '" title="Open their Links with the new videos">🎬 ' + nv + ' new</button><button type="button" class="ghost newvidseen" data-vids-seen="' + x.id + '" title="Mark all their new videos as seen">✓ Seen</button>' : '') + '<button type="button" class="ghost chatlink" data-links="' + x.id + '" title="Everything linked to this creator">📁 Links' + (cs.length ? ' ' + cs.length : '') + '</button>';
   };
   var pencil = function (id) { return '<button type="button" class="ghost" data-edit="' + id + '" title="Edit or delete">✏️ Edit</button>'; };
   /* edit popup for one entry (kind: 'todo' or 'follow'): two columns, Save / Cancel / Delete always visible */
@@ -571,6 +571,7 @@
       var t = e.target.closest('button'); if (!t) { if (e.target === $('lstDlg')) $('lstDlg').close(); return; }
       var d = t.dataset;
       if (d.vids) { openLinks(d.vids, true); return; }
+      if (d.vidsSeen) { TSA.feedSeenNow(d.vidsSeen); S = TSA.get(); lastLstHtml = ''; renderFollow(); window.dispatchEvent(new CustomEvent('tsa-videos-changed')); return; }
       if (d.links) { openLinks(d.links); return; }
       if (d.edit) { openEdit(d.edit); return; }
       if (d.fuDone) TSA.followDone(d.fuDone); else if (d.fuAdv) TSA.pipeAdvance(d.fuAdv); else if (d.fuNi) TSA.pipeNotInterested(d.fuNi, true); else if (d.fuStop) TSA.followStop(d.fuStop, 'stopped'); else if (d.fuReact) TSA.pipeNotInterested(d.fuReact, false);
@@ -628,10 +629,7 @@
     var wasLinks = linksFor && linksFor === whenItem.id, wi = whenItem;
     TSA.markReached(whenItem.name, whenItem.url, ts, {}); whenItem = null;
     S = TSA.get(); renderOutreach(Date.now()); renderFollow();
-    if (wasLinks) {
-      var nf = TSA.followList().filter(function (y) { return y.name === wi.name && y.url === wi.url; }).sort(function (a, b) { return b.started - a.started; })[0];
-      if (nf) { linksFor = nf.id; paintLinks(); $('lkMsg').textContent = 'Outreach counted ✓'; } else $('linksDlg').close();
-    }
+    if (wasLinks) $('linksDlg').close();
   });
   $('lstDlg').addEventListener('submit', function (e) {
       if (e.target.id !== 'todoForm') return; e.preventDefault();
@@ -657,7 +655,7 @@
       var m = e.data;
       if (e.origin !== location.origin || !m || m.channel !== 'timer-bridge' || m.from !== 'userscript' || m.type !== 'feed') return;
       feedState = m.running ? 'Checking videos ' + (m.progress || '…') : (m.errors ? m.errors + ' channel' + (m.errors === 1 ? '' : 's') + ' could not be checked' : '');
-      if (TSA.setFeed(m)) { S = TSA.get(); lastLstHtml = ''; renderFollow(); }
+      if (TSA.setFeed(m)) { S = TSA.get(); lastLstHtml = ''; renderFollow(); window.dispatchEvent(new CustomEvent('tsa-videos-changed')); }
       paintFeedMsg();
     });
     $('feedBtn').addEventListener('click', function () {
@@ -719,6 +717,7 @@
     var vidsOpen = false;
     function paintVids(x) {
       var box = $('linksVids'), all = TSA.videosFor(x);
+      $('lkSeenAll').hidden = !TSA.newVideos(x).length;
       if (!all.length) { box.innerHTML = ''; return; }
       var nv = TSA.newVideos(x), old = TSA.olderVideos(x, 3), vrow = function (v, isNew) {
         return '<div class="vrow' + (isNew ? ' new' : '') + '"><a class="vthumb" data-vid="' + v.id + '" href="https://www.youtube.com/watch?v=' + v.id + '" target="_blank" rel="noopener"><img src="https://i.ytimg.com/vi/' + v.id + '/mqdefault.jpg" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()"></a>' +
@@ -726,7 +725,7 @@
       };
       box.innerHTML = '<div class="vidsec' + (nv.length ? ' hasnew' : '') + '"><button type="button" class="vidhead" data-vids-toggle="1" aria-expanded="' + vidsOpen + '"><span>' + (vidsOpen ? '▾' : '▸') + '</span> 🎬 ' + (nv.length ? '<b>New videos (' + nv.length + ')</b>' : 'Latest videos') + '</button>' +
         (vidsOpen ? '<div class="vidlist">' + nv.map(function (v) { return vrow(v, true); }).join('') + old.map(function (v) { return vrow(v, false); }).join('') +
-          (nv.length ? '<div class="drow"><button type="button" class="ghost" data-vids-seen="1">Mark all seen</button></div>' : '') + '</div>' : '') + '</div>';
+          '</div>' : '') + '</div>';
     }
     function paintLinks() {
       var x = TSA.todoList().concat(TSA.followList()).filter(function (y) { return y.id === linksFor; })[0];
@@ -772,15 +771,20 @@
     if (lm) {
       var lk = lm[1]; try { lk = decodeURIComponent(lk); } catch (e) {}
       var lid = TSA.entryIdByKeys([lk]);
-      if (lid) openLinks(lid); else showNotice('That creator is not in your lists yet.');
+      if (lid) openLinks(lid, /[?&]vids=1/.test(location.search)); else showNotice('That creator is not in your lists yet.');
       try { history.replaceState(null, '', location.pathname + location.hash); } catch (e) {}
     }
     $('linksVids').addEventListener('click', function (e) {
       var x = TSA.todoList().concat(TSA.followList()).filter(function (y) { return y.id === linksFor; })[0]; if (!x) return;
       var t = e.target.closest('button');
       if (t && t.dataset.vidsToggle) { vidsOpen = !vidsOpen; paintVids(x); return; }
-      if (t && t.dataset.vidsSeen) { TSA.feedSeenNow(x.id); S = TSA.get(); lastLstHtml = ''; renderFollow(); paintVids(x); paintLinks(); return; }
     });
+    $('lkSeenAll').addEventListener('click', function () {
+      if (!linksFor) return; TSA.feedSeenNow(linksFor); S = TSA.get(); lastLstHtml = ''; renderFollow(); paintLinks();
+      window.dispatchEvent(new CustomEvent('tsa-videos-changed'));
+    });
+    window.addEventListener('tsa-open-links', function (e) { if (e.detail && e.detail.id) openLinks(e.detail.id, true); });
+    window.addEventListener('tsa-videos-changed', function () { S = TSA.get(); lastLstHtml = ''; renderFollow(); if ($('linksDlg').open) paintLinks(); });
     var vidClick = function (e) {   // opening a video marks just that video as seen (the link still opens normally)
       var a = e.target.closest('a[data-vid]'); if (!a) return;
       if (TSA.markVideoSeen(a.dataset.vid)) setTimeout(function () { S = TSA.get(); lastLstHtml = ''; renderFollow(); var x = TSA.todoList().concat(TSA.followList()).filter(function (y) { return y.id === linksFor; })[0]; if (x) paintVids(x); }, 0);
@@ -804,7 +808,7 @@
         var msg = '';
         if (d.lkAct === 'reach') { askWhen(ent); return; }
         if (d.lkAct === 'todo-del') { TSA.removeTodo(ent.id); S = TSA.get(); lastLstHtml = ''; renderFollow(); $('linksDlg').close(); return; }
-        if (d.lkAct === 'done') { TSA.followDone(ent.id); msg = 'Follow-up logged ✓'; }
+        if (d.lkAct === 'done') { TSA.followDone(ent.id); S = TSA.get(); lastLstHtml = ''; renderFollow(); $('linksDlg').close(); showNotice('Follow-up logged ✓'); return; }
         else if (d.lkAct === 'adv') { TSA.pipeAdvance(ent.id); msg = 'Moved to the next stage ✓'; }
         else if (d.lkAct === 'ni') { TSA.pipeNotInterested(ent.id, true); msg = 'Marked not interested'; }
         else if (d.lkAct === 'react') { TSA.pipeNotInterested(ent.id, false); msg = 'Reopened ✓'; }
@@ -1129,18 +1133,23 @@
       if (switchTo(String(d.act))) window.postMessage({ channel: 'timer-bridge', from: 'page', type: 'switch-ok', id: d.id }, location.origin);
     });
   })();
-  /* Actions box: lists and Daily ask first, then settings and the data tools */
+  /* Bottom row: Settings (icon), Daily ask and Outreach lists are boxes like the counters; Export / Import / Send day summary live inside Settings */
   (function () {
-    var t = $('tools'), sb = document.createElement('button'); sb.type = 'button'; sb.className = 'ghost'; sb.id = 'setBtn'; sb.textContent = '⚙️ Settings'; sb.title = 'Beeps, sleep time, idle nudge, outreach goal…';
+    var t = $('tools'), bottom = document.querySelector('.bottom'), first = $('oc');
+    var sb = document.createElement('button'); sb.type = 'button'; sb.className = 'ghost'; sb.id = 'setBtn'; sb.textContent = '⚙️'; sb.title = 'Settings: beeps, sleep time, idle nudge, outreach goal, backup…'; sb.setAttribute('aria-label', 'Settings');
     sb.addEventListener('click', function () { renderOutreach(Date.now()); $('setDlg').showModal(); });
     $('setClose').addEventListener('click', function () { $('setDlg').close(); });
     $('setDlg').addEventListener('click', function (e) { if (e.target === $('setDlg')) $('setDlg').close(); });
-    t.appendChild(sb);
-    ['lstBtn', 'askBtn', 'setBtn'].reverse().forEach(function (id) { if ($(id)) t.insertBefore($(id), t.firstChild); });
-    var order = ['lstBtn', 'askBtn', 'setBtn']; order.forEach(function (id) { if ($(id)) t.appendChild($(id)); });
+    [[sb, 'setbox'], [$('askBtn'), 'askbox'], [$('lstBtn'), 'lstbox']].forEach(function (p) {
+      if (!p[0]) return;
+      var box = document.createElement('div'); box.className = 'box actbox ' + p[1]; box.appendChild(p[0]); bottom.insertBefore(box, first);
+    });
     [].slice.call(t.querySelectorAll('button:not([id])')).forEach(function (b) { t.appendChild(b); });
     if ($('sumBtn')) t.appendChild($('sumBtn'));
     var fi = t.querySelector('input[type=file]'); if (fi) t.appendChild(fi);
+    var hd = document.createElement('div'); hd.className = 'setdatahead muted'; hd.textContent = 'Backup and notes';
+    t.className = 'tools setdata'; t.removeAttribute('aria-label');
+    var dlg = $('setDlg'); dlg.insertBefore(hd, dlg.querySelector('.drow')); dlg.insertBefore(t, dlg.querySelector('.drow'));
   })();
   setTimeout(function () { TSA.maybeAutoBackup(); S = TSA.get(); }, 2500);   // once a day, on the first open
   if (!TSA.storageOK()) showNotice('Your browser is blocking storage, so nothing will be saved. Try a normal (non-private) window.');

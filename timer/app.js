@@ -68,7 +68,7 @@
       liveProject: '', lastProject: '',   // project tag of the running Work/Workflow run; the last one used
       segments: [],              // finished stretches: { act, start, end, [id, note] }
       sessions: [],              // finished work rounds (= points)
-      outreach: { clicks: [], goal: 3, adj: {}, names: {}, notes: {}, todo: [], follow: [], seen: [], pics: {}, feed: {}, feedSeen: {}, vidSeen: {}, feedAt: 0, sources: DEFAULT_SOURCES.slice() },   // click times of the outreach counter + hand corrections per day
+      outreach: { clicks: [], goal: 3, adj: {}, names: {}, notes: {}, todo: [], follow: [], seen: [], pics: {}, feed: {}, feedSeen: {}, vidSeen: {}, vidNotified: {}, vidSeeded: false, feedAt: 0, sources: DEFAULT_SOURCES.slice() },   // click times of the outreach counter + hand corrections per day
       days: {},                  // 'YYYY-MM-DD' -> { firstOpen }
       ask: { people: [], log: [], me: { who: '', doing: '' }, today: { day: '', pid: '' } }   // Daily ask: people you admire, messages sent, your intro, today's pick
     };
@@ -103,6 +103,8 @@
     if (!oc.feed || typeof oc.feed !== 'object' || Array.isArray(oc.feed)) oc.feed = {};            // latest videos per channel key (from the New Videos script)
     if (!oc.feedSeen || typeof oc.feedSeen !== 'object' || Array.isArray(oc.feedSeen)) oc.feedSeen = {};   // when you last marked a creator's videos as seen, by entry id
     if (!oc.vidSeen || typeof oc.vidSeen !== 'object' || Array.isArray(oc.vidSeen)) oc.vidSeen = {};     // single videos marked seen, by video id
+    if (!oc.vidNotified || typeof oc.vidNotified !== 'object' || Array.isArray(oc.vidNotified)) oc.vidNotified = {};   // videos already announced by a toast
+    oc.vidSeeded = !!oc.vidSeeded;
     if (!(oc.feedAt > 0)) oc.feedAt = 0;
     if (!oc.pics || typeof oc.pics !== 'object' || Array.isArray(oc.pics)) oc.pics = {};          // channel profile picture links, by channel key
     ['todo', 'follow', 'seen'].forEach(function (k) { if (!Array.isArray(oc[k])) oc[k] = []; });   // 'To reach out' list, follow-up reminders, ids already applied from the userscript
@@ -918,6 +920,7 @@
     S.outreach.feed = out; S.outreach.feedAt = at;
     var keep = {}; Object.keys(out).forEach(function (k) { out[k].videos.forEach(function (v) { keep[v.id] = 1; }); });
     Object.keys(S.outreach.vidSeen).forEach(function (id) { if (!keep[id]) delete S.outreach.vidSeen[id]; });
+    Object.keys(S.outreach.vidNotified).forEach(function (id) { if (!keep[id]) delete S.outreach.vidNotified[id]; });
     save(); return true;
   }
   function videosFor(item) {
@@ -936,6 +939,24 @@
     return S.outreach.todo.concat(S.outreach.follow).filter(function (it) { return !it.ni && it.status !== 'stopped' && newVideos(it).length; });
   }
   function feedChecked() { return S.outreach.feedAt; }
+  /* Toasts: one group per creator for videos that are new and not announced yet. The first time there is feed data, what is already
+     new is only marked as announced (so you are not flooded the moment this feature starts). */
+  function videoToasts() {
+    var o = S.outreach, any = Object.keys(o.feed).length > 0;
+    if (!any) return [];
+    var groups = [];
+    newVideoEntries().forEach(function (it) {
+      var vs = newVideos(it).filter(function (v) { return !o.vidNotified[v.id]; });
+      if (vs.length) groups.push({ id: it.id, name: it.name || it.url || 'a creator', key: feedKeys(it)[0] || '', videos: vs });
+    });
+    if (!o.vidSeeded) {
+      o.vidSeeded = true;
+      groups.forEach(function (g) { g.videos.forEach(function (v) { o.vidNotified[v.id] = Date.now(); }); });
+      save(); return [];
+    }
+    return groups;
+  }
+  function markVideosNotified(ids) { var o = S.outreach; ids.forEach(function (id) { o.vidNotified[id] = Date.now(); }); save(); }
   function picFor(item) {
     var p = S.outreach.pics || {}, ks = picKeys(item && item.name, item && item.url);
     for (var i = 0; i < ks.length; i++) if (p[ks[i]]) return p[ks[i]];
@@ -1357,6 +1378,25 @@
     setTimeout(function () { beep(880, .18, .5); }, 500);
     setTimeout(function () { beep(1175, .4, .5); }, 750);
   }
+  /* New-video chime: three soft rising bell notes (sine + a quiet overtone), nothing like the square-wave beeps and alarms. */
+  function videoChime() {
+    whenRunning(function (a) {
+      var level = (S && S.settings.volume != null ? S.settings.volume : 0.5);
+      if (level <= 0) return;
+      [[659.25, 0], [830.61, .13], [1318.51, .26]].forEach(function (n) {
+        var t0 = a.currentTime + n[1];
+        [[1, 1], [2.76, .22]].forEach(function (p) {
+          var o = a.createOscillator(), g = a.createGain();
+          o.type = 'sine'; o.frequency.value = n[0] * p[0];
+          g.gain.setValueAtTime(0.0001, t0);
+          g.gain.linearRampToValueAtTime(Math.min(1, level * .55 * p[1]), t0 + .015);
+          g.gain.exponentialRampToValueAtTime(0.0001, t0 + .9);
+          o.connect(g); g.connect(a.destination);
+          o.start(t0); o.stop(t0 + .95);
+        });
+      });
+    });
+  }
   /* The ringing alarm is also shown on screen: favicon blinks between the timer icon and a bell, the tab title blinks
      '⏰ ALARM', and a heartbeat in localStorage ('tsa2_ring') lets the capsule userscript on other sites turn red. */
   var RING_KEY = 'tsa2_ring', ringText = '';
@@ -1642,7 +1682,7 @@
     boot: boot, get: function () { return S; }, reload: reload, save: save,
     storageOK: function () { return !memoryOnly; },
     switchTo: switchTo, setNote: setNote, setNoteAt: setNoteAt, noteTarget: noteTarget, allNotes: allNotes, heartbeat: heartbeat, tick: tick,
-    outreachToday: outreachToday, followsToday: followsToday, trackPeek: trackPeek, outreachAdd: outreachAdd, outreachUndo: outreachUndo, setOutreachDay: setOutreachDay, setOutreachName: setOutreachName, setOutreachNote: setOutreachNote, todoList: todoList, addTodo: addTodo, removeTodo: removeTodo, markReached: markReached, startFollow: startFollow, followList: followList, followDue: followDue, followDone: followDone, followStop: followStop, followDueCount: function (now) { return pipeStats(now).due; }, pipeAdvance: pipeAdvance, pipeNotInterested: pipeNotInterested, pipeStats: pipeStats, pipeSources: pipeSources, pipeSetSources: pipeSetSources, pipeFind: pipeFind, editFollow: editFollow, STAGE_MAX: STAGE_MAX, STAGE_NAME: STAGE_NAME, guessSource: guessSource, leadFromScript: leadFromScript, FOLLOW_MAX: FOLLOW_MAX, outreachLog: outreachLog, setFeed: setFeed, videosFor: videosFor, newVideos: newVideos, olderVideos: olderVideos, markVideoSeen: markVideoSeen, feedSeenNow: feedSeenNow, newVideoEntries: newVideoEntries, feedChecked: feedChecked, isFav: isFav, setFav: setFav, favNotes: favNotes, projectList: projectList, renameProject: renameProject, projectTime: projectTime, actByHour: actByHour, setGoal: setGoal,
+    outreachToday: outreachToday, followsToday: followsToday, trackPeek: trackPeek, outreachAdd: outreachAdd, outreachUndo: outreachUndo, setOutreachDay: setOutreachDay, setOutreachName: setOutreachName, setOutreachNote: setOutreachNote, todoList: todoList, addTodo: addTodo, removeTodo: removeTodo, markReached: markReached, startFollow: startFollow, followList: followList, followDue: followDue, followDone: followDone, followStop: followStop, followDueCount: function (now) { return pipeStats(now).due; }, pipeAdvance: pipeAdvance, pipeNotInterested: pipeNotInterested, pipeStats: pipeStats, pipeSources: pipeSources, pipeSetSources: pipeSetSources, pipeFind: pipeFind, editFollow: editFollow, STAGE_MAX: STAGE_MAX, STAGE_NAME: STAGE_NAME, guessSource: guessSource, leadFromScript: leadFromScript, FOLLOW_MAX: FOLLOW_MAX, outreachLog: outreachLog, setFeed: setFeed, videosFor: videosFor, newVideos: newVideos, feedKeys: feedKeys, videoToasts: videoToasts, markVideosNotified: markVideosNotified, videoChime: videoChime, olderVideos: olderVideos, markVideoSeen: markVideoSeen, feedSeenNow: feedSeenNow, newVideoEntries: newVideoEntries, feedChecked: feedChecked, isFav: isFav, setFav: setFav, favNotes: favNotes, projectList: projectList, renameProject: renameProject, projectTime: projectTime, actByHour: actByHour, setGoal: setGoal,
     todayTotals: todayTotals, todayPoints: todayPoints, analyze: analyze,
     askToday: askToday, askContext: askContext, askLogFor: askLogFor, askPeek: askPeek, askSwap: askSwap, askSetToday: askSetToday, askSave: askSave, askRemove: askRemove, askMe: askMe, askSend: askSend, askReply: askReply, askUnreply: askUnreply, askNoFollow: askNoFollow, askDelLog: askDelLog, askLog: askLog, askStats: askStats, askPeople: function () { return S.ask.people.slice(); }, askMeGet: function () { return { who: S.ask.me.who, doing: S.ask.me.doing }; },
     exportAll: exportAll, importText: importText,
