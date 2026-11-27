@@ -81,6 +81,10 @@ button, select { font: inherit; color: inherit; cursor: pointer; }
 }
 .toolbar input[type="search"]:focus { border-color: var(--accent); }
 .toolbar select.btn { padding: 8px 10px; }
+.done-line { display: flex; align-items: center; gap: 10px; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 18px 0 8px; }
+.done-line::before, .done-line::after { content: ''; flex: 1; border-top: 1px dashed var(--muted); opacity: .5; }
+@keyframes gflash { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 30%, 70% { box-shadow: 0 0 0 4px var(--accent); background: var(--tag-bg); } }
+.gchip.gflash { animation: gflash .6s ease 3; }
 
 details.menu { position: relative; }
 details.menu summary { list-style: none; }
@@ -290,6 +294,12 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
       <option value="newest">Newest first</option>
       <option value="oldest">Oldest first</option>
       <option value="edited">Recently edited</option>
+      <option value="todo">To do first</option>
+    </select>
+    <select class="btn" id="doneFilter" title="Show done / to do notes" aria-label="Done filter">
+      <option value="all">All notes</option>
+      <option value="todo">☐ To do</option>
+      <option value="done">☑ Done</option>
     </select>
     <details class="menu" id="backupMenu">
       <summary class="btn">Backup ▾</summary>
@@ -2627,7 +2637,9 @@ const ICON = {
 
 /* ---------- data & state ---------- */
 const VIEWS = ['all', 'notes', 'timer', 'youtube', 'highlights', 'trash'];
-const SORTS = ['manual', 'newest', 'oldest', 'edited'];
+const SORTS = ['manual', 'newest', 'oldest', 'edited', 'todo'];
+const DONE_KEY = 'url-notes-done-filter';
+const DONES = ['all', 'todo', 'done'];
 function stored(key, allowed, fallback) {
   try {
     const v = localStorage.getItem(key);
@@ -2639,6 +2651,9 @@ let notes = [];
 let trash = [];
 let view = stored(VIEW_KEY, VIEWS, 'notes');
 let sortMode = stored(SORT_KEY, SORTS, 'manual');
+let doneFilter = stored(DONE_KEY, DONES, 'all');
+let groupFlash = null;   // { name, until }: the group chip blinks after a note lands in it
+function flashGroup(name) { if (name) groupFlash = { name, until: Date.now() + 2500 }; }
 let query = '';
 let activeTag = null;
 let timerFilter = null;   // Timer tab: null = everything, or 'work' / 'workflow' / ... / 'summary'
@@ -2910,6 +2925,8 @@ function collectNotes(q, src) {
   return src.filter(n => {
     if (activeTag && !tagsOf(n.text).includes(activeTag)) return false;
     if (activeGroup && n.group !== activeGroup) return false;
+    if (doneFilter === 'done' && !n.done) return false;
+    if (doneFilter === 'todo' && n.done) return false;
     if (!q.active) return true;
     return matchEntry({
       kind: 'note', text: n.text, hay: n.text.toLowerCase(), created: n.created, pinned: n.pinned, tagText: n.text
@@ -2920,6 +2937,7 @@ function collectNotes(q, src) {
 function sortList(list, mode) {
   const out = list.slice();
   if (mode === 'oldest') return out.sort((a, b) => a.created - b.created);
+  if (mode === 'todo') return out.sort((a, b) => (!!a.done - !!b.done) || b.created - a.created);
   if (mode === 'edited') return out.sort((a, b) => (b.updated || b.created) - (a.updated || a.created));
   return out.sort((a, b) => b.created - a.created);
 }
@@ -3021,6 +3039,7 @@ function renderGroupBar() {
     c.append((g.pinned ? '📌 ' : '📁 ') + g.name);
     c.appendChild(el('small', null, String(groupCount(g.name))));
     c.title = 'Show only this group. Drag a note\'s ⠿ here to move it in.';
+    if (groupFlash && groupFlash.name === g.name && Date.now() < groupFlash.until) c.classList.add('gflash');
     c.addEventListener('click', () => { activeGroup = activeGroup === g.name ? null : g.name; visibleLimit = PAGE_SIZE; render(); });
     c.addEventListener('dragover', e => { e.preventDefault(); c.classList.add('drop'); });
     c.addEventListener('dragleave', () => c.classList.remove('drop'));
@@ -3415,11 +3434,34 @@ function bindBody(body, card, n) {
     if (tag) { showTag(tag.dataset.tag); return; }
     if (e.target.closest('a') || e.target.closest('.todo-box')) return;
     if (String(window.getSelection()).length) return;   // user is selecting text
-    enterEdit(card, n);
+    enterEdit(card, n, caretOffset(body, n.text, e.clientX, e.clientY));
   });
 }
 
-function enterEdit(card, n) {
+// Where in the note's text did the user click? (null when the browser can't tell)
+function caretOffset(body, text, x, y) {
+  let node = null, off = 0;
+  try {
+    if (document.caretPositionFromPoint) { const p = document.caretPositionFromPoint(x, y); if (p) { node = p.offsetNode; off = p.offset; } }
+    else if (document.caretRangeFromPoint) { const r = document.caretRangeFromPoint(x, y); if (r) { node = r.startContainer; off = r.startOffset; } }
+    if (!node || !body.contains(node)) return null;
+    const r = document.createRange();
+    r.selectNodeContents(body);
+    r.setEnd(node, off);
+    const before = r.toString();
+    const lines = text.split('\n');
+    const li = before.split('\n').length - 1;
+    const col = before.length - (before.lastIndexOf('\n') + 1);
+    let pos = 0;
+    for (let i = 0; i < li && i < lines.length; i++) pos += lines[i].length + 1;
+    const line = lines[Math.min(li, lines.length - 1)] || '';
+    const m = TODO_RE.exec(line);
+    pos += m && col > m[1].length ? line.length - m[3].length + (col - m[1].length) : col;
+    return Math.max(0, Math.min(pos, text.length));
+  } catch (e) { return null; }
+}
+
+function enterEdit(card, n, caret) {
   if (card.querySelector('textarea.edit')) return;
   const body = card.querySelector('.body');
   const ta = el('textarea', 'edit');
@@ -3429,7 +3471,8 @@ function enterEdit(card, n) {
   ta.after(row);
   autosize(ta);
   ta.focus();
-  ta.setSelectionRange(ta.value.length, ta.value.length);
+  const at = caret == null ? ta.value.length : Math.min(caret, ta.value.length);
+  ta.setSelectionRange(at, at);
 
   const g0 = n.group;
   let timer, changed = false, done = false;
@@ -3586,7 +3629,7 @@ function renderNotesView() {
   const q = parseQuery(query);
   const isTrash = view === 'trash';
   const src = isTrash ? trash : plainNotes();
-  const filtering = q.active || (!isTrash && (!!activeTag || !!activeGroup));
+  const filtering = q.active || (!isTrash && (!!activeTag || !!activeGroup || doneFilter !== 'all'));
   const list = collectNotes(q, src);
 
   $('status').textContent = filtering ? `Showing ${list.length} of ${src.length}` : '';
@@ -3622,12 +3665,19 @@ function renderNotesView() {
   const pinnedShown = pinned.slice(0, visibleLimit);
   const restShown = rest.slice(0, Math.max(0, visibleLimit - pinnedShown.length));
 
+  // "Everything below is done": only when the notes from some point to the end are all done and something above is not
+  let doneFrom = rest.length;
+  while (doneFrom > 0 && rest[doneFrom - 1].done) doneFrom--;
+  const showDoneLine = doneFrom > 0 && doneFrom < rest.length;
   const group = (shown, full, label) => {
     if (label) box.appendChild(el('div', 'section-label', label));
-    shown.forEach((n, i) => box.appendChild(makeCard(n, {
+    shown.forEach((n, i) => {
+      if (showDoneLine && full === rest && i === doneFrom) box.appendChild(el('div', 'done-line', '✓ Everything below is done'));
+      box.appendChild(makeCard(n, {
       canUp: canMove && i > 0,
       canDown: canMove && i < full.length - 1
-    })));
+    }));
+    });
   };
   if (pinnedShown.length) group(pinnedShown, pinned, ICON.pin + ' Pinned');
   if (restShown.length) group(restShown, rest, pinned.length ? 'Notes' : '');
@@ -4397,7 +4447,9 @@ function renderHighlights() {
 const composer = $('composer');
 composer.addEventListener('input', () => { composer.style.height = 'auto'; composer.style.height = composer.scrollHeight + 2 + 'px'; });
 function submitComposer() {
-  if (addNote(composer.value, $('composerGroup').value || null)) {
+  const grp = $('composerGroup').value || null;
+  if (addNote(composer.value, grp)) {
+    flashGroup(grp);
     composer.value = '';
     composer.style.height = 'auto';
     if (view === 'all' || view === 'notes') render();
@@ -4416,6 +4468,13 @@ $('search').addEventListener('input', e => {
 $('sort').addEventListener('change', e => {
   sortMode = SORTS.includes(e.target.value) ? e.target.value : 'manual';
   try { localStorage.setItem(SORT_KEY, sortMode); } catch (err) {}
+  visibleLimit = PAGE_SIZE;
+  render();
+});
+$('doneFilter').value = doneFilter;
+$('doneFilter').addEventListener('change', e => {
+  doneFilter = DONES.includes(e.target.value) ? e.target.value : 'all';
+  try { localStorage.setItem(DONE_KEY, doneFilter); } catch (err) {}
   visibleLimit = PAGE_SIZE;
   render();
 });
@@ -4480,7 +4539,7 @@ const incoming = params.get('q') ?? params.get('text');
 let addedFromUrl = false, arrived = null;
 if (incoming !== null && incoming.trim() !== '') {
   addedFromUrl = addNote(incoming, params.get('group'));
-  if (addedFromUrl) { arrived = notes[0]; view = isYtNote(arrived) ? 'youtube' : 'notes'; activeTag = null; activeGroup = null; saveView(); }   // show the note that was just added
+  if (addedFromUrl) { arrived = notes[0]; view = isYtNote(arrived) ? 'youtube' : 'notes'; activeTag = null; activeGroup = arrived.group || null; doneFilter = 'all'; saveView(); }   // show the note that was just added, inside its group
 }
 if (params.has('q') || params.has('text') || params.has('group')) {
   history.replaceState({}, '', location.pathname);   // so a refresh doesn't add it twice
@@ -4491,7 +4550,11 @@ initBridge();
 setTimeout(checkDailyBackup, 4300);   // after the bridge had its 4 s to deliver the highlights
 initBackup();
 
-if (addedFromUrl) { toast('Note added from the URL', null, null, 3000); openEditPopup(arrived); }   // it opens centered, ready to edit
+if (addedFromUrl) {
+  toast('Note added from the URL', null, null, 3000);
+  openEditPopup(arrived);
+  if (arrived.group) $('editDlg').addEventListener('close', () => { flashGroup(arrived.group); renderGroupBar(); }, { once: true });   // the folder blinks once the note is entered
+}   // it opens centered, ready to edit
 let seen = '1';
 try { seen = localStorage.getItem(SEEN_KEY); } catch (e) {}
 $('editDlg').addEventListener('mousedown', e => {
