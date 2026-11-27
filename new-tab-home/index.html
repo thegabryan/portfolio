@@ -522,6 +522,21 @@
       font-weight: 700;
     }
 
+    a.icon-btn {
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      text-decoration: none;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+
+    a.icon-btn:hover {
+      border-color: rgba(155, 196, 255, 0.7);
+      background: rgba(155, 196, 255, 0.12);
+    }
+
     .icon-btn.fav.on { color: var(--gold); border-color: rgba(255, 209, 102, 0.6); }
     .icon-btn.pin { opacity: 0.55; }
     .icon-btn.pin.on { opacity: 1; border-color: rgba(155, 196, 255, 0.7); background: rgba(155, 196, 255, 0.16); }
@@ -1040,10 +1055,9 @@
 function normalizeMeta(meta) {
   if (!meta || typeof meta !== 'object') return null;
 
-  const cleanText = value => String(value || '')
-    .replace(/(?:\d{4})?date\s+QS:P571,\S+/gi, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+  const cleanText = value => cleanCaptionText(
+    String(value || '').replace(/(?:\d{4})?date\s+QS:P571,\S+/gi, ' ')
+  );
 
   const dateText = String(meta.date || '');
   const yearMatch = dateText.match(/\b(\d{4})(?=date\b|\b)/i);
@@ -1504,6 +1518,30 @@ function normalizeMeta(meta) {
       renderLinks();
     }
 
+    // The page the image lives on, opened with Wikipedia's image viewer
+    // (the one with the quality dropdown), never the bare .jpg/.png file.
+    function wikiPageUrl(item) {
+      const fileName = getWikiFileName(item.sourceUrl);
+      if (!fileName) return null;
+
+      const title = encodeURIComponent(fileName.replaceAll(' ', '_'));
+
+      try {
+        const parsed = new URL(item.sourceUrl);
+        const host = parsed.hostname.toLowerCase();
+        const isPage = host === 'commons.wikimedia.org' || host.endsWith('.wikipedia.org');
+
+        if (isPage) {
+          // Keep the exact page the user pasted (e.g. the article), and open the viewer on it.
+          if (!parsed.hash.includes('/media/')) parsed.hash = `#/media/File:${title}`;
+          return parsed.href;
+        }
+      } catch { /* fall through to the Commons file page */ }
+
+      // Direct image links (upload.wikimedia.org / thumb.wikimedia.org): use the Commons file page.
+      return `https://commons.wikimedia.org/wiki/File:${title}#/media/File:${title}`;
+    }
+
     function buildRow(item, index) {
       const row = document.createElement('li');
       if (item.id === currentImageId) row.classList.add('selected');
@@ -1636,6 +1674,19 @@ function normalizeMeta(meta) {
       pinButton.setAttribute('aria-label', `${pinned ? 'Unpin' : 'Pin'} ${name}`);
       pinButton.addEventListener('click', () => togglePin(item));
 
+      const pageUrl = wikiPageUrl(item);
+      let openLink = null;
+      if (pageUrl) {
+        openLink = document.createElement('a');
+        openLink.className = 'icon-btn open-page';
+        openLink.href = pageUrl;
+        openLink.target = '_blank';
+        openLink.rel = 'noopener noreferrer';
+        openLink.textContent = '↗';
+        openLink.title = 'Open the image’s Wikipedia/Commons page in a new tab';
+        openLink.setAttribute('aria-label', `Open the page of ${name} in a new tab`);
+      }
+
       const removeButton = document.createElement('button');
       removeButton.type = 'button';
       removeButton.className = 'icon-btn';
@@ -1644,7 +1695,9 @@ function normalizeMeta(meta) {
       removeButton.setAttribute('aria-label', `Remove ${name}`);
       removeButton.addEventListener('click', () => removeItem(item));
 
-      actions.append(favButton, pinButton, removeButton);
+      actions.append(favButton, pinButton);
+      if (openLink) actions.append(openLink);
+      actions.append(removeButton);
       row.append(handle, selectButton, details, actions);
       return row;
     }
@@ -1758,10 +1811,23 @@ function normalizeMeta(meta) {
     /* =========================================================
        Wikimedia: qualities, title and artist
        ========================================================= */
+    // Commons wraps Wikidata structured data in hidden spans, e.g.
+    //   Home in the Woods<span style="display:none">label QS:Len,"Home in the Woods"</span>
+    // textContent still reads those, so we drop hidden elements first and then
+    // cut anything that looks like leftover "QS:..." statements.
+    function cleanCaptionText(text) {
+      return String(text || '')
+        .replace(/\s*(?:title|label|description|creator|author|depicts|inception|date)?\s*QS:[A-Za-z0-9]+[,:][\s\S]*$/, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
     function stripHtml(html) {
       if (!html) return '';
       const doc = new DOMParser().parseFromString(String(html), 'text/html');
-      return (doc.body.textContent || '').replace(/\s+/g, ' ').trim();
+      doc.querySelectorAll('[hidden], .hidden, [style*="display:none"], [style*="display: none"], script, style')
+        .forEach(element => element.remove());
+      return cleanCaptionText(doc.body.textContent);
     }
 
     function makeWikiApiUrl(fileName, width = null, withMeta = false) {
