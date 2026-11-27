@@ -152,6 +152,17 @@ details.menu .pop hr { border: 0; border-top: 1px solid var(--line); margin: 4px
 .message.done { background: var(--bg); border-color: transparent; color: var(--muted); box-shadow: none; }
 .message.done .body, .message.done .meta, .message.done .tag { color: var(--muted); }
 .message.done .ytthumb { opacity: .6; }
+/* to-do groups: open notes pop out, done notes are flat #dfdfdf all over */
+.message.tg-open { background: var(--bg); border: 2px solid var(--accent); border-left: 10px solid var(--accent); box-shadow: 0 3px 12px rgba(59, 108, 246, .25); }
+.message.tg-open .body { font-weight: 600; }
+.message.done.tg-done { background: #dfdfdf; border: 1px solid #dfdfdf; box-shadow: none; color: #777; }
+.message.done.tg-done *, .message.done.tg-done button.icon { color: #777; background-color: transparent; border-color: transparent; filter: none; }
+.message.done.tg-done .tag { background: #d3d3d3; }
+.message.done.tg-done button.icon { opacity: .65; filter: grayscale(1); }
+.message.done.tg-done button.icon:hover { opacity: 1; }
+#todoLeft { position: fixed; right: 12px; top: 50%; transform: translateY(-50%); z-index: 20; display: flex; flex-direction: column; gap: 10px; }
+#todoLeft button { background: var(--accent); color: var(--accent-fg); border: 0; border-radius: 999px; padding: 9px 14px; font: 700 14px/1 inherit; box-shadow: 0 3px 12px rgba(0, 0, 0, .3); cursor: pointer; }
+#todoLeft button[hidden] { display: none; }
 .message.done button.icon, .message.done .ytthumb ~ * button { filter: grayscale(1); opacity: .45; }
 .message.done button.icon:hover { opacity: .9; }
 .ytwrap { display: flex; gap: 12px; align-items: flex-start; }
@@ -337,6 +348,7 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
   <div id="messages"></div>
 </div>
 
+<div id="todoLeft"><button type="button" id="tlUp" hidden></button><button type="button" id="tlDown" hidden></button></div>
 <div id="toast" role="status" aria-live="polite"></div>
 <input type="file" id="importFile" accept=".json,application/json" hidden>
 
@@ -2994,7 +3006,7 @@ function syncGroups() {
 function loadGroups() {
   try {
     const g = JSON.parse(localStorage.getItem(GROUPS_KEY) || '[]');
-    groups = Array.isArray(g) ? g.filter(x => x && typeof x.name === 'string' && x.name).map(x => ({ name: x.name.slice(0, 40), pinned: !!x.pinned })) : [];
+    groups = Array.isArray(g) ? g.filter(x => x && typeof x.name === 'string' && x.name).map(x => ({ name: x.name.slice(0, 40), pinned: !!x.pinned, ...(x.todo ? { todo: true } : {}) })) : [];
   } catch (e) { groups = []; }
   try {
     const p = JSON.parse(localStorage.getItem(PTAGS_KEY) || '[]');
@@ -3009,6 +3021,7 @@ function saveGroups() {
   } catch (e) {}
   scheduleSnapshot(); scheduleBackup();
 }
+const isTodoGroup = name => !!name && groups.some(g => g.name === name && g.todo);
 function ensureGroup(name) {
   name = String(name || '').trim().slice(0, 40);
   if (!name) return null;
@@ -3108,6 +3121,8 @@ function openGroupDlg() {
       const row = el('div', 'grow');
       const pin = el('button', 'btn', g.pinned ? '📌' : '📍'); pin.title = g.pinned ? 'Unpin from the bar' : 'Pin to the bar';
       pin.addEventListener('click', () => { g.pinned = !g.pinned; saveGroups(); draw(); renderGroupBar(); });
+      const typ = el('button', 'btn', g.todo ? '☑ To-do' : '📄 Normal'); typ.title = 'Group type: To-do groups show open notes bold and done notes flat gray';
+      typ.addEventListener('click', () => { if (g.todo) delete g.todo; else g.todo = true; saveGroups(); draw(); render(); });
       const inp = el('input'); inp.value = g.name; inp.maxLength = 40;
       inp.addEventListener('change', () => {
         const nn = inp.value.trim().slice(0, 40);
@@ -3124,14 +3139,15 @@ function openGroupDlg() {
         hit.forEach(n => delete n.group); groups.splice(at, 1); persist(); saveGroups(); draw(); render();
         toast(`Group ${name} deleted`, 'Undo', () => { groups.splice(Math.min(at, groups.length), 0, g); hit.forEach(n => { n.group = name; }); persist(); saveGroups(); render(); });
       });
-      row.append(pin, inp, cnt, del); body.appendChild(row);
+      row.append(pin, typ, inp, cnt, del); body.appendChild(row);
     });
     const add = el('div', 'grow');
     const ni = el('input'); ni.placeholder = 'New group name'; ni.maxLength = 40;
+    const nt = el('select', 'btn'); nt.append(new Option('📄 Normal', 'normal'), new Option('☑ To-do', 'todo'));
     const nb = el('button', 'btn primary', 'Add group');
-    const go = () => { const n = ensureGroup(ni.value); if (n) { const g = groups.find(o => o.name === n); if (g && !g.pinned) { g.pinned = true; saveGroups(); } draw(); render(); } };
+    const go = () => { const n = ensureGroup(ni.value); if (n) { const g = groups.find(o => o.name === n); if (g && (!g.pinned || nt.value === 'todo')) { g.pinned = true; if (nt.value === 'todo') g.todo = true; saveGroups(); } draw(); render(); } };
     nb.addEventListener('click', go); ni.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
-    add.append(ni, nb); body.appendChild(add);
+    add.append(ni, nt, nb); body.appendChild(add);
     dlg.append(head, body);
   };
   draw();
@@ -3518,7 +3534,7 @@ function metaText(n) {
 }
 
 function makeCard(n, opts) {
-  const card = el('article', 'message' + (n.pinned && view !== 'trash' ? ' pinned' : '') + (n.done && view !== 'trash' ? ' done' : ''));
+  const card = el('article', 'message' + (n.pinned && view !== 'trash' ? ' pinned' : '') + (n.done && view !== 'trash' ? ' done' : '') + (view !== 'trash' && isTodoGroup(n.group) ? (n.done ? ' tg-done' : ' tg-open') : ''));
   card.dataset.id = n.id;
   if (selected.has(n.id)) card.classList.add('selected');
   const meta = el('div', 'meta');
@@ -3951,7 +3967,7 @@ function importData(text) {
   };
   incomingNotes.forEach(r => take(r, notes));
   incomingTrash.forEach(r => take(r, trash));
-  if (data && Array.isArray(data.groups)) data.groups.forEach(g => { if (g && typeof g.name === 'string' && g.name && !groups.some(o => o.name === g.name)) groups.push({ name: g.name.slice(0, 40), pinned: !!g.pinned }); });
+  if (data && Array.isArray(data.groups)) data.groups.forEach(g => { if (g && typeof g.name === 'string' && g.name && !groups.some(o => o.name === g.name)) groups.push({ name: g.name.slice(0, 40), pinned: !!g.pinned, ...(g.todo ? { todo: true } : {}) }); });
   if (data && Array.isArray(data.pinnedTags)) data.pinnedTags.forEach(t => { if (typeof t === 'string' && !pinnedTags.includes(t)) pinnedTags.push(t); });
   syncGroups(); saveGroups();
   persist();
@@ -4445,6 +4461,28 @@ function renderHighlights() {
   }
   if (drawn < all.length) appendMore(box, all.length - drawn);
 }
+
+/* ---------- "N notes left" side badge for to-do groups ---------- */
+function updateTodoLeft() {
+  const up = [], down = [], H = window.innerHeight;
+  if (view === 'notes' || view === 'all') document.querySelectorAll('#messages .message.tg-open').forEach(c => {
+    const r = c.getBoundingClientRect();
+    if (r.bottom < 70) up.push(c); else if (r.top > H - 10) down.push(c);
+  });
+  const set = (b, list, arrow, target) => {
+    b.hidden = !list.length;
+    b.textContent = `${arrow} ${list.length} note${list.length === 1 ? '' : 's'} left`;
+    b._t = target;
+  };
+  set($('tlUp'), up, '↑', up[up.length - 1]);
+  set($('tlDown'), down, '↓', down[0]);
+}
+let tlQueued = false;
+const queueTodoLeft = () => { if (tlQueued) return; tlQueued = true; requestAnimationFrame(() => { tlQueued = false; updateTodoLeft(); }); };
+['tlUp', 'tlDown'].forEach(id => $(id).addEventListener('click', e => { const t = e.currentTarget._t; if (t) t.scrollIntoView({ behavior: 'smooth', block: 'center' }); }));
+window.addEventListener('scroll', queueTodoLeft, { passive: true });
+window.addEventListener('resize', queueTodoLeft);
+new MutationObserver(queueTodoLeft).observe($('messages'), { childList: true });
 
 /* ---------- wiring ---------- */
 const composer = $('composer');
