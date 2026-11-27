@@ -330,6 +330,17 @@
     save();
     return { closed: closed };
   }
+  /* "New block": ends the running block (it stays in the list, with its note), resets the timer completely
+     (Work goes back to a full hour) and starts the next block right away, back to back. */
+  function newBlock(now) {
+    now = now || Date.now();
+    if (S.active === 'paused' || S.activeSince == null) return null;
+    var closed = closeSeg(now);
+    if (S.active === 'work') S.timer = newRound(now);
+    S.activeSince = now; S.beepFrom = now; S.lastSeen = now;
+    save();
+    return { closed: closed };
+  }
   function setNote(id, note) {
     var s = S.segments.find(function (x) { return x.id === id; });
     if (!s) return false;
@@ -1037,6 +1048,14 @@
     return out;
   }
 
+  /* Dashboard range: null = everything, or { from: 'YYYY-MM-DD', to: 'YYYY-MM-DD' } (both included). */
+  var RANGE = null;
+  function setRange(from, to) {
+    var ok = function (v) { return /^\d{4}-\d{2}-\d{2}$/.test(v || ''); };
+    RANGE = ok(from) && ok(to) ? (from <= to ? { from: from, to: to } : { from: to, to: from }) : null;
+    return RANGE;
+  }
+  function inR(k) { return !RANGE || (k >= RANGE.from && k <= RANGE.to); }
   function analyze(now) {
     now = now || Date.now();
     var todayK = dayKey(now), per = {}, segs = {};
@@ -1044,15 +1063,16 @@
     var get = function (k) {
       return per[k] || (per[k] = { day: k, points: 0, outreach: 0, firstOpen: null, t: zero(), total: 0 });
     };
-    Object.keys(S.days).forEach(function (k) { get(k).firstOpen = S.days[k].firstOpen; });
-    S.sessions.forEach(function (s) { get(s.day).points++; });
+    Object.keys(S.days).forEach(function (k) { if (inR(k)) get(k).firstOpen = S.days[k].firstOpen; });
+    var sessR = S.sessions.filter(function (s) { return inR(s.day); });
+    sessR.forEach(function (s) { get(s.day).points++; });
     var ocHour = [];
     for (var hh = 0; hh < 24; hh++) ocHour.push(0);
-    S.outreach.clicks.forEach(function (ms) { get(dayKey(ms)).outreach++; ocHour[new Date(ms).getHours()]++; });   // hour chart: real clicks only
-    Object.keys(S.outreach.adj).forEach(function (k) { var d = get(k); d.outreach = Math.max(0, d.outreach + S.outreach.adj[k]); d.outreachEdited = true; });
+    S.outreach.clicks.forEach(function (ms) { if (!inR(dayKey(ms))) return; get(dayKey(ms)).outreach++; ocHour[new Date(ms).getHours()]++; });   // hour chart: real clicks only
+    Object.keys(S.outreach.adj).forEach(function (k) { if (!inR(k)) return; var d = get(k); d.outreach = Math.max(0, d.outreach + S.outreach.adj[k]); d.outreachEdited = true; });
     var addSeg = function (g, live) {
       var sec = 0;
-      dayParts(g.act, g.start, g.end, function (k, s) { get(k).t[g.act] += s; sec += s; });
+      dayParts(g.act, g.start, g.end, function (k, s) { if (!inR(k)) return; get(k).t[g.act] += s; sec += s; });
       if (sec >= 1) segs[g.act].push({ start: g.start, end: g.end, sec: sec, note: g.note || '', project: g.project || '', id: g.id, live: !!live });
     };
     S.segments.forEach(function (g) { addSeg(g, false); });
@@ -1119,11 +1139,11 @@
     }
     var byHour = [];
     for (var h = 0; h < 24; h++) byHour.push({ hour: h, points: 0 });
-    S.sessions.forEach(function (s) { byHour[new Date(s.start).getHours()].points++; });
+    sessR.forEach(function (s) { byHour[new Date(s.start).getHours()].points++; });
 
     return {
       todayK: todayK, weekStart: weekStart, per: per, days: days, totals: tot, perAct: perAct, segs: segs, outreach: outreach, goals: goals,
-      points: S.sessions.length, trackedDays: tracked, avgPerDay: tracked ? S.sessions.length / tracked : 0,
+      points: sessR.length, trackedDays: tracked, avgPerDay: tracked ? sessR.length / tracked : 0,
       best: best, streak: { current: cur, longest: longestStreak }, byHour: byHour
     };
   }
@@ -1300,6 +1320,55 @@
       }));
     }
     return { name: stamp(new Date(now)) + '_' + kind + '.csv', text: csvText(rows) };
+  }
+  /* Everything made between two days (both included). parts: blocks, outreach, ask, notes, scores. Returns a CSV and a readable text. */
+  function rangeExport(from, to, parts, now) {
+    now = now || Date.now();
+    if (from > to) { var tmp = from; from = to; to = tmp; }
+    parts = parts || ['blocks', 'outreach', 'ask', 'notes', 'scores'];
+    var has = function (p) { return parts.indexOf(p) >= 0; }, inr = function (ms) { var k = dayKey(ms); return k >= from && k <= to; };
+    var saved = RANGE; RANGE = null;
+    var A = analyze(now); RANGE = saved;
+    var items = [];      // { ms, end, day, type, name, detail, sec }
+    var tm = function (ms) { var d = new Date(ms); return pad(d.getHours()) + ':' + pad(d.getMinutes()); };
+    if (has('blocks')) ACTS.forEach(function (a) { A.segs[a].forEach(function (g) {
+      if (inr(g.start)) items.push({ ms: g.start, end: g.end, type: 'block', name: META[a].label, detail: [g.project, g.note].filter(Boolean).join(' · '), sec: Math.round(g.sec) });
+    }); });
+    if (has('outreach')) {
+      outreachLog().forEach(function (o) { if (inr(o.ms)) items.push({ ms: o.ms, type: 'outreach', name: o.name, detail: o.note }); });
+      S.outreach.follow.forEach(function (f) { [['A', f.log], ['B', f.logB], ['C', f.logC]].forEach(function (p) {
+        (p[1] || []).forEach(function (ms) { if (inr(ms)) items.push({ ms: ms, type: 'follow-up', name: f.name || f.url || '', detail: 'stage ' + p[0] }); });
+      }); });
+    }
+    if (has('ask')) S.ask.log.forEach(function (l) {
+      if (!inr(l.ms)) return; var pr = askPerson(l.pid);
+      items.push({ ms: l.ms, type: 'daily ask', name: pr ? pr.name : '', detail: l.replied ? 'replied' : 'no reply yet' });
+    });
+    if (has('notes')) allNotes(now).forEach(function (n) { if (inr(n.start) && !n.live) items.push({ ms: n.start, end: n.end, type: 'note', name: META[n.act].label, detail: n.note }); });
+    items.sort(function (a, b) { return a.ms - b.ms; });
+    var scores = has('scores') ? A.days.filter(function (d) { return d.day >= from && d.day <= to; }).reverse() : [];
+
+    var rows = [['type', 'day', 'start', 'end', 'seconds', 'name', 'detail']];
+    items.forEach(function (o) { rows.push([o.type, dayKey(o.ms), dt(o.ms), o.end ? dt(o.end) : '', o.sec != null ? o.sec : (o.end ? Math.round((o.end - o.ms) / 1000) : ''), o.name, o.detail]); });
+    scores.forEach(function (d) { rows.push(['day score', d.day, '', '', '', 'points ' + d.points + ' · outreach ' + d.outreach, ACTS.map(function (a) { return META[a].label + ' ' + fmtDur(d.t[a]); }).join(' · ')]); });
+
+    var L = ['Timer export: ' + from + (from === to ? '' : ' to ' + to), ''];
+    var dayList = {}; items.forEach(function (o) { dayList[dayKey(o.ms)] = 1; }); scores.forEach(function (d) { dayList[d.day] = 1; });
+    Object.keys(dayList).sort().forEach(function (k) {
+      L.push('== ' + k + ' ==');
+      var d = scores.filter(function (x) { return x.day === k; })[0];
+      if (d) {
+        L.push('Points: ' + d.points + ' · Outreach: ' + d.outreach);
+        L.push(ACTS.map(function (a) { return META[a].icon + ' ' + META[a].label + ' ' + fmtDur(d.t[a]); }).join(' · '));
+      }
+      items.filter(function (o) { return dayKey(o.ms) === k; }).forEach(function (o) {
+        L.push('  ' + tm(o.ms) + (o.end ? '–' + tm(o.end) : '') + '  [' + o.type + '] ' + [o.name, o.sec != null && o.type === 'block' ? fmtDur(o.sec) : '', o.detail].filter(Boolean).join(' · '));
+      });
+      L.push('');
+    });
+    if (!Object.keys(dayList).length) L.push('Nothing in this range.');
+    var base = stamp(new Date(now)) + '_' + from + (from === to ? '' : '_to_' + to);
+    return { csvName: base + '.csv', csv: csvText(rows), txtName: base + '.txt', txt: L.join('\r\n'), count: items.length + scores.length };
   }
   /* Once a day, on the first open, downloads a backup file by itself (if switched on). */
   function maybeAutoBackup(now) {
@@ -1580,6 +1649,29 @@
       download(r.name, r.text, 'text/csv;charset=utf-8');
     });
   }
+  /* Export everything made on a day or a range of days: choose the days and what to include. */
+  function mountRangeExport(el) {
+    var t = dayKey(Date.now());
+    var parts = [['blocks', 'Work blocks'], ['outreach', 'Outreach + follow-ups'], ['ask', 'Daily ask'], ['notes', 'Notes'], ['scores', 'Daily scores']];
+    el.innerHTML = '<div class="rxhead">📤 Export a day or range</div>' +
+      '<div class="rxrow"><label>From <input type="date" data-f value="' + t + '" max="' + t + '"></label><label>To <input type="date" data-t value="' + t + '" max="' + t + '"></label>' +
+      '<button type="button" class="ghost" data-p="1">Today</button><button type="button" class="ghost" data-p="7">7 days</button><button type="button" class="ghost" data-p="30">30 days</button></div>' +
+      '<div class="rxrow">' + parts.map(function (p) { return '<label><input type="checkbox" data-part="' + p[0] + '" checked> ' + p[1] + '</label>'; }).join('') + '</div>' +
+      '<div class="rxrow"><button type="button" class="primary" data-go="csv">Download CSV</button><button type="button" class="ghost" data-go="txt">Download text</button><span class="muted" data-msg></span></div>';
+    var f = el.querySelector('[data-f]'), to = el.querySelector('[data-t]'), msg = el.querySelector('[data-msg]');
+    el.addEventListener('click', function (e) {
+      var p = e.target.closest('[data-p]');
+      if (p) { var n = +p.dataset.p; to.value = dayKey(Date.now()); f.value = addDays(to.value, -(n - 1)); return; }
+      var g = e.target.closest('[data-go]'); if (!g) return;
+      var sel = [].map.call(el.querySelectorAll('[data-part]:checked'), function (c) { return c.dataset.part; });
+      if (!sel.length) { msg.textContent = 'Pick at least one thing.'; return; }
+      heartbeat(Date.now(), true);
+      var r = rangeExport(f.value || t, to.value || f.value || t, sel);
+      if (!r.count) { msg.textContent = 'Nothing in that range.'; return; }
+      if (g.dataset.go === 'csv') download(r.csvName, r.csv, 'text/csv;charset=utf-8'); else download(r.txtName, r.txt, 'text/plain;charset=utf-8');
+      msg.textContent = r.count + ' items exported ✓';
+    });
+  }
   function mountDataTools(el, onChange) {
     el.innerHTML =
       '<button type="button" class="ghost" data-a="exp">Export all data</button>' +
@@ -1681,13 +1773,13 @@
     dayKey: dayKey, addDays: addDays, keyToDate: keyToDate, fmtDur: fmtDur,
     boot: boot, get: function () { return S; }, reload: reload, save: save,
     storageOK: function () { return !memoryOnly; },
-    switchTo: switchTo, setNote: setNote, setNoteAt: setNoteAt, noteTarget: noteTarget, allNotes: allNotes, heartbeat: heartbeat, tick: tick,
+    switchTo: switchTo, newBlock: newBlock, setRange: setRange, rangeExport: rangeExport, download: download, setNote: setNote, setNoteAt: setNoteAt, noteTarget: noteTarget, allNotes: allNotes, heartbeat: heartbeat, tick: tick,
     outreachToday: outreachToday, followsToday: followsToday, trackPeek: trackPeek, outreachAdd: outreachAdd, outreachUndo: outreachUndo, setOutreachDay: setOutreachDay, setOutreachName: setOutreachName, setOutreachNote: setOutreachNote, todoList: todoList, addTodo: addTodo, removeTodo: removeTodo, markReached: markReached, startFollow: startFollow, followList: followList, followDue: followDue, followDone: followDone, followStop: followStop, followDueCount: function (now) { return pipeStats(now).due; }, pipeAdvance: pipeAdvance, pipeNotInterested: pipeNotInterested, pipeStats: pipeStats, pipeSources: pipeSources, pipeSetSources: pipeSetSources, pipeFind: pipeFind, editFollow: editFollow, STAGE_MAX: STAGE_MAX, STAGE_NAME: STAGE_NAME, guessSource: guessSource, leadFromScript: leadFromScript, FOLLOW_MAX: FOLLOW_MAX, outreachLog: outreachLog, setFeed: setFeed, videosFor: videosFor, newVideos: newVideos, feedKeys: feedKeys, videoToasts: videoToasts, markVideosNotified: markVideosNotified, videoChime: videoChime, olderVideos: olderVideos, markVideoSeen: markVideoSeen, feedSeenNow: feedSeenNow, newVideoEntries: newVideoEntries, feedChecked: feedChecked, isFav: isFav, setFav: setFav, favNotes: favNotes, projectList: projectList, renameProject: renameProject, projectTime: projectTime, actByHour: actByHour, setGoal: setGoal,
     todayTotals: todayTotals, todayPoints: todayPoints, analyze: analyze,
     askToday: askToday, askContext: askContext, askLogFor: askLogFor, askPeek: askPeek, askSwap: askSwap, askSetToday: askSetToday, askSave: askSave, askRemove: askRemove, askMe: askMe, askSend: askSend, askReply: askReply, askUnreply: askUnreply, askNoFollow: askNoFollow, askDelLog: askDelLog, askLog: askLog, askStats: askStats, askPeople: function () { return S.ask.people.slice(); }, askMeGet: function () { return { who: S.ask.me.who, doing: S.ask.me.doing }; },
     exportAll: exportAll, importText: importText,
     audio: audio, audioReady: audioReady, testSound: testSound, beep: beep, nudgeBeep: nudgeBeep, alarmStart: alarmStart, alarmStop: alarmStop,
-    setFavicon: setFavicon, setTitle: setTitle, picFor: picFor, linkChat: linkChat, gmailQuery: gmailQuery, gmailFor: gmailFor, gmailUrl: gmailUrl, gmailU: gmailU, setGmailQ: setGmailQ, setGmailU: setGmailU, linkMail: linkMail, setSleepAfter: setSleepAfter, addNoteLine: addNoteLine, entryIdByKeys: entryIdByKeys, addNoteByKeys: addNoteByKeys, addLinksByKeys: addLinksByKeys, pinLink: pinLink, editLink: editLink, linkIcon: linkIcon, linkKind: linkKind, KIND_EMOJI: KIND_EMOJI, unlinkChat: unlinkChat, chatsOf: chatsOf, chatsForClick: chatsForClick, editTodo: editTodo, editFollow: editFollow, removeFollow: removeFollow, outreachRemoveClick: outreachRemoveClick, setPics: setPics, startFlash: startFlash, quickBlink: quickBlink, engine: engine, initTheme: initTheme, mountDataTools: mountDataTools, mountCsvTools: mountCsvTools, csvExport: csvExport, maybeAutoBackup: maybeAutoBackup, setAutoBackup: setAutoBackup, setGoalSec: setGoalSec, GOALS: GOALS,
+    setFavicon: setFavicon, setTitle: setTitle, picFor: picFor, linkChat: linkChat, gmailQuery: gmailQuery, gmailFor: gmailFor, gmailUrl: gmailUrl, gmailU: gmailU, setGmailQ: setGmailQ, setGmailU: setGmailU, linkMail: linkMail, setSleepAfter: setSleepAfter, addNoteLine: addNoteLine, entryIdByKeys: entryIdByKeys, addNoteByKeys: addNoteByKeys, addLinksByKeys: addLinksByKeys, pinLink: pinLink, editLink: editLink, linkIcon: linkIcon, linkKind: linkKind, KIND_EMOJI: KIND_EMOJI, unlinkChat: unlinkChat, chatsOf: chatsOf, chatsForClick: chatsForClick, editTodo: editTodo, editFollow: editFollow, removeFollow: removeFollow, outreachRemoveClick: outreachRemoveClick, setPics: setPics, startFlash: startFlash, quickBlink: quickBlink, engine: engine, initTheme: initTheme, mountRangeExport: mountRangeExport, mountRangeExport: mountRangeExport, mountDataTools: mountDataTools, mountCsvTools: mountCsvTools, csvExport: csvExport, maybeAutoBackup: maybeAutoBackup, setAutoBackup: setAutoBackup, setGoalSec: setGoalSec, GOALS: GOALS,
     dailySummary: dailySummary, sendSummary: sendSummary,
     KEY: KEY, CHRONO_KEY: CHRONO_KEY
   };

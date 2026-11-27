@@ -23,6 +23,13 @@
 
   <div id="now" class="notice nowbar"></div>
 
+  <div class="card rangebar" id="dashRange">
+    <strong>📅 Range</strong>
+    <label>From <input type="date" id="rgFrom"></label><label>To <input type="date" id="rgTo"></label>
+    <button type="button" class="ghost" data-rg="1">Today</button><button type="button" class="ghost" data-rg="7">7 days</button><button type="button" class="ghost" data-rg="30">30 days</button><button type="button" class="ghost" data-rg="0">All time</button>
+    <span class="muted" id="rgInfo"></span>
+  </div>
+
   <div id="stats" class="grid"></div>
 
   <section class="card">
@@ -175,6 +182,7 @@
     <h2>Your data</h2>
     <p class="muted" style="margin-top:0">Export saves everything from this site in one file named with today's date and time. Import restores it. The extra chronometer on the timer page is not part of it.</p>
     <div class="tools" id="tools"></div>
+    <div class="rx" id="rangeExp"></div>
     <h3 style="margin:18px 0 6px;font-size:15px">Spreadsheet files (CSV)</h3>
     <p class="muted" style="margin:0 0 10px">Comma separated, durations in seconds, ready for Google Sheets or Excel.</p>
     <div class="tools" id="csvTools"></div>
@@ -237,6 +245,26 @@
   TSAAlarms.init();
   TSA.mountDataTools($('tools'), render);
   TSA.mountCsvTools($('csvTools'));
+  if ($('rangeExp')) TSA.mountRangeExport($('rangeExp'));
+  /* range for the whole dashboard (kept between visits) */
+  (function () {
+    var KEY = 'tsa_dash_range', f = $('rgFrom'), t = $('rgTo');
+    var apply = function () {
+      var r = TSA.setRange(f.value, t.value);
+      try { if (r) localStorage.setItem(KEY, JSON.stringify(r)); else localStorage.removeItem(KEY); } catch (e) {}
+      $('rgInfo').textContent = r ? 'Showing ' + r.from + (r.from === r.to ? '' : ' to ' + r.to) + ' only' : 'Showing all time';
+      render();
+    };
+    try { var o = JSON.parse(localStorage.getItem(KEY)); if (o && o.from && o.to) { f.value = o.from; t.value = o.to; } } catch (e) {}
+    f.addEventListener('change', apply); t.addEventListener('change', apply);
+    $('dashRange').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-rg]'); if (!b) return;
+      var n = +b.dataset.rg;
+      if (!n) { f.value = ''; t.value = ''; } else { t.value = TSA.dayKey(Date.now()); f.value = TSA.addDays(t.value, -(n - 1)); }
+      apply();
+    });
+    if (f.value && t.value) apply(); else $('rgInfo').textContent = 'Showing all time';
+  })();
   $('autoBk').addEventListener('change', function () { TSA.setAutoBackup($('autoBk').checked); render(); });
   var monthOffset = 0;
 

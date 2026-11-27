@@ -61,6 +61,7 @@
     
       <label class="sel" title="How many outreaches you want to do each day. Shown in the Outreach today box.">Daily outreach goal <input id="goalInput" type="number" min="1" max="9999" inputmode="numeric" style="width:70px"></label>
   </div>
+  <div class="rx" id="rangeExp"></div>
   <div class="drow"><button type="button" class="primary" id="setClose">Close</button></div>
 </dialog>
 
@@ -160,6 +161,7 @@
   TSAHelp.init('timer');
   TSAAlarms.init();
   TSA.mountDataTools($('tools'), function () { S = TSA.get(); renderAll(); });
+  TSA.mountRangeExport($('rangeExp'));
   (function () {
     var b = document.createElement('button'); b.type = 'button'; b.className = 'ghost'; b.id = 'sumBtn'; b.textContent = 'Send day summary';
     b.title = 'Sends today\'s summary as a note to your Url Notes site (needs the userscript); otherwise copies it';
@@ -190,13 +192,13 @@
       '<div class="state" data-state></div>' +
       '<div class="sub" data-sub></div>' +
       (TSA.GOALS[a] ? '<div class="goalbar" data-gbar><i></i></div><div class="goaltxt"><span data-gtxt></span> <button type="button" class="linkbtn" data-goal>Goal</button></div>' : '') +
-      '<div class="cbtns"><button type="button" class="tbtn" data-toggle>Start</button></div>' +
+      '<div class="cbtns"><button type="button" class="tbtn" data-toggle>Start</button><button type="button" class="ghost" data-newblock hidden title="End this block and start the next one right away (resets the timer completely)">⏭ New block</button></div>' +
       '<button type="button" class="nbtn" data-note>📝 Note</button></article>';
   }).join('');
   ACTS.forEach(function (a) {
     var el = cardsEl.querySelector('[data-act=' + a + ']');
     refs[a] = { el: el, big: el.querySelector('[data-big]'), state: el.querySelector('[data-state]'),
-      gbar: el.querySelector('[data-gbar]'), gtxt: el.querySelector('[data-gtxt]'), sub: el.querySelector('[data-sub]'), btn: el.querySelector('[data-toggle]'), nbtn: el.querySelector('[data-note]') };
+      gbar: el.querySelector('[data-gbar]'), gtxt: el.querySelector('[data-gtxt]'), sub: el.querySelector('[data-sub]'), btn: el.querySelector('[data-toggle]'), nblk: el.querySelector('[data-newblock]'), nbtn: el.querySelector('[data-note]') };
   });
   var SUBS = { paused: 'Today · counts by itself', sleep: 'Today · keeps counting if closed' };
 
@@ -207,6 +209,7 @@
       r.el.classList.toggle('on', on);
       r.btn.classList.toggle('on', on);
       r.btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      r.nblk.hidden = !(on && a !== 'paused');
       if (a === 'work') {
         workRem = tm.mode === 'running' ? Math.max(0, Math.ceil((tm.endAt - now) / 1000))
           : tm.mode === 'paused' ? Math.ceil(tm.remainingMs / 1000) : TSA.WORK_SEC;
@@ -355,6 +358,8 @@
     }
     var nb = e.target.closest('[data-note]');
     if (nb) { var t = TSA.noteTarget(nb.closest('.acard').dataset.act); if (t) openNote(t, false); return; }
+    var nk = e.target.closest('[data-newblock]');
+    if (nk) { if (nk.closest('.acard').dataset.act === 'work') TSA.alarmStop(); TSA.newBlock(); S = TSA.get(); renderAll(); showNotice('New block started ✓ (the last one is saved)'); return; }
     var b = e.target.closest('[data-toggle]'); if (!b) return;
     var act = b.closest('.acard').dataset.act, res;
     if (S.active === act) { if (act === 'paused') return; res = TSA.switchTo('paused'); }   // clicking a running card only stops it
