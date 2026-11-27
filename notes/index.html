@@ -149,8 +149,9 @@ details.menu .pop hr { border: 0; border-top: 1px solid var(--line); margin: 4px
   padding: 12px 14px 8px; margin-bottom: 12px;
 }
 .message.pinned { border-left: 4px solid var(--pin); }
-.message.done { opacity: .5; filter: grayscale(1); background: color-mix(in srgb, var(--muted) 12%, var(--card)); }
-.message.done:hover, .message.done:focus-within { opacity: .8; }
+.message.done { background: var(--bg); border-color: transparent; color: var(--muted); box-shadow: none; }
+.message.done .body, .message.done .meta, .message.done .tag { color: var(--muted); }
+.message.done .ytthumb { opacity: .6; }
 .ytwrap { display: flex; gap: 12px; align-items: flex-start; }
 .ytmain { flex: 1; min-width: 0; }
 .ytthumb { flex: none; display: block; margin-top: 4px; }
