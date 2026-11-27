@@ -83,6 +83,8 @@ button, select { font: inherit; color: inherit; cursor: pointer; }
 .toolbar select.btn { padding: 8px 10px; }
 .done-line { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 17px; font-weight: 700; letter-spacing: .02em; color: #fff; background: #1f9d55; border-radius: 10px; padding: 14px 16px; margin: 28px 0 18px; box-shadow: 0 2px 10px rgba(31, 157, 85, .35); }
 @keyframes gflash { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 30%, 70% { box-shadow: 0 0 0 4px var(--accent); background: var(--tag-bg); } }
+.gblink { animation: gblink .6s ease 3; }
+@keyframes gblink { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 30%, 70% { box-shadow: 0 0 0 4px var(--accent); background: var(--tag-bg); } }
 .gchip.gflash { animation: gflash .6s ease 3; }
 
 details.menu { position: relative; }
@@ -4580,13 +4582,17 @@ const incoming = params.get('q') ?? params.get('text');
 let addedFromUrl = false, arrived = null;
 if (incoming !== null && incoming.trim() !== '') {
   addedFromUrl = addNote(incoming, params.get('group'));
-  if (addedFromUrl) { arrived = notes[0]; view = isYtNote(arrived) ? 'youtube' : 'notes'; activeTag = null; activeGroup = arrived.group || null; doneFilter = 'all'; saveView(); }   // show the note that was just added, inside its group
+  if (addedFromUrl) { arrived = notes[0]; arrived.text += '\n'; view = isYtNote(arrived) ? 'youtube' : 'notes'; activeTag = null; activeGroup = arrived.group || null; doneFilter = 'all'; saveView(); }   // show the note that was just added, inside its group
 }
 if (params.has('q') || params.has('text') || params.has('group')) {
   history.replaceState({}, '', location.pathname);   // so a refresh doesn't add it twice
 }
 persist();   // also migrates notes saved by the old version
 render();
+if (arrived && arrived.group) {   // the Add-note box starts in that group, and its group box blinks the first time you click the box
+  $('composerGroup').value = arrived.group;
+  composer.addEventListener('focus', () => { const gsel = $('composerGroup'); gsel.classList.add('gblink'); setTimeout(() => gsel.classList.remove('gblink'), 2200); }, { once: true });
+}
 initBridge();
 setTimeout(checkDailyBackup, 4300);   // after the bridge had its 4 s to deliver the highlights
 initBackup();
