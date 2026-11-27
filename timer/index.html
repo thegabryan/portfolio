@@ -614,9 +614,11 @@
   function pad2(n) { return (n < 10 ? '0' : '') + n; }
   function localStamp(ms) { var d = new Date(ms); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + 'T' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
   function askWhen(it) {
-    whenItem = it; $('whenName').textContent = it.name || it.url || '';
-    $('whenInput').max = localStamp(Date.now()); $('whenInput').value = localStamp(Date.now());
-    $('whenDlg').returnValue = ''; $('whenDlg').showModal();
+    /* no question any more: it counts as outreached right now */
+    var wasLinks = linksFor && linksFor === it.id;
+    TSA.markReached(it.name, it.url, Date.now(), {});
+    S = TSA.get(); renderOutreach(Date.now()); renderFollow();
+    if (wasLinks) $('linksDlg').close();
   }
   $('whenDlg').addEventListener('click', function (e) {
     var b = e.target.closest('[data-ago]'); if (!b) return;
@@ -700,7 +702,7 @@
       var isTodo = !x.stage && !TSA.followList().some(function (y) { return y.id === x.id; });
       var b = function (cls, key, label, title) { return '<button type="button" class="' + cls + '" data-lk-act="' + key + '" title="' + esc(title) + '">' + label + '</button>'; };
       var html = '', now = Date.now();
-      if (isTodo) html = b('primary', 'reach', 'Outreached ✓', 'Count it as outreached (asks when)') + b('ghost', 'todo-del', 'Remove', 'Remove from To reach out');
+      if (isTodo) html = b('primary', 'reach', 'Outreached ✓', 'Count it as outreached now') + b('ghost', 'todo-del', 'Remove', 'Remove from To reach out');
       else {
         var advLbl = { A: 'Answered ✓', B: 'Pitched ✓', C: 'Closed ✓' }, advTitle = { A: 'They answered: move to B · Engaged', B: 'Move to C · Pitched', C: 'Move to D · Closed' };
         var L = x.stage === 'A' ? x.log : x.stage === 'B' ? x.logB : x.logC;
