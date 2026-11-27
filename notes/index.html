@@ -152,6 +152,8 @@ details.menu .pop hr { border: 0; border-top: 1px solid var(--line); margin: 4px
 .message.done { background: var(--bg); border-color: transparent; color: var(--muted); box-shadow: none; }
 .message.done .body, .message.done .meta, .message.done .tag { color: var(--muted); }
 .message.done .ytthumb { opacity: .6; }
+.message.done button.icon, .message.done .ytthumb ~ * button { filter: grayscale(1); opacity: .45; }
+.message.done button.icon:hover { opacity: .9; }
 .ytwrap { display: flex; gap: 12px; align-items: flex-start; }
 .ytmain { flex: 1; min-width: 0; }
 .ytthumb { flex: none; display: block; margin-top: 4px; }
