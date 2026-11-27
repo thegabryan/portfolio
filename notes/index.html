@@ -81,8 +81,7 @@ button, select { font: inherit; color: inherit; cursor: pointer; }
 }
 .toolbar input[type="search"]:focus { border-color: var(--accent); }
 .toolbar select.btn { padding: 8px 10px; }
-.done-line { display: flex; align-items: center; gap: 10px; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 18px 0 8px; }
-.done-line::before, .done-line::after { content: ''; flex: 1; border-top: 1px dashed var(--muted); opacity: .5; }
+.done-line { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 17px; font-weight: 700; letter-spacing: .02em; color: #fff; background: #1f9d55; border-radius: 10px; padding: 14px 16px; margin: 28px 0 18px; box-shadow: 0 2px 10px rgba(31, 157, 85, .35); }
 @keyframes gflash { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 30%, 70% { box-shadow: 0 0 0 4px var(--accent); background: var(--tag-bg); } }
 .gchip.gflash { animation: gflash .6s ease 3; }
 
@@ -3672,7 +3671,7 @@ function renderNotesView() {
   const group = (shown, full, label) => {
     if (label) box.appendChild(el('div', 'section-label', label));
     shown.forEach((n, i) => {
-      if (showDoneLine && full === rest && i === doneFrom) box.appendChild(el('div', 'done-line', '✓ Everything below is done'));
+      if (showDoneLine && full === rest && i === doneFrom) box.appendChild(el('div', 'done-line', '✓ EVERYTHING BELOW IS DONE ✓'));
       box.appendChild(makeCard(n, {
       canUp: canMove && i > 0,
       canDown: canMove && i < full.length - 1
